@@ -2,10 +2,8 @@
 
 package main
 
-// The self-forking daemon is Linux-only. macOS has the NE provider
-// (which already serves the equivalent role); other platforms aren't
-// supported for `nebprx run`. Stubs let the `daemon` subcommand
-// compile cross-platform — it just refuses to run.
+// The self-forking daemon and `nebprx run` are Linux-only. This stub
+// lets the internal daemon subcommand compile on other platforms.
 
 func runDaemon(_ []string) {
 	fail("nebprx daemon-internal: linux only")

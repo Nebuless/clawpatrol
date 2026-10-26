@@ -3,5 +3,5 @@
 package main
 
 func runRun(args []string) {
-	fail("nebprx run is not supported on this platform — linux + macOS only.")
+	fail("nebprx run is only supported on Linux.")
 }

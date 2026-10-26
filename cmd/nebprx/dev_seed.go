@@ -211,7 +211,7 @@ var devSeedHostnames = []string{
 	"macbook-jane", "macbook-alex", "macbook-priya", "macbook-sam",
 	"ubuntu-dev-1", "ubuntu-dev-2", "fedora-build", "debian-staging",
 	"ci-runner-1", "ci-runner-2", "ci-runner-3", "ci-runner-4",
-	"demo-vm-east", "demo-vm-west", "load-test-7",
+	"ops-vm-east", "ops-vm-west", "load-test-7",
 	"alex-laptop", "kira-mac", "max-thinkpad",
 	"deploy-bot", "snyk-bot", "renovate-bot",
 	"build-host-east", "build-host-west", "scratch-vm",

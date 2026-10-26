@@ -62,7 +62,7 @@ type onboardSession struct {
 	// response re-runs join.
 	delivered bool
 	// wholeMachine: client asked at /start to install a persistent tailnet
-	// node (system tailscale on linux, NE-routed on macOS) rather than
+	// node (system Tailscale on Linux) rather than
 	// per-process tsnet. Determines whether the minted auth key is
 	// ephemeral (per-process) or not (whole-machine).
 	wholeMachine bool
@@ -932,8 +932,8 @@ func (w *webMux) apiOnboardStart(rw http.ResponseWriter, r *http.Request) {
 	// suggestion; the dashboard's approve call can still override.
 	prof := strings.TrimSpace(r.URL.Query().Get("profile"))
 	// `nebprx join --whole-machine` → the client installs a
-	// persistent tailnet node (system tailscale on Linux, NE-routed on
-	// macOS) rather than per-process tsnet. It selects which transport
+	// persistent tailnet node (system Tailscale on Linux) rather than
+	// per-process tsnet. It selects which transport
 	// the client sets up; it does not select the key's lifetime. Every
 	// key the Tailscale onboarder mints is non-ephemeral (see
 	// tailscaleOnboarder.MintKey), so no node it registers releases its

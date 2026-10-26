@@ -2,10 +2,8 @@
 
 package main
 
-// Shared helpers for tsnet-backed `nebprx run` — currently consumed
-// by the Linux daemon transport. The historical macOS SOCKS5 client
-// used the same helpers and may again; keep them isolated behind a
-// build tag rather than splitting per-call sites.
+// Shared helpers for tsnet-backed `nebprx run`, consumed by the
+// Linux daemon transport.
 
 import (
 	"context"

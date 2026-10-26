@@ -72,8 +72,8 @@ func (s *ramStateStore) WriteState(k ipn.StateKey, v []byte) error {
 }
 
 // nebprxDebugEnabled reports whether NEBPRX_DEBUG selects the
-// verbose diagnostics (same semantics as the Linux relay / macOS
-// helper: any value other than "" or "0").
+// verbose diagnostics (same semantics as the Linux relay:
+// any value other than "" or "0").
 func nebprxDebugEnabled() bool {
 	v := os.Getenv("NEBPRX_DEBUG")
 	return v != "" && v != "0"
