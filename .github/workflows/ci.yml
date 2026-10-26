@@ -82,7 +82,7 @@ jobs:
   test-sandbox-landlock:
     runs-on: ubuntu-latest
     env:
-      CLAWPATROL_SANDBOX_BACKEND: landlock
+      NEBPRX_SANDBOX_BACKEND: landlock
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

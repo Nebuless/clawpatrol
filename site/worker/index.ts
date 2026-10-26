@@ -19,7 +19,7 @@ interface Env {
 
 const MAX_BODY_BYTES = 4096;
 const RELEASES_URL =
-  "https://api.github.com/repos/denoland/clawpatrol/releases/latest";
+  "https://api.github.com/repos/Nebuless/clawpatrol/releases/latest";
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -201,7 +201,7 @@ type Release = {
 async function fetchLatestRelease(): Promise<Release> {
   const r = await fetch(RELEASES_URL, {
     headers: {
-      "User-Agent": "clawpatrol-telemetry-worker",
+      "User-Agent": "nebprx-telemetry-worker",
       Accept: "application/vnd.github+json",
     },
     cf: { cacheTtl: 1800, cacheEverything: true },

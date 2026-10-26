@@ -6,7 +6,7 @@ body:
     id: version
     attributes:
       label: Version and platform
-      description: Output of `clawpatrol --version`, plus the OS on the gateway and on the client if different.
+      description: Output of `nebprx --version`, plus the OS on the gateway and on the client if different.
       placeholder: "0.5.9 on Ubuntu 24.04 (gateway), macOS 15 arm64 (client)"
     validations:
       required: true
@@ -15,10 +15,10 @@ body:
     attributes:
       label: Deployment shape
       options:
-        - clawpatrol gateway
-        - clawpatrol join (whole machine)
-        - clawpatrol run (per process, Linux)
-        - clawpatrol run (per process, macOS)
+        - nebprx gateway
+        - nebprx join (whole machine)
+        - nebprx run (per process, Linux)
+        - nebprx run (per process, macOS)
         - dashboard
         - plugin / plugin SDK
         - other
@@ -42,7 +42,7 @@ body:
     id: actual
     attributes:
       label: What happened
-      description: Error output, gateway log lines, and for `clawpatrol run` on Linux the tail of `~/.local/state/clawpatrol/run/daemon.log`.
+      description: Error output, gateway log lines, and for `nebprx run` on Linux the tail of `~/.local/state/nebprx/run/daemon.log`.
       render: text
     validations:
       required: true
