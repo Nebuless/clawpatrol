@@ -1,4 +1,4 @@
--- 0001_initial — clawpatrol persistent state.
+-- 0001_initial — PRX persistent state.
 --
 -- Tables:
 --   devices         — onboarded peer identity (WG IP → hostname / profile)
@@ -9,7 +9,7 @@
 -- Profile is the tenancy unit: a profile bundles integrations + rulesets
 -- in gateway.hcl, devices are bound to a profile, credentials/secrets
 -- live per profile. The "user" / "owner" concept is intentionally absent
--- — `clawpatrol join` records (peer ip → profile), the gateway looks up
+-- — `nebprx join` records (peer ip → profile), the gateway looks up
 -- credentials by that profile at MITM time, and the dashboard scopes
 -- everything to the operator-selected profile.
 --
@@ -22,7 +22,7 @@
 
 CREATE TABLE devices (
   id           TEXT PRIMARY KEY,         -- WG tunnel IP
-  name         TEXT,                     -- hostname from `clawpatrol join`
+  name         TEXT,                     -- hostname from `nebprx join`
   profile      TEXT,                     -- assigned profile name (gateway.hcl)
   blocked      INTEGER NOT NULL DEFAULT 0,
   created_ns   INTEGER NOT NULL,

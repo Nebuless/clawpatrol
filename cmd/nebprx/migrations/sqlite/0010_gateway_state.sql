@@ -6,7 +6,7 @@
 --   ${ca_dir}/ca.crt + ca.key              → ca_material
 --   ${state_dir}/wg-server.key             → wg_server_key
 --   ${ca_dir}/ssh/<endpoint>.key           → gateway_blobs (kind='ssh_host_key')
---   ${CLAWPATROL_DIR}/codex_jwt_keys.json  → gateway_blobs (kind='codex_jwt_keys')
+--   ${NEBPRX_DIR}/codex_jwt_keys.json  → gateway_blobs (kind='codex_jwt_keys')
 --   ${state_dir}/instance_id               → telemetry_state
 --   ${state_dir}/dnsvip.json               → dnsvip_allocations
 --

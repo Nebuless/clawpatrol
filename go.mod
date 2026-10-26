@@ -192,7 +192,7 @@ require (
 // VENDORED PATCHES — see third_party/tailscale/PATCH.md.
 //
 // third_party/tailscale is a pruned copy of tailscale.com v1.96.5 (only the
-// packages clawpatrol builds) with two local changes:
+// packages nebprx builds) with two local changes:
 //
 //   - net/tstun/wrap.go: injectedRead runs the outbound filter (RunOut) on
 //     netstack-originated packets so their reverse-flow state is recorded.

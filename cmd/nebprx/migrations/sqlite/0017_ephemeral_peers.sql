@@ -1,9 +1,9 @@
 -- 0017_ephemeral_peers — per-process tsnet ephemeral peer attribution.
 --
 -- ephemeralParentByIP / ephemeralProfileByIP used to live in memory only.
--- A gateway restart wiped them, so any `clawpatrol run` that was alive
+-- A gateway restart wiped them, so any `nebprx run` that was alive
 -- across the restart started showing as its own dashboard row (named
--- "clawpatrol-run-<pid>") instead of folding into its parent device.
+-- "nebprx-run-<pid>") instead of folding into its parent device.
 -- Mirror the maps into a table so the mappings survive restarts.
 
 CREATE TABLE ephemeral_peers (
