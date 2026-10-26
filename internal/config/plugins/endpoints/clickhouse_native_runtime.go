@@ -137,7 +137,7 @@ func (ClickhouseNativeEndpointRuntime) HandleConn(ctx context.Context, ch *runti
 	// against the real upstream; we terminate here using a leaf
 	// minted off the gateway CA so the SAN matches whatever SNI the
 	// agent sent. Agents already trust the gateway CA via the
-	// SSL_CERT_FILE env-var pushdown that `clawpatrol run` stamps,
+	// SSL_CERT_FILE env-var pushdown that `nebprx run` stamps,
 	// so verification passes without any client-side opt-out.
 	if chEp.TLS && ch.MintCert != nil {
 		fallback := ch.UpstreamHost

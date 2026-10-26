@@ -1,15 +1,15 @@
-// Sample config for `clawpatrol test` (see site/doc/clawpatrol-test.md). Pair
+// Sample config for `nebprx test` (see site/doc/nebprx-test.md). Pair
 // with the *.json fixtures alongside it to verify the runner
 // end-to-end:
 //
-//   ./clawpatrol test testdata/example.hcl testdata/
+//   ./nebprx test testdata/example.hcl testdata/
 //
 // Edit any rule below and re-run to see a mismatch.
 
 schema_version = 1
 
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
 
   wireguard {

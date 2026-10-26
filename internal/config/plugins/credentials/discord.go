@@ -1,7 +1,7 @@
 package credentials
 
 // discord_bot_token lets agents run ordinary Discord bot SDKs without
-// exposing the real bot token to the child process. `clawpatrol env`
+// exposing the real bot token to the child process. `nebprx env`
 // pushes token-shaped placeholders into the common Discord SDK env var
 // names; REST requests get Authorization: Bot <real token>, and Gateway
 // WebSocket IDENTIFY frames have the placeholder swapped inside their JSON
@@ -34,12 +34,12 @@ var (
 // phDiscord is intentionally token-shaped enough for Discord SDKs and
 // example apps that sanity-check env vars before opening REST/Gateway
 // connections. The gateway replaces it before it reaches discord.com.
-const phDiscord = "MTAwMDAwMDAwMDAwMDAwMDAwMA.clawpatrol-placeholder-do-not-use.xxxxxxxxxxxxxxxxxxxxxxxxxxx"
+const phDiscord = "MTAwMDAwMDAwMDAwMDAwMDAwMA.nebprx-placeholder-do-not-use.xxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 // DiscordBotToken injects Discord bot tokens for REST and Gateway SDK traffic.
 type DiscordBotToken struct{}
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (*DiscordBotToken) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	tok := discordBotTokenSecret(sec)
 	if tok == "" {
@@ -59,7 +59,7 @@ func (*DiscordBotToken) InjectHTTP(_ context.Context, req *http.Request, sec run
 	return nil
 }
 
-// RewriteWebSocketPayload is part of the clawpatrol plugin API.
+// RewriteWebSocketPayload is part of the PRX plugin API.
 func (*DiscordBotToken) RewriteWebSocketPayload(_ context.Context, payload []byte, sec runtime.Secret) ([]byte, bool, error) {
 	tok := discordBotTokenSecret(sec)
 	if tok == "" || !bytes.Contains(payload, []byte(phDiscord)) {
@@ -75,12 +75,12 @@ func discordBotTokenSecret(sec runtime.Secret) string {
 	return string(sec.Bytes)
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*DiscordBotToken) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Discord bot token", Description: "Bot token from the Discord developer portal"}}
 }
 
-// EnvVars is part of the clawpatrol plugin API.
+// EnvVars is part of the PRX plugin API.
 func (*DiscordBotToken) EnvVars() []config.EnvVar {
 	return []config.EnvVar{
 		{Name: "DISCORD_TOKEN", Value: phDiscord, Description: "Discord bot token placeholder (common SDK/example env var)"},
@@ -106,7 +106,7 @@ func (*DiscordBotToken) VerifyCredential(ctx context.Context, sec runtime.Secret
 		return err
 	}
 	req.Header.Set("Authorization", "Bot "+tok)
-	req.Header.Set("User-Agent", "clawpatrol/verify")
+	req.Header.Set("User-Agent", "nebprx/verify")
 	resp, err := discordHTTPClient.Do(req)
 	if err != nil {
 		return err

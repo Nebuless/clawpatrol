@@ -36,7 +36,7 @@ import (
 // TLS using a leaf minted off the gateway CA, parses the Hello in
 // plaintext, then re-wraps to upstream. The wrapped client therefore
 // keeps speaking native-over-TLS exactly as it would against the
-// real cloud ClickHouse — `clawpatrol run` is transparent to its
+// real cloud ClickHouse — `nebprx run` is transparent to its
 // TLS posture. Default false: WG-only deployments where the operator
 // wants plaintext on the inner hop (typical self-hosted ClickHouse
 // on 9000 behind a private network) leave it off.

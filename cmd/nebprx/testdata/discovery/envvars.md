@@ -1,6 +1,6 @@
-# Claw Patrol access manifest — profile: ai
+# PRX access manifest — profile: ai
 
-You are connected through the Claw Patrol gateway. It intercepts your
+You are connected through the PRX gateway. It intercepts your
 connections transparently: dial the hosts below as you normally would and
 the gateway injects credentials and enforces policy. A credential
 `placeholder` is a literal string you send where the secret would go — the
@@ -10,19 +10,19 @@ device profile; it lists only what this profile grants.
 TLS is intercepted only for the hosts this profile grants — the
 endpoints listed below. For those, the gateway terminates TLS and acts
 as a transparent man-in-the-middle: the certificate you see is minted on
-the fly by Claw Patrol's own certificate authority, not the host's real
+the fly by PRX's own certificate authority, not the host's real
 public certificate. The hostname matches but the issuer is the gateway
-CA. You normally don't have to do anything to trust it: Claw Patrol
+CA. You normally don't have to do anything to trust it: PRX
 already installed its CA on this device when you joined — both in the
 system trust store and via environment-variable pushdown
 (SSL_CERT_FILE, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE, CURL_CA_BUNDLE,
-and similar) that `clawpatrol run` sets for the processes it wraps. So
+and similar) that `nebprx run` sets for the processes it wraps. So
 most clients validate these connections out of the box, and a
 certificate-authority mismatch against the public web PKI is expected
 for these hosts, not an attack. If a client ignores both the system
 store and those env vars, fetch the CA from
-https://clawpatrol.internal/ca.crt, verify its fingerprint against
-https://clawpatrol.internal/info, and point that
+https://nebprx.internal/ca.crt, verify its fingerprint against
+https://nebprx.internal/info, and point that
 client at it explicitly.
 
 Every other host is passed through untouched: the gateway does not
@@ -35,7 +35,7 @@ Some endpoints have rules that gate a matching request behind human approval (hu
 
 The gateway parks the request synchronously: it holds your connection open until a human decides and then answers on that same connection — the real upstream response once the request is approved, or a denial if it is rejected. You do not have to do anything special or re-send anything; just let the request run instead of aborting it.
 
-To see everything currently waiting on a human for your device, GET https://clawpatrol.internal/pending. It lists each parked action — its method, endpoint, and redacted target — so you can tell what is held without keeping the original connection in view.
+To see everything currently waiting on a human for your device, GET https://nebprx.internal/pending. It lists each parked action — its method, endpoint, and redacted target — so you can tell what is held without keeping the original connection in view.
 
 None of this profile's endpoints currently gate requests behind human approval.
 
@@ -55,13 +55,13 @@ None of this profile's endpoints currently gate requests behind human approval.
 
 ## Environment variables (2)
 
-`clawpatrol run` sets these in your process environment so your CLI/SDK
+`nebprx run` sets these in your process environment so your CLI/SDK
 finds its credential automatically. The value shown is what the gateway
 exports — a placeholder that looks like a real token (swapped for the
 real secret at request time) or a synthetic token, never the secret
 itself. You don't need to set these yourself; this is what is already
 in your environment.
 
-- `GOOGLE_API_KEY` = `AIzaClawpatrolPlaceholderDoNotUse00000000` — Gemini SDKs
-- `GEMINI_API_KEY` = `AIzaClawpatrolPlaceholderDoNotUse00000000` — Gemini CLI
+- `GOOGLE_API_KEY` = `AIzaNebprxPlaceholderDoNotUse00000000` — Gemini SDKs
+- `GEMINI_API_KEY` = `AIzaNebprxPlaceholderDoNotUse00000000` — Gemini CLI
 

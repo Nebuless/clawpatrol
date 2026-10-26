@@ -8,4 +8,4 @@ package main
 // branches guard with os.Stat).
 func macHelperInstall(_ bool) error { return nil }
 
-const macHelperPath = "/Applications/Clawpatrol.app/Contents/MacOS/Clawpatrol"
+const macHelperPath = "/Applications/Nebprx.app/Contents/MacOS/Nebprx"

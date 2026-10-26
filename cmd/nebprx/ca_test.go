@@ -32,7 +32,7 @@ func inMemoryCertCache(t *testing.T) (*CertCache, []byte) {
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "clawpatrol test CA"},
+		Subject:               pkix.Name{CommonName: "nebprx test CA"},
 		NotBefore:             time.Now().Add(-time.Minute),
 		NotAfter:              time.Now().Add(time.Hour),
 		IsCA:                  true,

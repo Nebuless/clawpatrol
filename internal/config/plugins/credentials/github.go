@@ -13,10 +13,10 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// GitHubOAuth is part of the clawpatrol plugin API.
+// GitHubOAuth is part of the PRX plugin API.
 type GitHubOAuth struct{}
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (g *GitHubOAuth) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if len(sec.Bytes) == 0 {
 		return nil
@@ -65,7 +65,7 @@ func githubBasicUsername(authz string) string {
 	return username
 }
 
-// EnvVars is part of the clawpatrol plugin API.
+// EnvVars is part of the PRX plugin API.
 func (*GitHubOAuth) EnvVars() []config.EnvVar {
 	return []config.EnvVar{
 		{Name: "GH_TOKEN", Value: phGitHub, Description: "gh CLI"},

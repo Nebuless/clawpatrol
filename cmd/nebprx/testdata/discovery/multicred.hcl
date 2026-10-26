@@ -6,7 +6,7 @@
 # endpoint, and the psql hint must pin to the first credential by sort
 # order (pg-ro). Locks down the multiple-creds-per-endpoint shape.
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

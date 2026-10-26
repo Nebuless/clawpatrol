@@ -114,15 +114,15 @@ type genAITurn struct {
 	ServerAddress string
 	ServerPort    int
 
-	// Device identity of the calling device (clawpatrol.device.*),
+	// Device identity of the calling device (prx.nebuless.cloudice.*),
 	// resolved from the connection peer IP via the same device/profile
 	// path the discovery endpoint and dispatch use — never tokens or
 	// headers. Empty fields are omitted from the span: name and owner are
 	// empty for an unknown device; profile falls back to the default
 	// profile that governs unclaimed peers.
-	DeviceName    string // clawpatrol.device.name
-	DeviceProfile string // clawpatrol.device.profile
-	DeviceOwner   string // clawpatrol.device.owner
+	DeviceName    string // prx.nebuless.cloudice.name
+	DeviceProfile string // prx.nebuless.cloudice.profile
+	DeviceOwner   string // prx.nebuless.cloudice.owner
 
 	// Request sampling parameters (gen_ai.request.*). Pointers/zero-checks
 	// distinguish "not set in the request" from a real zero value
@@ -185,15 +185,15 @@ func emitGenAISpan(tracer trace.Tracer, t genAITurn, includeContent bool) {
 	if t.ServerPort > 0 {
 		attrs = append(attrs, attribute.Int("server.port", t.ServerPort))
 	}
-	// clawpatrol.device.* — the device that made the intercepted request.
+	// prx.nebuless.cloudice.* — the device that made the intercepted request.
 	if t.DeviceName != "" {
-		attrs = append(attrs, attribute.String("clawpatrol.device.name", t.DeviceName))
+		attrs = append(attrs, attribute.String("prx.nebuless.cloudice.name", t.DeviceName))
 	}
 	if t.DeviceProfile != "" {
-		attrs = append(attrs, attribute.String("clawpatrol.device.profile", t.DeviceProfile))
+		attrs = append(attrs, attribute.String("prx.nebuless.cloudice.profile", t.DeviceProfile))
 	}
 	if t.DeviceOwner != "" {
-		attrs = append(attrs, attribute.String("clawpatrol.device.owner", t.DeviceOwner))
+		attrs = append(attrs, attribute.String("prx.nebuless.cloudice.owner", t.DeviceOwner))
 	}
 	if t.RequestModel != "" {
 		attrs = append(attrs, attribute.String("gen_ai.request.model", t.RequestModel))
@@ -316,7 +316,7 @@ func genAIContentAttrs(t genAITurn) []attribute.KeyValue {
 // session correlation key emitted as gen_ai.conversation.id (empty when
 // the turn carries no session info); serverAddr is the upstream host the
 // turn went to (server.address, port 443); agentIP is the calling
-// device's resolved peer IP, used to attach the clawpatrol.device.*
+// device's resolved peer IP, used to attach the prx.nebuless.cloudice.*
 // attributes. Content is parsed from the bodies only when content
 // capture is opted in, so the disabled and no-content paths stay cheap.
 func (g *Gateway) recordGenAITurn(provider, convID, serverAddr, reqModel, respModel string, in, out int64, reqBody, respBody []byte, start time.Time, agentIP string) {
@@ -363,7 +363,7 @@ func (g *Gateway) recordGenAITurn(provider, convID, serverAddr, reqModel, respMo
 }
 
 // fillDeviceAttrs resolves the calling device's identity for the
-// clawpatrol.device.* span attributes from its peer IP, reusing the same
+// prx.nebuless.cloudice.* span attributes from its peer IP, reusing the same
 // onboard registry / profileFor path the discovery endpoint and dispatch
 // use (never tokens or headers). Each field is best-effort: name and
 // owner stay empty for an unknown device, while profile falls back to

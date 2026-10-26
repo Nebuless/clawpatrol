@@ -25,7 +25,7 @@ import (
 
 // HostServicesBrokerID is the fixed go-plugin broker stream id the
 // gateway serves host services on and the plugin dials. A constant is
-// safe because clawpatrol never calls GRPCBroker.NextId() — the brokered
+// safe because nebprx never calls GRPCBroker.NextId() — the brokered
 // upstream dial multiplexes over the HandleConn stream, not the broker —
 // so nothing else competes for stream ids. Canonical definition in wire.
 const HostServicesBrokerID = wire.HostServicesBrokerID

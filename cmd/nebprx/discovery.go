@@ -19,7 +19,7 @@ import (
 )
 
 // internalHostname is the reserved name an agent inside the tunnel
-// hits to reach the clawpatrol API — the canonical entrypoint for a
+// hits to reach the nebprx API — the canonical entrypoint for a
 // device. The gateway intercepts a TLS connection whose SNI is this
 // name and answers locally — the request never leaves the box. DNS for
 // the name resolves to the reserved VIP pair the dnsvip allocator hands
@@ -27,7 +27,7 @@ import (
 // every :443 SYN through g.handle regardless of dst IP, any IP the
 // agent was handed lands here as long as the SNI matches. Keep this in
 // sync with dnsvip.InternalHostname.
-const internalHostname = "clawpatrol.internal"
+const internalHostname = "nebprx.internal"
 
 // hitlPendingPath is the internal-API path where a device lists every
 // request it currently has parked awaiting human approval. The full URL is
@@ -93,7 +93,7 @@ func (g *Gateway) serveInternal(c net.Conn, certHost string) {
 }
 
 // routeInternal dispatches a request to the in-tunnel internal API
-// entrypoint by path. clawpatrol.internal is the canonical device-facing
+// entrypoint by path. nebprx.internal is the canonical device-facing
 // API surface, so it exposes the profile manifest at / and /manifest,
 // the gateway CA at /ca.crt, a liveness + CA-fingerprint blob at /info —
 // the same public endpoints the gateway's tailnet web server serves,
@@ -116,7 +116,7 @@ func (g *Gateway) routeInternal(w http.ResponseWriter, r *http.Request, policy *
 	}
 }
 
-// serveInternalPending answers clawpatrol.internal/pending with the list of
+// serveInternalPending answers nebprx.internal/pending with the list of
 // this device's parked actions — requests gated behind human approval that
 // are still awaiting a decision, held with no upstream side effect yet. The
 // caller is resolved from the connection-derived profile/principal (the same
@@ -233,7 +233,7 @@ func pendingPoolView(p runtime.HITLPending) map[string]any {
 }
 
 // serveInternalCA returns the gateway CA in PEM form at
-// clawpatrol.internal/ca.crt. A client that trusts neither the system
+// nebprx.internal/ca.crt. A client that trusts neither the system
 // store nor the pushed-down CA env vars can fetch the CA here and pin it
 // explicitly — the manifest text points at this path. Mirrors the
 // gateway web server's public /ca.crt (web.go serveCA).
@@ -248,7 +248,7 @@ func (g *Gateway) serveInternalCA(w http.ResponseWriter) {
 	_, _ = w.Write(pemBytes)
 }
 
-// serveInternalInfo answers clawpatrol.internal/info with a small
+// serveInternalInfo answers nebprx.internal/info with a small
 // liveness + identity blob carrying the CA fingerprint, so a client can
 // verify the CA it fetched from /ca.crt against an out-of-band value.
 // Mirrors the gateway web server's public /info (web.go serveInfo).
@@ -261,7 +261,7 @@ func (g *Gateway) serveInternalInfo(w http.ResponseWriter) {
 		}
 	}
 	writeJSON(w, map[string]any{
-		"clawpatrol":     true,
+		"nebprx":         true,
 		"version":        "0.1",
 		"ca_fingerprint": fp,
 	})
@@ -292,7 +292,7 @@ type DiscoveryManifest struct {
 	Profile     string                `json:"profile"`
 	Endpoints   []DiscoveryEndpoint   `json:"endpoints"`
 	Credentials []DiscoveryCredential `json:"credentials"`
-	// EnvVars lists the environment variables `clawpatrol run` pushes
+	// EnvVars lists the environment variables `nebprx run` pushes
 	// into the agent's process environment for THIS profile — the same
 	// set the env-pushdown API serves. An agent reads its credential
 	// out of one of these vars without ever seeing the real secret, so
@@ -456,7 +456,7 @@ type DiscoveryCredential struct {
 	Description string `json:"description,omitempty"`
 }
 
-// DiscoveryEnvVar is one environment variable `clawpatrol run` exports
+// DiscoveryEnvVar is one environment variable `nebprx run` exports
 // into the agent's process so its CLI/SDK finds its credential without
 // the agent ever holding the real secret. Value is the literal the
 // gateway sets — a placeholder that LOOKS like a real token (swapped
@@ -1043,8 +1043,8 @@ func firstDisambiguator(de DiscoveryEndpoint, key string) string {
 // orientation and keeps each endpoint's how-to self-contained.
 func (m *DiscoveryManifest) Markdown() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Claw Patrol access manifest — profile: %s\n\n", m.Profile)
-	b.WriteString("You are connected through the Claw Patrol gateway. It intercepts your\n")
+	fmt.Fprintf(&b, "# PRX access manifest — profile: %s\n\n", m.Profile)
+	b.WriteString("You are connected through the PRX gateway. It intercepts your\n")
 	b.WriteString("connections transparently: dial the hosts below as you normally would and\n")
 	b.WriteString("the gateway injects credentials and enforces policy. A credential\n")
 	b.WriteString("`placeholder` is a literal string you send where the secret would go — the\n")
@@ -1054,19 +1054,19 @@ func (m *DiscoveryManifest) Markdown() string {
 	b.WriteString("TLS is intercepted only for the hosts this profile grants — the\n")
 	b.WriteString("endpoints listed below. For those, the gateway terminates TLS and acts\n")
 	b.WriteString("as a transparent man-in-the-middle: the certificate you see is minted on\n")
-	b.WriteString("the fly by Claw Patrol's own certificate authority, not the host's real\n")
+	b.WriteString("the fly by PRX's own certificate authority, not the host's real\n")
 	b.WriteString("public certificate. The hostname matches but the issuer is the gateway\n")
-	b.WriteString("CA. You normally don't have to do anything to trust it: Claw Patrol\n")
+	b.WriteString("CA. You normally don't have to do anything to trust it: PRX\n")
 	b.WriteString("already installed its CA on this device when you joined — both in the\n")
 	b.WriteString("system trust store and via environment-variable pushdown\n")
 	b.WriteString("(SSL_CERT_FILE, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE, CURL_CA_BUNDLE,\n")
-	b.WriteString("and similar) that `clawpatrol run` sets for the processes it wraps. So\n")
+	b.WriteString("and similar) that `nebprx run` sets for the processes it wraps. So\n")
 	b.WriteString("most clients validate these connections out of the box, and a\n")
 	b.WriteString("certificate-authority mismatch against the public web PKI is expected\n")
 	b.WriteString("for these hosts, not an attack. If a client ignores both the system\n")
 	b.WriteString("store and those env vars, fetch the CA from\n")
-	b.WriteString("https://clawpatrol.internal/ca.crt, verify its fingerprint against\n")
-	b.WriteString("https://clawpatrol.internal/info, and point that\n")
+	b.WriteString("https://nebprx.internal/ca.crt, verify its fingerprint against\n")
+	b.WriteString("https://nebprx.internal/info, and point that\n")
 	b.WriteString("client at it explicitly.\n\n")
 
 	b.WriteString("Every other host is passed through untouched: the gateway does not\n")
@@ -1161,7 +1161,7 @@ func (m *DiscoveryManifest) Markdown() string {
 	if len(m.EnvVars) == 0 {
 		b.WriteString("_None pushed for this profile._\n\n")
 	} else {
-		b.WriteString("`clawpatrol run` sets these in your process environment so your CLI/SDK\n")
+		b.WriteString("`nebprx run` sets these in your process environment so your CLI/SDK\n")
 		b.WriteString("finds its credential automatically. The value shown is what the gateway\n")
 		b.WriteString("exports — a placeholder that looks like a real token (swapped for the\n")
 		b.WriteString("real secret at request time) or a synthetic token, never the secret\n")
@@ -1187,7 +1187,7 @@ func (m *DiscoveryManifest) Markdown() string {
 // bare "none reachable / none granted" manifest is dead-on-arrival for
 // an agent: it can't tell whether the gateway is broken, whether it's
 // the wrong device, or what to do next. This explains that the empty
-// result is a configuration state, what unlocks Claw Patrol's value, and
+// result is a configuration state, what unlocks PRX's value, and
 // where the operator changes this device's profile.
 func (m *DiscoveryManifest) emptyGuidance() string {
 	var b strings.Builder
@@ -1196,7 +1196,7 @@ func (m *DiscoveryManifest) emptyGuidance() string {
 	b.WriteString("endpoints and no credentials. That's why there's nothing actionable\n")
 	b.WriteString("below. This is a configuration state, not an error — the gateway is\n")
 	b.WriteString("reachable, your device just hasn't been granted anything yet.\n\n")
-	b.WriteString("To get value from Claw Patrol, this profile needs endpoints and the\n")
+	b.WriteString("To get value from PRX, this profile needs endpoints and the\n")
 	b.WriteString("credentials to reach them bound to it. An operator does that in the\n")
 	b.WriteString("dashboard by either assigning this device a profile that already grants\n")
 	b.WriteString("what you need, or adding endpoints and credentials to this one.\n\n")
@@ -1204,11 +1204,11 @@ func (m *DiscoveryManifest) emptyGuidance() string {
 		fmt.Fprintf(&b, "Ask the person who runs this gateway to open the dashboard at %s\n", m.Dashboard)
 		b.WriteString("and update this device's profile.\n\n")
 	} else {
-		b.WriteString("Ask the person who runs this gateway to open the Claw Patrol dashboard\n")
+		b.WriteString("Ask the person who runs this gateway to open the PRX dashboard\n")
 		b.WriteString("and update this device's profile.\n\n")
 	}
 	b.WriteString("Once the profile is configured, re-fetch this manifest (GET\n")
-	b.WriteString("https://clawpatrol.internal/manifest) and the endpoints and credentials\n")
+	b.WriteString("https://nebprx.internal/manifest) and the endpoints and credentials\n")
 	b.WriteString("will appear below.\n\n")
 	return b.String()
 }

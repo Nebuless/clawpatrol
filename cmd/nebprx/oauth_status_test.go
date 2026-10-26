@@ -757,7 +757,7 @@ func TestRefreshRejectsReplyWithoutAccessToken(t *testing.T) {
 // sent the gateway back to the provider for each credential whose grant
 // it already knew was revoked.
 func TestLoadFromDBSkipsReprobingARevokedGrant(t *testing.T) {
-	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "clawpatrol.db"))
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "nebprx.db"))
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
 	}

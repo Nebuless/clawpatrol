@@ -5,7 +5,7 @@
 # mean the per-profile scoping leaked. The manifest must come back with
 # zero endpoints and zero credentials (not an error, not a config dump).
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

@@ -376,7 +376,7 @@ func TestProvenanceRecordsAndPinsCommit(t *testing.T) {
 // TestProvenanceCommitCheckIsVersionAware covers that the re-pointed-tag
 // guard fires only for a re-download of the *same* version, not for an
 // explicit upgrade to a *new* version (whose commit legitimately differs).
-// Without this distinction `clawpatrol plugins update` to a newer attested
+// Without this distinction `nebprx plugins update` to a newer attested
 // release is wrongly blocked.
 func TestProvenanceCommitCheckIsVersionAware(t *testing.T) {
 	entry := lockEntry{Version: "v1.0.0", Commit: "commit-aaa", Attested: true}

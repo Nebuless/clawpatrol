@@ -16,7 +16,7 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-const telegramTestPlaceholder = "0000000000:clawpatrol-placeholder-do-not-use"
+const telegramTestPlaceholder = "0000000000:nebprx-placeholder-do-not-use"
 
 var fakeTelegramRequestBodyToken = []byte("999999999:FAKE_REDACTED_TELEGRAM_TOKEN_DO_NOT_USE")
 
@@ -29,7 +29,7 @@ func (telegramRequestBodySecretStore) Get(string) (runtime.Secret, error) {
 func TestTelegramInjectedTokenRedactedFromRequestBodyAuditSample(t *testing.T) {
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

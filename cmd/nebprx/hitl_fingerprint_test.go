@@ -40,14 +40,14 @@ func TestHITLRequestFingerprintUsesRawBodyHMACAndDomainSeparatedRequestHMAC(t *t
 		t.Fatalf("ComputeHITLRequestFingerprint err = %v", err)
 	}
 
-	bodyKey := testHITLHMAC(key.Root, "clawpatrol hitl body fingerprint v1", nil)
+	bodyKey := testHITLHMAC(key.Root, "nebprx hitl body fingerprint v1", nil)
 	wantBodyHMAC := "hmac-sha256:" + hex.EncodeToString(testHITLHMAC(bodyKey, "", input.RawBody))
 	if got.BodyHMAC != wantBodyHMAC {
 		t.Fatalf("BodyHMAC = %q, want %q", got.BodyHMAC, wantBodyHMAC)
 	}
 
 	canonical := testCanonicalHITLRequest(input, wantBodyHMAC)
-	requestKey := testHITLHMAC(key.Root, "clawpatrol hitl request fingerprint v1", nil)
+	requestKey := testHITLHMAC(key.Root, "nebprx hitl request fingerprint v1", nil)
 	wantRequest := "hmac-sha256:" + hex.EncodeToString(testHITLHMAC(requestKey, "", canonical))
 	if got.RequestFingerprint != wantRequest {
 		t.Fatalf("RequestFingerprint = %q, want %q", got.RequestFingerprint, wantRequest)

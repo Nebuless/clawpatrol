@@ -42,12 +42,12 @@ The gateway block carries operational settings — listen addresses, the WireGua
 | `dashboard_listen` | `string` | no | The bind address for the dashboard + JSON API HTTP server. Default 127.0.0.1:8080. Set to a routable address to expose the dashboard off-host (the same mux is also served on the WG netstack / tsnet stack at this port). |
 | `dashboard_hosts` | `[]string` | no | Additional Host header values the dashboard answers for, beyond the ones the gateway derives from itself: any IP literal, localhost, public_url's host, dashboard_listen's host, and the tsnet node's MagicDNS name. Every read of a gated route is held to that set, so a name the gateway serves on that none of those cover — a CNAME in front of the dashboard, a reverse proxy that rewrites Host to a backend name — has to be declared here or the read is refused. Entries are hostnames, with or without a port; the port is ignored. A proxy that rewrites Host takes on the check itself: once the name the browser asked for is gone, the gateway cannot tell one frontend name from another, so such a proxy must refuse the frontend Host values it does not recognise. One that passes the original Host through needs no entry here beyond the names it forwards. |
 | `public_url` | `string` | no | The canonical externally-reachable gateway URL. Used in generated control-plane links such as join targets, OAuth redirect URIs, and (when public_url has a host but wireguard.endpoint doesn't) the host clients dial for WireGuard. |
-| `state_dir` | `string` | no | The directory holding clawpatrol.db (and anything a plugin persists to disk under it). Defaults to ${HOME}/.clawpatrol. |
+| `state_dir` | `string` | no | The directory holding nebprx.db (and anything a plugin persists to disk under it). Defaults to ${HOME}/.nebprx. |
 | `dashboard_session_ttl` | `string` | no | How long a dashboard login session stays valid after the operator types the password. time.ParseDuration format ("24h", "30m"). Default 24h. |
 | `dashboard_config_writes` | `bool` | no | Allows authenticated dashboard users to append generated config snippets to the gateway HCL. Default false: config remains read-only and changes happen out-of-band. Enabling it hands every dashboard login full control of the gateway: rules, credential bindings, and tunnels, including `local_command` tunnels that run a program as the gateway's service user. Treat the dashboard password as a root credential when this is on, and keep it off for gateways whose dashboard is reachable beyond the operators you trust with that. |
 | `resolver` | `string` | no | The DNS resolver address the gateway uses for upstream lookups when the runtime needs an explicit resolver. |
 | `log_path` | `string` | no | LogPath, when set, appends every gateway log line (the same lines written to stderr: startup, config reloads, denials, tunnel and plugin events) to this file, created 0600. It is not an audit log: allowed requests are recorded in the state database and shown in the dashboard, not logged. The gateway never rotates the file. Opened right after state_dir is created, so a path inside state_dir works on a first run; lines logged while the config itself is being parsed go to stderr only. Changing it requires a restart. |
-| `telemetry` | `bool` | no | Opts in/out of the update-checker / anonymous usage ping (doc/telemetry.md). nil = default on; explicit `telemetry = false` silences the goroutine. Env vars CLAWPATROL_TELEMETRY=0 and DO_NOT_TRACK=1 also work. |
+| `telemetry` | `bool` | no | Opts in/out of the update-checker / anonymous usage ping (doc/telemetry.md). nil = default on; explicit `telemetry = false` silences the goroutine. Env vars NEBPRX_TELEMETRY=0 and DO_NOT_TRACK=1 also work. |
 | `session_keep` | `string` | no | The hard retention floor for the sessions table. Sessions whose last_at is older than this get deleted by the background sweeper. Default 720h (30d), "0" / "off" disables. time.ParseDuration format. |
 | `actions_keep` | `string` | no | The global default retention floor for the actions table (captured request/response logs — the gateway's largest table). Rows whose ts_ns is older than this are deleted by the background sweeper. Each endpoint may override this with its own `retention = "..."`. Default 720h (30d), "0" / "off" disables the default sweep (per-endpoint retention still applies). time.ParseDuration format. |
 | `limits` | `block` | no | Limits, if present, overrides the two gateway-wide body-size limits (rules-engine body buffer and persisted action body storage). nil uses the DefaultBody*Limit constants, which match today's hardcoded behavior. |
@@ -97,7 +97,7 @@ transport.
 |-----------|------|----------|-------------|
 | `subnet_cidr` | `string` | no | The private subnet assigned to onboarded clients. Required (e.g. "10.55.0.0/24"). |
 | `listen_port` | `int` | no | The UDP port the gateway binds for WG peers. Default 51820. |
-| `host_loopback_port` | `int` | no | The TCP port the gateway binds on 127.0.0.1 for host-local clients (single-host deployments where clawpatrol-run loops back to the gateway on the same box). Default 8443. Make it operator-controlled so two gateways can coexist on one host (dev/test, blue-green, multi-tenant) without colliding on the loopback landing pad. |
+| `host_loopback_port` | `int` | no | The TCP port the gateway binds on 127.0.0.1 for host-local clients (single-host deployments where nebprx-run loops back to the gateway on the same box). Default 8443. Make it operator-controlled so two gateways can coexist on one host (dev/test, blue-green, multi-tenant) without colliding on the loopback landing pad. |
 | `endpoint` | `string` | no | The host:port advertised in client wg.conf as `Endpoint = ...`. Host defaults to public_url's host; port defaults to listen_port. Set only for split-host deployments (gateway sits behind a different hostname/IP for WG than for the dashboard). |
 | `interface` | `string` | no | The WireGuard interface name the gateway manages. Mostly irrelevant in userspace mode; leave unset. |
 | `server_pub` | `string` | no | The WireGuard server public key advertised to clients. Normally derived from gateway state; only set when bootstrapping from an external key. |
@@ -110,7 +110,7 @@ inside `gateway { ... }`. Presence of the block enables tsnet.
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `authkey` | `string` | no | The Tailscale auth key for the embedded tsnet node. Required when the `tailscale` block is present. Falls back to $TS_AUTHKEY if empty. |
-| `hostname` | `string` | no | The device name requested for the tsnet node. Default "clawpatrol-gateway". |
+| `hostname` | `string` | no | The device name requested for the tsnet node. Default "nebprx-gateway". |
 | `control_url` | `string` | no | The Tailscale control-plane URL. Empty → Tailscale's hosted control plane. |
 | `tags` | `[]string` | no | The Tailscale device-tag list applied to keys the gateway mints for onboarded clients (`tag:client` etc.). The autoApprovers exit-node ACL must reference these tags. |
 | `operators` | `[]string` | no | Allowlists tailnet logins permitted to use the dashboard without typing the root password. Each entry is either an exact login ("alice@example.com") or a domain wildcard ("*@example.com"). Tagged devices (whose whois login is the tag name, not a user email) never match a wildcard entry — agents on the tailnet can never bypass the gate through this path. Empty / unset → tailnet-allowlist auth is disabled. The stored root password is then the only way in. Lives under `tailscale {}` because matching requires the tsnet whois identity; there is no whois without an active tsnet node. |
@@ -211,7 +211,7 @@ credential "anthropic_oauth_subscription" "example" {}
 
 Schema is intentionally empty: access key id and secret access key
 (and optional session token) live in the secret store as named
-slots, filled via the dashboard or CLAWPATROL_SECRET_<NAME>_<SLOT>
+slots, filled via the dashboard or NEBPRX_SECRET_<NAME>_<SLOT>
 env vars. Cluster + region come from the kubernetes endpoint at
 request time.
 
@@ -503,7 +503,7 @@ TLS toggles TLS on both hops: the gateway terminates the agent's
 TLS using a leaf minted off the gateway CA, parses the Hello in
 plaintext, then re-wraps to upstream. The wrapped client therefore
 keeps speaking native-over-TLS exactly as it would against the
-real cloud ClickHouse — `clawpatrol run` is transparent to its
+real cloud ClickHouse — `nebprx run` is transparent to its
 TLS posture. Default false: WG-only deployments where the operator
 wants plaintext on the inner hop (typical self-hosted ClickHouse
 on 9000 behind a private network) leave it off.
@@ -679,7 +679,7 @@ Configures the tunnel runtime.
 | `selector` | `map[string]string` | no | Matches a ready pod to port-forward to. |
 | `template` | `string` | no | A pod manifest to apply and port-forward to. |
 | `port` | `int` | yes | The pod-side port the forwarder targets. For service mode it's the *service* port; kubectl resolves the matching targetPort. |
-| `cleanup` | `string` | no | Controls whether a template-created pod is deleted on tunnel teardown. "delete" (default) is right for the common create-on-demand case; "keep" disables deletion. Created pods are stamped with `clawpatrol.dev/managed-by=clawpatrol` and `clawpatrol.dev/tunnel=<name>` labels; unless cleanup is "keep", a startup sweep deletes any pod carrying those labels that a previous daemon lifetime left behind (e.g. after a crash skipped graceful teardown). |
+| `cleanup` | `string` | no | Controls whether a template-created pod is deleted on tunnel teardown. "delete" (default) is right for the common create-on-demand case; "keep" disables deletion. Created pods are stamped with `prx.nebuless.cloud/managed-by=nebprx` and `prx.nebuless.cloud/tunnel=<name>` labels; unless cleanup is "keep", a startup sweep deletes any pod carrying those labels that a previous daemon lifetime left behind (e.g. after a crash skipped graceful teardown). |
 | `server` | `string` | no | The Kubernetes apiserver URL. When set the plugin writes a per-tunnel kubeconfig (server + ca_cert + bearer minted from the bound credential) and invokes kubectl with --kubeconfig pointing at it; no external kubeconfig or KUBECONFIG env is needed. The Context field is then ignored. |
 | `ca_cert` | `string` | no | The cluster CA PEM. Supports `<<file:path.pem>>` for out-of-line storage; the loader inlines the file contents. Required when Server is set against EKS (the apiserver presents a per-cluster CA that no system trust store carries). |
 | `cluster_name` | `string` | no | The EKS cluster name, used by an aws_credential to scope the STS presign (sets the X-K8s-Aws-Id header). Only meaningful alongside Server + an aws_credential. |
@@ -745,10 +745,10 @@ Configures the tunnel runtime.
 
 | Attribute | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `authkey` | `string` | no | The Tailscale auth key; env fallback is CLAWPATROL_TUNNEL_<NAME>_AUTHKEY. |
-| `oauth_client_secret` | `string` | no | A Tailscale OAuth client secret (tskey-client-...). When set, tsnet mints a fresh, short-lived device key from the OAuth client on every join instead of relying on a static authkey — so there is no long-lived key that can expire out from under the tunnel. Requires `tags` (untagged OAuth keys are rejected by Tailscale). Env fallback is CLAWPATROL_TUNNEL_<NAME>_OAUTH_CLIENT_SECRET. |
+| `authkey` | `string` | no | The Tailscale auth key; env fallback is NEBPRX_TUNNEL_<NAME>_AUTHKEY. |
+| `oauth_client_secret` | `string` | no | A Tailscale OAuth client secret (tskey-client-...). When set, tsnet mints a fresh, short-lived device key from the OAuth client on every join instead of relying on a static authkey — so there is no long-lived key that can expire out from under the tunnel. Requires `tags` (untagged OAuth keys are rejected by Tailscale). Env fallback is NEBPRX_TUNNEL_<NAME>_OAUTH_CLIENT_SECRET. |
 | `control_url` | `string` | no | Overrides the Tailscale control-plane URL. |
-| `hostname` | `string` | no | The tsnet node name; defaults to clawpatrol-tunnel-<name>. |
+| `hostname` | `string` | no | The tsnet node name; defaults to nebprx-tunnel-<name>. |
 | `state_dir` | `string` | no | Stores tsnet node state; defaults under the gateway CA directory. |
 | `tags` | `[]string` | no | Tailscale tags requested for the tsnet node. |
 | `share` | `string` | no | Controls whether runtime instances are singleton, per-endpoint, or per-request. |

@@ -1,4 +1,4 @@
-// Package config loads and validates clawpatrol's HCL gateway config.
+// Package config loads and validates nebprx's HCL gateway config.
 //
 // The config has two layers. Operational fields (listen /
 // state_dir / tailscale {} / ...) live at the top of the file and

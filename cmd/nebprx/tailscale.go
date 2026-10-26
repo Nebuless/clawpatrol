@@ -5,7 +5,7 @@
 // The embedded tsnet.Server also acts as a Tailscale exit node:
 // RegisterFallbackTCPHandler intercepts all TCP forwarded through the
 // node so whole-machine clients get the same MITM treatment as
-// per-process clawpatrol-run clients. No system tailscaled, iptables,
+// per-process nebprx-run clients. No system tailscaled, iptables,
 // or sudo required.
 //
 // `wireguard { }` block present: the gateway runs an embedded
@@ -15,7 +15,7 @@
 // netstack we also open a loopback TCP listener on 127.0.0.1:8443
 // (configurable via wireguard.host_loopback_port) for host-local
 // clients — single-host deployments (the gateway
-// running under one user account, clawpatrol-run invoked from
+// running under one user account, nebprx-run invoked from
 // another on the same machine, loopback WG between them) are a
 // first-class pattern, not a debug mode.
 //
@@ -86,7 +86,7 @@ func hostLoopbackPort(port int) int {
 //
 //   - WireGuard enabled → returns a loopback TCP listener on
 //     127.0.0.1:<host_loopback_port> (default 8443). Host-local
-//     agents (e.g. clawpatrol-run from a
+//     agents (e.g. nebprx-run from a
 //     different UID on the same box) connect directly. Off-host
 //     agents reach g.handle via the WG netstack's promiscuous
 //     forwarder; that path doesn't touch this socket.
@@ -126,7 +126,7 @@ func openListener(cfg *config.Gateway, stateDir string) (*tsnet.Server, net.List
 
 	hn := ts.Hostname
 	if hn == "" {
-		hn = "clawpatrol-gateway"
+		hn = "nebprx-gateway"
 	}
 	dir, err := gatewayTsnetDir(stateDir)
 	if err != nil {
@@ -219,7 +219,7 @@ func funnelAllowsPublicPath(path string) bool {
 }
 
 // tsnetCertDomain returns the first HTTPS cert domain for the embedded
-// tsnet node (e.g. "clawpatrol-gateway.ts.net"), or "" if not available.
+// tsnet node (e.g. "nebprx-gateway.ts.net"), or "" if not available.
 // Used to auto-populate public_url when funnel = true and public_url is
 // not set in gateway.hcl.
 func tsnetCertDomain(s *tsnet.Server) string {
@@ -247,8 +247,8 @@ func tsnetCertDomain(s *tsnet.Server) string {
 // subtracting removeFromDefaultRoute — which contains 10.0.0.0/8 and
 // therefore the v4 VIP range. Inbound exit-node flows to a v4 VIP
 // were dropped by the filter's "destination not allowed" check before
-// any clawpatrol handler ran, for every client kind (tsnet
-// `clawpatrol run` and whole-machine alike). The v6 list strips only
+// any nebprx handler ran, for every client kind (tsnet
+// `nebprx run` and whole-machine alike). The v6 list strips only
 // link-local/multicast/fd7a:115c:a1e0::/48, so fd78:: VIPs always
 // passed — which is why v6-capable clients masked the bug. See
 // ipn/ipnlocal updateFilterLocked + shrinkDefaultRoute.
@@ -286,7 +286,7 @@ func advertiseExitRoutes(s *tsnet.Server, vipCIDRs ...netip.Prefix) {
 
 // installTsnetUDPCatchAll layers a catch-all UDP interceptor onto
 // tsnet's internal netstack so UDP forwarded through the gateway's
-// exit-node advertisement reaches clawpatrol instead of tsnet's default
+// exit-node advertisement reaches nebprx instead of tsnet's default
 // forwarder — the same dispatch WG mode's promiscuous netstack already
 // applies to all UDP:
 //
@@ -295,8 +295,8 @@ func advertiseExitRoutes(s *tsnet.Server, vipCIDRs ...netip.Prefix) {
 //     like clickhouse-o11y / *.denosr-staging.internal and allocates the
 //     VIPs endpoint dispatch relies on);
 //   - other UDP from an onboarded peer → relayUDP (so a tsnet-mode
-//     `clawpatrol run` child gets arbitrary UDP, e.g. QUIC or a custom
-//     protocol, carried by clawpatrol rather than silently leaving via
+//     `nebprx run` child gets arbitrary UDP, e.g. QUIC or a custom
+//     protocol, carried by nebprx rather than silently leaving via
 //     tsnet's default forwarder).
 //
 // A tsnet client's Dial("udp") to a public IP does traverse this hook
@@ -411,7 +411,7 @@ func (g *Gateway) tsnetUDPDisposition(dst netip.AddrPort, src netip.Addr) udpDis
 }
 
 // tsnetUDPPeerOnboarded reports whether an exit-node UDP flow's source
-// is a peer clawpatrol has onboarded — the gate that keeps the UDP
+// is a peer nebprx has onboarded — the gate that keeps the UDP
 // relay from acting as an open proxy for arbitrary tailnet nodes. The
 // source arrives as the peer's tsnet address (its 100.x or fd7a ULA);
 // daemonRegisterTsnetPeer maps both for a joined daemon, so a direct

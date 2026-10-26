@@ -2,7 +2,7 @@ package main
 
 // SQLite-backed persistent state. Replaces the per-blob JSON files
 // (oauth-*.json, onboarded.json, wg-peers.json, gateway.log JSONL)
-// with a single ${state_dir}/clawpatrol.db.
+// with a single ${state_dir}/nebprx.db.
 //
 // Schema lives in migrations/sqlite/, applied in numbered order on
 // every boot. The _schema table tracks the highest version applied;

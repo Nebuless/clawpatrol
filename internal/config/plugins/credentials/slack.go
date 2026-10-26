@@ -37,7 +37,7 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// SlackTokens is part of the clawpatrol plugin API.
+// SlackTokens is part of the PRX plugin API.
 type SlackTokens struct{}
 
 var (
@@ -96,7 +96,7 @@ func slackPathPrefersApp(path string) bool {
 	return false
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*SlackTokens) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{
 		{Name: "bot", Label: "Bot token", Description: "xoxb-…"},
@@ -202,7 +202,7 @@ func (s *SlackTokens) NotifyHITL(ctx context.Context, req runtime.ApproveRequest
 
 	body := map[string]any{
 		"channel": target.Channel,
-		"text":    "clawpatrol: " + title,
+		"text":    "PRX: " + title,
 		"blocks":  blocks,
 	}
 	if target.ThreadTS != "" {
@@ -444,7 +444,7 @@ func (s *SlackTokens) UpdateHITLMessage(ctx context.Context, secrets runtime.Sec
 	body := map[string]any{
 		"channel": ref.Channel,
 		"ts":      ref.TS,
-		"text":    "clawpatrol: HITL " + string(update.State),
+		"text":    "PRX: HITL " + string(update.State),
 		"blocks":  blocks,
 	}
 	buf, _ := json.Marshal(body)

@@ -5,7 +5,7 @@
 # the optional endpoint/credential descriptions, and the per-credential
 # Credentials section in both formats.
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

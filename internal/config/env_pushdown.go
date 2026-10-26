@@ -1,6 +1,6 @@
 package config
 
-// EnvVar is one shell variable `clawpatrol env` exports for the
+// EnvVar is one shell variable `nebprx env` exports for the
 // operator to source into their agent CLI's process environment.
 // The Value is a placeholder that LOOKS like a real token (so the
 // agent CLI's startup validation passes) — the gateway swaps in
@@ -14,7 +14,7 @@ type EnvVar struct {
 
 // EnvPushdownProvider is the optional interface a credential plugin
 // implements when an agent CLI expects to read its credential out of
-// a process environment variable. `clawpatrol env` walks every
+// a process environment variable. `nebprx env` walks every
 // registered credential plugin's EnvVars() and prints the union as
 // shell `export ...` lines.
 //

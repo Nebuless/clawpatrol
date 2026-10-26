@@ -79,7 +79,7 @@ func TestGatewayShutdownFlushLogsFlushError(t *testing.T) {
 // runs lands in the actions table before Close returns. Without this,
 // SIGTERM mid-batch silently drops the in-flight 4096-deep sink.
 func TestSinkCloseDrainsBufferedEvents(t *testing.T) {
-	db, err := OpenDB(filepath.Join(t.TempDir(), "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(t.TempDir(), "nebprx.db"))
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}

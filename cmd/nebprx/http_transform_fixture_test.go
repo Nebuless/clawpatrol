@@ -42,7 +42,7 @@ func (transformFixtureSecretStore) Get(string) (runtime.Secret, error) {
 func TestTransformedRequestBodyFixtureIsRejectedAfterPersistence(t *testing.T) {
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -94,7 +94,7 @@ rule "deny-other-body" {
 	}
 	defer transport.CloseIdleConnections()
 
-	db, err := OpenDB(filepath.Join(t.TempDir(), "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(t.TempDir(), "nebprx.db"))
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}

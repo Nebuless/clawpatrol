@@ -82,7 +82,7 @@ type SSHEndpoint struct {
 	Hosts []string `hcl:"hosts"`
 }
 
-// EndpointHosts is part of the clawpatrol plugin API.
+// EndpointHosts is part of the PRX plugin API.
 func (e *SSHEndpoint) EndpointHosts() []string { return e.Hosts }
 
 // ConnRouteHosts implements runtime.ConnRouter — gives the gateway's
@@ -138,7 +138,7 @@ var (
 
 // ── HandleConn ────────────────────────────────────────────────────────
 
-// HandleConn is part of the clawpatrol plugin API.
+// HandleConn is part of the PRX plugin API.
 func (rt *SSHEndpointRuntime) HandleConn(ctx context.Context, ch *runtime.ConnHandle) error {
 	defer func() { _ = ch.Conn.Close() }()
 	if ch.Endpoint == nil || ch.Endpoint.Family != "ssh" {
@@ -187,7 +187,7 @@ func (rt *SSHEndpointRuntime) HandleConn(ctx context.Context, ch *runtime.ConnHa
 		PublicKeyCallback: func(ssh.ConnMetadata, ssh.PublicKey) (*ssh.Permissions, error) {
 			return &ssh.Permissions{}, nil
 		},
-		ServerVersion: "SSH-2.0-clawpatrol",
+		ServerVersion: "SSH-2.0-nebprx",
 	}
 	srvCfg.AddHostKey(hostKey)
 
@@ -384,7 +384,7 @@ func (rt *SSHEndpointRuntime) upstreamClientConfig(ch *runtime.ConnHandle, cc *c
 		Auth:            methods,
 		HostKeyCallback: hostKeyCb,
 		Timeout:         30 * time.Second,
-		ClientVersion:   "SSH-2.0-clawpatrol",
+		ClientVersion:   "SSH-2.0-nebprx",
 	}, nil
 }
 
@@ -800,7 +800,7 @@ buffering:
 		// Already acked above; surface the reason on the agent's stderr
 		// before the caller tears the channel down.
 		if reason != "" {
-			_, _ = a.Stderr().Write([]byte("clawpatrol: " + reason + "\n"))
+			_, _ = a.Stderr().Write([]byte("nebprx: " + reason + "\n"))
 		}
 		drain() // let the reader finish once the caller closes a
 		return false

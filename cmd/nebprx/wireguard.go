@@ -1,7 +1,7 @@
 package main
 
 // Plain WireGuard control plane — embedded userspace WG endpoint + L3
-// forwarder + per-device onboarder. The clawpatrol binary IS the WG
+// forwarder + per-device onboarder. The nebprx binary IS the WG
 // endpoint; no kernel module, no wg-quick, no /etc/wireguard, no
 // systemd, no /etc/hosts pinning on clients.
 //
@@ -216,7 +216,7 @@ func init() {
 }
 
 func (t *netTun) File() *os.File             { return nil }
-func (t *netTun) Name() (string, error)      { return "clawpatrol-wg", nil }
+func (t *netTun) Name() (string, error)      { return "nebprx-wg", nil }
 func (t *netTun) MTU() (int, error)          { return t.mtu, nil }
 func (t *netTun) Events() <-chan wgtun.Event { return t.events }
 func (t *netTun) BatchSize() int             { return tunBatchSize }
@@ -849,7 +849,7 @@ func (w *wireguardOnboarder) MintKey(_ context.Context, reuseIP string, _ bool) 
 	}
 	var ip string
 	if reuseIP != "" {
-		// Re-running `clawpatrol join` from the same machine — recycle the
+		// Re-running `nebprx join` from the same machine — recycle the
 		// /32 previously bound to (owner, hostname) so the dashboard keeps
 		// one row per device. AddPeer evicts the stale pubkey on the same
 		// IP from both the wg-go trie and wg_peers.
@@ -880,8 +880,8 @@ func (w *wireguardOnboarder) MintKey(_ context.Context, reuseIP string, _ bool) 
 	conf := fmt.Sprintf(`[Interface]
 PrivateKey = %s
 Address = %s/32, %s/128
-PostUp = cp /etc/resolv.conf /etc/resolv.conf.clawpatrol.bak 2>/dev/null; printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
-PostDown = mv /etc/resolv.conf.clawpatrol.bak /etc/resolv.conf 2>/dev/null || true
+PostUp = cp /etc/resolv.conf /etc/resolv.conf.nebprx.bak 2>/dev/null; printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
+PostDown = mv /etc/resolv.conf.nebprx.bak /etc/resolv.conf 2>/dev/null || true
 
 [Peer]
 PublicKey = %s
@@ -896,7 +896,7 @@ func (w *wireguardOnboarder) iface() string {
 	if w.ts.WGInterface != "" {
 		return w.ts.WGInterface
 	}
-	return "clawpatrol"
+	return "nebprx"
 }
 
 // allocateIP grabs the next free IP from WGSubnetCIDR. The allocation

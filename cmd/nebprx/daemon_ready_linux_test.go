@@ -257,7 +257,7 @@ func (t *readyErrTransport) WaitReady(context.Context) error { return t.err }
 // end over a socketpair — hello, START, TUN-fd handoff — with a
 // transport whose WaitReady fails. The client must get READYERR
 // carrying the transport's error text rather than ATTACHED, an EOF,
-// or a parse error, since that text is what `clawpatrol run` prints.
+// or a parse error, since that text is what `nebprx run` prints.
 func TestDaemonHandle_ReadyErrBeforeAttached(t *testing.T) {
 	daemonSide, clientSide := socketpairConns(t)
 	defer func() { _ = daemonSide.Close() }()

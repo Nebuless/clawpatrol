@@ -8,7 +8,7 @@ package main
 // wireguard-go, `Peer.BeginSymmetricSession` then refuses to derive a
 // keypair ("invalid state for keypair derivation: handshakeInitiationCreated")
 // and the timers don't always pry the state machine back into a usable
-// state. From the operator's seat: `clawpatrol run` survives one
+// state. From the operator's seat: `nebprx run` survives one
 // session lifetime (~3-4 hours), then every flow through the MITM
 // proxy fails with `ConnectionRefused` and the process never recovers.
 //

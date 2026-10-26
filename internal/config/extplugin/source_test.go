@@ -19,7 +19,7 @@ func TestParseSource(t *testing.T) {
 		repo    string
 		wantErr bool
 	}{
-		{in: "github.com/denoland/clawpatrol-customerio-plugin", kind: sourceGitHub, owner: "denoland", repo: "clawpatrol-customerio-plugin"},
+		{in: "github.com/denoland/nebprx-customerio-plugin", kind: sourceGitHub, owner: "denoland", repo: "nebprx-customerio-plugin"},
 		{in: "github.com/owner/repo.git", kind: sourceGitHub, owner: "owner", repo: "repo"},
 		{in: "github.com/owner/repo/", kind: sourceGitHub, owner: "owner", repo: "repo"},
 		{in: "/abs/path/plugin", kind: sourceLocal},

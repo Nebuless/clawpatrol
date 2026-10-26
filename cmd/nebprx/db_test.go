@@ -7,11 +7,11 @@ import (
 )
 
 // TestOpenDB_FreshCreateIs0600 covers the common case: state_dir is
-// fresh, sqlite creates clawpatrol.db with its default mode (0644 on
+// fresh, sqlite creates nebprx.db with its default mode (0644 on
 // systems with umask 022), OpenDB should tighten it.
 func TestOpenDB_FreshCreateIs0600(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "clawpatrol.db")
+	dbPath := filepath.Join(dir, "nebprx.db")
 
 	db, err := OpenDB(dbPath)
 	if err != nil {
@@ -19,7 +19,7 @@ func TestOpenDB_FreshCreateIs0600(t *testing.T) {
 	}
 	defer func() { _ = db.Close() }()
 
-	for _, name := range []string{"clawpatrol.db", "clawpatrol.db-wal", "clawpatrol.db-shm"} {
+	for _, name := range []string{"nebprx.db", "nebprx.db-wal", "nebprx.db-shm"} {
 		p := filepath.Join(dir, name)
 		st, err := os.Stat(p)
 		if err != nil {
@@ -33,11 +33,11 @@ func TestOpenDB_FreshCreateIs0600(t *testing.T) {
 }
 
 // TestOpenDB_TightensExisting0644 covers the upgrade path: a DB file
-// inherited from an older clawpatrol that wrote 0644 should get
+// inherited from an older nebprx that wrote 0644 should get
 // tightened on the next OpenDB.
 func TestOpenDB_TightensExisting0644(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "clawpatrol.db")
+	dbPath := filepath.Join(dir, "nebprx.db")
 
 	// Pre-create with the bad mode, simulating an old install.
 	f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_WRONLY, 0o644)
@@ -78,8 +78,8 @@ func TestCheckDirWritable_OK(t *testing.T) {
 }
 
 // TestCheckDirWritable_ReadOnly is the regression for the root-owned
-// /opt/clawpatrol case: MkdirAll no-ops on the existing dir, but the
-// unprivileged gateway can't create clawpatrol.db inside it. The
+// /opt/nebprx case: MkdirAll no-ops on the existing dir, but the
+// unprivileged gateway can't create nebprx.db inside it. The
 // preflight must catch that with a clear error instead of letting
 // sqlite fail later with SQLITE_CANTOPEN(14).
 func TestCheckDirWritable_ReadOnly(t *testing.T) {

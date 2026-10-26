@@ -29,7 +29,7 @@ type BasicAuth struct {
 	Username string `hcl:"username"`
 }
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (b *BasicAuth) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if len(sec.Bytes) == 0 {
 		return nil
@@ -38,7 +38,7 @@ func (b *BasicAuth) InjectHTTP(_ context.Context, req *http.Request, sec runtime
 	return nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*BasicAuth) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Password", Description: "Stamped as `Authorization: Basic …` with the configured username."}}
 }

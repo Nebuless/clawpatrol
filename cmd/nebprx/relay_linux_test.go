@@ -25,7 +25,7 @@ func TestParseProcNetIPHex(t *testing.T) {
 	cases := []struct {
 		name string
 		// hex string as emitted by the kernel on a little-endian host
-		// (the only realistic clawpatrol target); parseProcNetIPHex
+		// (the only realistic nebprx target); parseProcNetIPHex
 		// adapts via NativeEndian and produces the same network-order
 		// bytes regardless of host.
 		hexLE string

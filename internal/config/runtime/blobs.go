@@ -5,7 +5,7 @@ package runtime
 // — SSH endpoint host keys, OAuth signing material — call into this
 // instead of touching the filesystem directly.
 //
-// The host (clawpatrol gateway) backs it with a sqlite table; tests
+// The host (nebprx gateway) backs it with a sqlite table; tests
 // can substitute an in-memory map. Plugins address rows by
 // (kind, name): kind is the plugin's stable namespace
 // ("ssh_host_key", "codex_jwt_keys"), name is whatever sub-key the

@@ -55,7 +55,7 @@ func buildSandboxSpec(sp config.PluginSource, binSource string, network sandbox.
 		return zero, "", "", fmt.Errorf("read_paths: %w", err)
 	}
 	// A read_paths grant overlapping the state dir would expose the
-	// secret store (clawpatrol.db — the CA key and every credential).
+	// secret store (nebprx.db — the CA key and every credential).
 	// That is the all-credentials tier; refuse it outright.
 	if err := checkReadPathsAgainstStateDir(readPaths, stateDir); err != nil {
 		return zero, "", "", err
@@ -70,9 +70,9 @@ func buildSandboxSpec(sp config.PluginSource, binSource string, network sandbox.
 		if err != nil {
 			return zero, "", "", fmt.Errorf(
 				"cannot establish a sandbox on this system: %v. "+
-					"clawpatrol treats plugins as untrusted and refuses to run them unsandboxed by default. "+
+					"nebprx treats plugins as untrusted and refuses to run them unsandboxed by default. "+
 					"Fix the cause above, or accept the risk explicitly by adding sandbox = \"off\" to the plugin %q block "+
-					"(the plugin then runs with this user's full file-system and network access, including clawpatrol's secrets)",
+					"(the plugin then runs with this user's full file-system and network access, including nebprx's secrets)",
 				err, sp.Name)
 		}
 		mode = av.Mode
@@ -111,7 +111,7 @@ func checkReadPathsAgainstStateDir(readPaths []string, stateDir string) error {
 		if p == sd || pathContains(p, sd) || pathContains(sd, p) {
 			return fmt.Errorf(
 				"read_paths grant %q overlaps the state dir %q, which holds the credential store. "+
-					"A plugin must not be granted read access to clawpatrol's secrets; remove the grant",
+					"A plugin must not be granted read access to nebprx's secrets; remove the grant",
 				p, sd)
 		}
 	}

@@ -265,7 +265,7 @@ profile "default" { credentials = [bearer_token.tok] }
 	if err != nil {
 		t.Fatalf("loadConfig: %v", err)
 	}
-	db, err := OpenDB(filepath.Join(dir, "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(dir, "nebprx.db"))
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}

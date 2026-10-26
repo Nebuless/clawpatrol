@@ -2,7 +2,7 @@
 
 package main
 
-// `clawpatrol run` on macOS shells out to the Clawpatrol.app helper.
+// `nebprx run` on macOS shells out to the Nebprx.app helper.
 // The .app holds a NETransparentProxyProvider system extension that
 // intercepts flows and routes them through the gateway via a
 // userspace WireGuard + gVisor netstack (see macos/netstack/). The
@@ -11,10 +11,10 @@ package main
 // NETransparentProxyManager / NEAppRule lifecycle calls.
 //
 // Bootstrap is idempotent: if the system extension isn't installed
-// yet, `Clawpatrol install` triggers the one-time approval prompt;
+// yet, `Nebprx install` triggers the one-time approval prompt;
 // subsequent runs reuse the activated extension. If the proxy isn't
-// running, `Clawpatrol start` brings it up. If both are running,
-// `Clawpatrol run` just forks the user command.
+// running, `Nebprx start` brings it up. If both are running,
+// `Nebprx run` just forks the user command.
 
 import (
 	"errors"
@@ -28,9 +28,9 @@ import (
 	"time"
 )
 
-const macHelperPath = "/Applications/Clawpatrol.app/Contents/MacOS/Clawpatrol"
+const macHelperPath = "/Applications/Nebprx.app/Contents/MacOS/Nebprx"
 
-const sessionSockPath = "/tmp/clawpatrol.sock"
+const sessionSockPath = "/tmp/nebprx.sock"
 
 // registerSession dials the extension's IPC socket and synchronously
 // hands it our PID before any wrapped command starts. The handshake
@@ -81,15 +81,15 @@ func sessionIPC(msg string) error {
 func runRun(args []string) {
 	warnIfOnGatewayHost()
 
-	if mode := strings.TrimSpace(readFileSilent(filepath.Join(defaultClawpatrolDir(), "mode"))); mode == "tailscale" {
+	if mode := strings.TrimSpace(readFileSilent(filepath.Join(defaultNebprxDir(), "mode"))); mode == "tailscale" {
 		runRunTsnet(args)
 		return
 	}
 
 	if _, err := os.Stat(macHelperPath); err != nil {
-		fail("Clawpatrol.app not installed. Build + install from macos/:\n" +
+		fail("Nebprx.app not installed. Build + install from macos/:\n" +
 			"  cd macos && ./install.sh\n" +
-			"then: clawpatrol join <gateway>")
+			"then: nebprx join <gateway>")
 	}
 	if err := ensureMacProxyUp(); err != nil {
 		fail(fmt.Sprintf("ensure proxy up: %v", err))
@@ -102,7 +102,7 @@ func runRun(args []string) {
 	defer cleanup()
 	// Stamp CA + placeholder env vars on the current process so the
 	// helper inherits them and forwards them to the wrapped child.
-	applyEnvPushdown(defaultClawpatrolDir())
+	applyEnvPushdown(defaultNebprxDir())
 	installClaudeCodeOAuthShim(args)
 	// Forward the command + args through the helper's run subcommand,
 	// which forks the cmd as a child of the .app process so the
@@ -122,15 +122,15 @@ func runRun(args []string) {
 
 // ensureMacProxyUp is a no-op when the proxy is already running; it
 // installs the system extension on first use and starts the tunnel
-// against ~/.config/clawpatrol/wg.conf otherwise. We can't tell from
+// against ~/.config/nebprx/wg.conf otherwise. We can't tell from
 // the outside whether the proxy is up without round-tripping through
 // the helper, so we always call `start` — the helper's start handler
 // is idempotent (saveToPreferences + startVPNTunnel both no-op when
 // already-saved / already-connected).
 func ensureMacProxyUp() error {
-	confPath := filepath.Join(os.Getenv("HOME"), ".config", "clawpatrol", "wg.conf")
+	confPath := filepath.Join(os.Getenv("HOME"), ".config", "nebprx", "wg.conf")
 	if _, err := os.Stat(confPath); err != nil {
-		return fmt.Errorf("no wg.conf at %s — run `clawpatrol join <gateway>` first", confPath)
+		return fmt.Errorf("no wg.conf at %s — run `nebprx join <gateway>` first", confPath)
 	}
 	// `install` may surface the system-extension approval prompt the
 	// first time; once activated it's a fast no-op.
@@ -155,17 +155,17 @@ func ensureMacProxyUp() error {
 
 // macHelperInstall is invoked from runJoin (on darwin) right after
 // the wg.conf is written so the user gets a single-prompt onboarding:
-// `clawpatrol join …` → wg conf saved → sysext approved →
+// `nebprx join …` → wg conf saved → sysext approved →
 // proxy up. wholeMachine maps to the helper's --whole-machine flag.
 //
 // After saving the profile, push the freshly written wg.conf into the
-// extension via `Clawpatrol start` so a re-join (new keys, new peer)
+// extension via `Nebprx start` so a re-join (new keys, new peer)
 // or a mode switch (per-process ↔ whole-machine) takes effect on the
 // running tunnel — the helper's `start` is reload-aware (stop+start
 // when conf or mode changed).
 func macHelperInstall(wholeMachine bool) error {
 	if _, err := os.Stat(macHelperPath); err != nil {
-		return fmt.Errorf("missing Clawpatrol.app at /Applications — reinstall: curl -fsSL https://clawpatrol.dev/install.sh | sh")
+		return fmt.Errorf("missing Nebprx.app at /Applications — reinstall: curl -fsSL https://prx.nebuless.cloud/install.sh | sh")
 	}
 	args := []string{"install"}
 	if wholeMachine {
@@ -176,7 +176,7 @@ func macHelperInstall(wholeMachine bool) error {
 	if err := c.Run(); err != nil {
 		return err
 	}
-	confPath := filepath.Join(os.Getenv("HOME"), ".config", "clawpatrol", "wg.conf")
+	confPath := filepath.Join(os.Getenv("HOME"), ".config", "nebprx", "wg.conf")
 	if _, err := os.Stat(confPath); err == nil {
 		c = exec.Command(macHelperPath, "start", confPath)
 		c.Stdout, c.Stderr = os.Stdout, os.Stderr

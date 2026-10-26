@@ -196,7 +196,7 @@ func (g *Gateway) handleWSUpgrade(client *tls.Conn, br *bufio.Reader, req *http.
 	// Per-connection codex session id pulled from the upgrade request
 	// — codex sets `Session_id: <uuid>` on every WS upgrade and
 	// re-uses it across reconnects within one TUI invocation. Without
-	// this, three parallel `clawpatrol run codex` instances on one
+	// this, three parallel `nebprx run codex` instances on one
 	// device collapse into a single dashboard row (the old keying
 	// hashed remoteAddr, which is identical for all three). Empty
 	// header falls back to a per-conn URL+key hash for non-codex WS

@@ -48,17 +48,17 @@ import (
 
 // relayDebug gates the relay / relay-worker diagnostic chatter (port
 // auto-expose, the host-loopback forwarder line, per-connection
-// errors). It's noise during a normal `clawpatrol run`, so it's off
-// unless CLAWPATROL_DEBUG is set. Genuine functional warnings (the ⚠
+// errors). It's noise during a normal `nebprx run`, so it's off
+// unless NEBPRX_DEBUG is set. Genuine functional warnings (the ⚠
 // lines) print regardless. Evaluated once — the env is inherited
 // across the relay-worker re-exec.
 var relayDebug = func() bool {
-	v := os.Getenv("CLAWPATROL_DEBUG")
+	v := os.Getenv("NEBPRX_DEBUG")
 	return v != "" && v != "0"
 }()
 
 // relayDebugf writes a relay diagnostic line to stderr only when
-// CLAWPATROL_DEBUG is set.
+// NEBPRX_DEBUG is set.
 func relayDebugf(format string, a ...any) {
 	if relayDebug {
 		fmt.Fprintf(os.Stderr, format, a...)
@@ -350,7 +350,7 @@ func runRelaySupervisor(_ []string) {
 			_ = notifSendContinue(notifyRC, n.ID)
 
 			if perr != nil {
-				relayDebugf("[clawpatrol relay] inspect listen sockfd: %v\n", perr)
+				relayDebugf("[nebprx relay] inspect listen sockfd: %v\n", perr)
 				continue
 			}
 			seenMu.Lock()
@@ -365,13 +365,13 @@ func runRelaySupervisor(_ []string) {
 			host := mirrorBindScope(family, ip)
 			ln, lerr := net.Listen("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", port)))
 			if lerr != nil {
-				relayDebugf("[clawpatrol relay] could not tunnel %s:%d: %v\n", host, port, lerr)
+				relayDebugf("[nebprx relay] could not tunnel %s:%d: %v\n", host, port, lerr)
 				seenMu.Lock()
 				delete(seen, port)
 				seenMu.Unlock()
 				continue
 			}
-			relayDebugf("[clawpatrol relay] auto-expose %s:%d → agent netns\n", host, port)
+			relayDebugf("[nebprx relay] auto-expose %s:%d → agent netns\n", host, port)
 			go acceptLoop(ln, port, workerRC)
 		} else {
 			_ = notifSendContinue(notifyRC, n.ID)
@@ -424,7 +424,7 @@ func runLoopbackSupervisorLoop(lbRC syscall.RawConn) {
 			if errors.Is(err, io.EOF) {
 				return
 			}
-			relayDebugf("[clawpatrol relay] loopback recv: %v\n", err)
+			relayDebugf("[nebprx relay] loopback recv: %v\n", err)
 			return
 		}
 		go handleLoopbackJob(ip, port, fd)
@@ -444,12 +444,12 @@ func handleLoopbackJob(ip [4]byte, port uint16, fd int) {
 
 	dst := net.IPv4(ip[0], ip[1], ip[2], ip[3])
 	if !dst.IsLoopback() {
-		relayDebugf("[clawpatrol relay] refusing non-loopback dst %s\n", dst)
+		relayDebugf("[nebprx relay] refusing non-loopback dst %s\n", dst)
 		return
 	}
 	host, err := net.Dial("tcp", net.JoinHostPort(dst.String(), fmt.Sprintf("%d", port)))
 	if err != nil {
-		relayDebugf("[clawpatrol relay] dial host %s:%d: %v\n", dst, port, err)
+		relayDebugf("[nebprx relay] dial host %s:%d: %v\n", dst, port, err)
 		return
 	}
 	defer func() { _ = host.Close() }()
@@ -576,7 +576,7 @@ func procPeekListener(pid, sockfd int) (uint16, net.IP, int, error) {
 		port, ip, ok, err := scanProcNetTCP(t.path, inode, t.ipHex)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			// Surface IO errors but keep trying the other family.
-			relayDebugf("[clawpatrol relay] read %s: %v\n", t.path, err)
+			relayDebugf("[nebprx relay] read %s: %v\n", t.path, err)
 			continue
 		}
 		if ok {
@@ -698,12 +698,12 @@ func acceptLoop(ln net.Listener, port uint16, workerRC syscall.RawConn) {
 	for {
 		c, err := ln.Accept()
 		if err != nil {
-			relayDebugf("[clawpatrol relay] accept on :%d ended: %v\n", port, err)
+			relayDebugf("[nebprx relay] accept on :%d ended: %v\n", port, err)
 			return
 		}
 		fd, perr := tcpRawFD(c)
 		if perr != nil {
-			relayDebugf("[clawpatrol relay] raw fd on :%d: %v\n", port, perr)
+			relayDebugf("[nebprx relay] raw fd on :%d: %v\n", port, perr)
 			_ = c.Close()
 			continue
 		}
@@ -713,7 +713,7 @@ func acceptLoop(ln net.Listener, port uint16, workerRC syscall.RawConn) {
 		err = sendJob(workerRC, portBuf[:], rights)
 		_ = c.Close()
 		if err != nil {
-			relayDebugf("[clawpatrol relay] sendmsg to worker on :%d: %v\n", port, err)
+			relayDebugf("[nebprx relay] sendmsg to worker on :%d: %v\n", port, err)
 			return
 		}
 	}
@@ -803,7 +803,7 @@ func runRelayWorker(_ []string) {
 	// Tell the supervisor our PID so it can ignore the listen() trap
 	// triggered by our own host-loopback forwarder below.
 	if err := sendWorkerPID(lbRC); err != nil {
-		relayDebugf("[clawpatrol relay-worker] send pid: %v\n", err)
+		relayDebugf("[nebprx relay-worker] send pid: %v\n", err)
 		// Continue — supervisor's loopback loop will block on recv
 		// and the auto-expose direction will still work.
 	}
@@ -873,7 +873,7 @@ func relayWorkerLoop(rc syscall.RawConn, handle func(uint16, int)) {
 			if errors.Is(err, io.EOF) {
 				return
 			}
-			relayDebugf("[clawpatrol relay-worker] recv: %v\n", err)
+			relayDebugf("[nebprx relay-worker] recv: %v\n", err)
 			return
 		}
 		go handle(port, fd)
@@ -1005,7 +1005,7 @@ func handleJob(port uint16, fd int) {
 
 	inner, err := dialAgentLoopback(port)
 	if err != nil {
-		relayDebugf("[clawpatrol relay-worker] dial 127.0.0.1:%d: %v\n", port, err)
+		relayDebugf("[nebprx relay-worker] dial 127.0.0.1:%d: %v\n", port, err)
 		return
 	}
 	defer func() { _ = inner.Close() }()
@@ -1088,7 +1088,7 @@ func setupHostLoopbackForwarder(lbRC syscall.RawConn) (uint16, error) {
 		_ = ln.Close()
 		return 0, fmt.Errorf("install REDIRECT rules: %w", err)
 	}
-	relayDebugf("[clawpatrol relay-worker] host-loopback forwarder on 127.0.0.1:%d (REDIRECT installed)\n", fwdPort)
+	relayDebugf("[nebprx relay-worker] host-loopback forwarder on 127.0.0.1:%d (REDIRECT installed)\n", fwdPort)
 	go loopbackAcceptLoop(ln, lbRC)
 	return fwdPort, nil
 }
@@ -1207,18 +1207,18 @@ func loopbackAcceptLoop(ln net.Listener, lbRC syscall.RawConn) {
 	for {
 		c, err := ln.Accept()
 		if err != nil {
-			relayDebugf("[clawpatrol relay-worker] loopback accept ended: %v\n", err)
+			relayDebugf("[nebprx relay-worker] loopback accept ended: %v\n", err)
 			return
 		}
 		fd, perr := tcpRawFD(c)
 		if perr != nil {
-			relayDebugf("[clawpatrol relay-worker] loopback raw fd: %v\n", perr)
+			relayDebugf("[nebprx relay-worker] loopback raw fd: %v\n", perr)
 			_ = c.Close()
 			continue
 		}
 		origIP, origPort, perr := getOriginalDst(fd)
 		if perr != nil {
-			relayDebugf("[clawpatrol relay-worker] SO_ORIGINAL_DST: %v\n", perr)
+			relayDebugf("[nebprx relay-worker] SO_ORIGINAL_DST: %v\n", perr)
 			_ = c.Close()
 			continue
 		}
@@ -1227,7 +1227,7 @@ func loopbackAcceptLoop(ln net.Listener, lbRC syscall.RawConn) {
 		err = sendJob(lbRC, frame[:], rights)
 		_ = c.Close()
 		if err != nil {
-			relayDebugf("[clawpatrol relay-worker] loopback sendmsg: %v\n", err)
+			relayDebugf("[nebprx relay-worker] loopback sendmsg: %v\n", err)
 			return
 		}
 	}
@@ -1301,7 +1301,7 @@ func seccompArch() (uint32, uint32, bool) {
 //
 // Best-effort: any error logs a warning and skips the rest. The parent's
 // recvFDs then fails and the parent continues without spawning a
-// supervisor — `clawpatrol run` still works for outbound-only workloads
+// supervisor — `nebprx run` still works for outbound-only workloads
 // (just with no auto-expose and no host-loopback access).
 func setupRelayInChild(parentSock *os.File) {
 	notifyFD, err := installListenTrapFilter()
@@ -1375,7 +1375,7 @@ func setupRelayInChild(parentSock *os.File) {
 	// (or has decided to give up on it). Either way it writes one byte
 	// before its main recv loop, so this read returns promptly. If the
 	// worker dies before writing, we get EOF and continue anyway — the
-	// alternative is a hang on `clawpatrol run`.
+	// alternative is a hang on `nebprx run`.
 	one := make([]byte, 1)
 	if _, err := readyR.Read(one); err != nil {
 		fmt.Fprintf(os.Stderr, "⚠ auto-expose relay: ready signal: %v\n", err)

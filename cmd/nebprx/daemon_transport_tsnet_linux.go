@@ -101,16 +101,16 @@ func pollTsnetReady(ctx context.Context, dial func(context.Context) error, dialT
 // the resulting tailnet IP with the gateway so the synthetic
 // "tsnet-<host>" placeholder gets promoted to a real devices row.
 func startTsnetTransport() (daemonTransport, error) {
-	caDir := defaultClawpatrolDir()
+	caDir := defaultNebprxDir()
 	stateDir := daemonStateDir()
 	authKey := strings.TrimSpace(readFileSilent(filepath.Join(stateDir, "auth-key")))
 	controlURL := strings.TrimSpace(readFileSilent(filepath.Join(caDir, "control-url")))
 	gwIPStr := strings.TrimSpace(readFileSilent(filepath.Join(caDir, "tailnet-gateway-ip")))
 	if authKey == "" {
-		return nil, fmt.Errorf("missing auth-key in %s (re-run `clawpatrol join`)", stateDir)
+		return nil, fmt.Errorf("missing auth-key in %s (re-run `nebprx join`)", stateDir)
 	}
 	if gwIPStr == "" {
-		return nil, fmt.Errorf("missing tailnet-gateway-ip in %s (re-run `clawpatrol join`)", caDir)
+		return nil, fmt.Errorf("missing tailnet-gateway-ip in %s (re-run `nebprx join`)", caDir)
 	}
 	gwIP, err := netip.ParseAddr(gwIPStr)
 	if err != nil {
@@ -173,7 +173,7 @@ func startTsnetTransport() (daemonTransport, error) {
 	} else {
 		bootWarning = fmt.Sprintf("tsnet probe: gateway unreachable via exit-node routing (%v). "+
 			"Check autoApprovers.exitNode in your tailnet ACL — see doc/tailscale.md. "+
-			"Each `clawpatrol run` waits up to %s for routing before failing.", derr, daemonReadyTimeout)
+			"Each `nebprx run` waits up to %s for routing before failing.", derr, daemonReadyTimeout)
 		log.Printf("%s", bootWarning)
 	}
 	probeCancel()
@@ -201,7 +201,7 @@ func startTsnetTransport() (daemonTransport, error) {
 // promotes the synthetic placeholder; subsequent calls are no-ops on
 // the server side. Best-effort.
 func daemonRegisterTsnetPeer(s *tsnet.Server, tsIP netip.Addr) {
-	caDir := defaultClawpatrolDir()
+	caDir := defaultNebprxDir()
 	gwURL := strings.TrimSpace(readFileSilent(filepath.Join(caDir, "tailnet-url")))
 	if gwURL == "" {
 		gwURL = strings.TrimSpace(readFileSilent(filepath.Join(caDir, "gateway")))

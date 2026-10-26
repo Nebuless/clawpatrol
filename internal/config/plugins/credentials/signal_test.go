@@ -73,7 +73,7 @@ func TestSignalNotifyHITLSendsToV2Send(t *testing.T) {
 	if len(payload.Recipients) != 1 || payload.Recipients[0] != "+15551112222" {
 		t.Fatalf("recipients = %v, want [+15551112222]", payload.Recipients)
 	}
-	for _, want := range []string{"clawpatrol:", "https://gateway.example/#hitl/pending-9"} {
+	for _, want := range []string{"PRX:", "https://gateway.example/#hitl/pending-9"} {
 		if !strings.Contains(payload.Message, want) {
 			t.Fatalf("message = %q, want substring %q", payload.Message, want)
 		}
@@ -396,7 +396,7 @@ func TestSignalHITLMessageRendersSummaryAndLink(t *testing.T) {
 		},
 	})
 	for _, want := range []string{
-		"clawpatrol:",
+		"PRX:",
 		"POST /api/v4/projects/1/issues",
 		"Label: write (90%)",
 		"Summary: creates an issue",

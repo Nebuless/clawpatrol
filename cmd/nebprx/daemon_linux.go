@@ -2,16 +2,16 @@
 
 package main
 
-// Per-host self-forking daemon. `clawpatrol run` connects to a Unix
-// socket; if no daemon is alive, it re-execs itself as `clawpatrol
+// Per-host self-forking daemon. `nebprx run` connects to a Unix
+// socket; if no daemon is alive, it re-execs itself as `nebprx
 // daemon-internal` (a hidden subcommand) and the new process binds
 // the socket, then idle-exits 5 minutes after the last client
 // disconnects.
 //
 // The daemon owns a single network identity (tsnet peer or WireGuard
-// peer) shared across every concurrent `clawpatrol run` session on
+// peer) shared across every concurrent `nebprx run` session on
 // the host. Transport selection is decided at startup from the
-// `mode` marker file written by `clawpatrol join`; per-mode
+// `mode` marker file written by `nebprx join`; per-mode
 // specifics live behind the daemonTransport interface so the
 // session loop, control protocol, and gVisor stack code stay
 // transport-agnostic.
@@ -55,7 +55,7 @@ const (
 	daemonIdleTimeout  = 5 * time.Minute
 	daemonHelloTimeout = 2 * time.Second
 	daemonSpawnTimeout = 30 * time.Second
-	daemonMagicLine    = "CLAWPATROL/1\n"
+	daemonMagicLine    = "NEBPRX/1\n"
 	// daemonLogMaxBytes caps the persistent daemon.log: when a respawn
 	// finds the file larger than this it truncates instead of appending.
 	daemonLogMaxBytes = 2 << 20 // 2 MiB
@@ -66,7 +66,7 @@ const (
 )
 
 // daemonTransport is the per-host network identity shared by every
-// concurrent `clawpatrol run` session. Implementations:
+// concurrent `nebprx run` session. Implementations:
 //   - tsnetTransport (daemon_transport_tsnet_linux.go) — embeds
 //     tsnet.Server, sets the gateway as its exit node; outbound
 //     dials route through the gateway's tsnet RegisterFallbackTCPHandler.
@@ -88,7 +88,7 @@ type daemonTransport interface {
 	LocalAddr() netip.Addr
 	// BootWarning is a one-line operator-facing message emitted to
 	// every client that connects this lifetime, or "" when clean.
-	// Each `clawpatrol run` repeats it on stderr so configuration
+	// Each `nebprx run` repeats it on stderr so configuration
 	// issues surface without tailing daemon.log.
 	BootWarning() string
 	// WaitReady blocks until the transport can actually carry user
@@ -116,13 +116,13 @@ const daemonReadyTimeout = 30 * time.Second
 // daemonRuntimeDir resolves the directory holding the daemon's
 // coordination state (control socket, spawn lock, log). It MUST be a
 // stable, env-independent path: the whole point of the daemon is to be
-// a per-identity singleton that multiplexes every `clawpatrol run`
+// a per-identity singleton that multiplexes every `nebprx run`
 // over the one tailnet key in daemonStateDir(), so the socket/lock have
 // to live at the same place no matter how the invoking process was
 // launched.
 //
-// It used to key on $XDG_RUNTIME_DIR (→ /run/user/<uid>/clawpatrol),
-// falling back to /tmp/clawpatrol-<uid> when unset. But pam_systemd
+// It used to key on $XDG_RUNTIME_DIR (→ /run/user/<uid>/nebprx),
+// falling back to /tmp/nebprx-<uid> when unset. But pam_systemd
 // sets XDG_RUNTIME_DIR only for login sessions: an interactive shell
 // had it, while `ssh host cmd`, cron, and system services did not. The
 // two contexts therefore resolved different runtime dirs and spawned
@@ -149,7 +149,7 @@ func daemonRuntimeDir() string {
 	sum := sha256.Sum256([]byte(daemonStateDir()))
 	// Hardcoded /tmp (not os.TempDir(), which honours $TMPDIR and could
 	// vary by context) keeps the fallback path env-independent too.
-	return filepath.Join("/tmp", fmt.Sprintf("clawpatrol-%d-%x", os.Getuid(), sum[:6]))
+	return filepath.Join("/tmp", fmt.Sprintf("nebprx-%d-%x", os.Getuid(), sum[:6]))
 }
 
 func daemonControlSockPath() string { return filepath.Join(daemonRuntimeDir(), "control.sock") }
@@ -158,7 +158,7 @@ func daemonLogPath() string         { return filepath.Join(daemonRuntimeDir(), "
 
 // daemonConnect returns a control connection to the per-host daemon,
 // spawning one if none is running. Safe to call from concurrent
-// `clawpatrol run` invocations.
+// `nebprx run` invocations.
 func daemonConnect() (net.Conn, error) {
 	dir := daemonRuntimeDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -196,7 +196,7 @@ func daemonConnect() (net.Conn, error) {
 	// bind() in the new daemon would otherwise EADDRINUSE.
 	_ = os.Remove(sockPath)
 
-	// 5. Re-exec self as `clawpatrol daemon-internal`.
+	// 5. Re-exec self as `nebprx daemon-internal`.
 	if err := daemonSpawn(dir); err != nil {
 		return nil, fmt.Errorf("spawn daemon: %w", err)
 	}
@@ -252,7 +252,7 @@ func daemonHello(c net.Conn) error {
 	return nil
 }
 
-// daemonSpawn re-execs the current binary as `clawpatrol
+// daemonSpawn re-execs the current binary as `nebprx
 // daemon-internal`, waits for it to write "ready\n" on the inherited
 // pipe (fd 3), then returns. The child detaches via Setsid and
 // ignores SIGHUP.
@@ -349,7 +349,7 @@ type daemon struct {
 	// observed during this daemon's lifetime. freshEnvVars hits the
 	// gateway on every call so a credential change made on the
 	// dashboard (operator connects a credential, HCL reload pulls in a
-	// new credential block) is visible to the very next `clawpatrol
+	// new credential block) is visible to the very next `nebprx
 	// run` — issue #546. lastGoodEnv only kicks in when a fetch comes
 	// back empty AND a previous fetch was non-empty, to ride out
 	// transient gateway errors (daemonFetchEnvPushdown returns the "[]"
@@ -378,7 +378,7 @@ type daemon struct {
 	rebindCh chan struct{}
 }
 
-// runDaemon is the entry point for the `clawpatrol daemon-internal`
+// runDaemon is the entry point for the `nebprx daemon-internal`
 // subcommand. Invoked exclusively by daemonSpawn — clients should
 // never run this directly. Returns only via os.Exit from tryExit (or
 // log.Fatal on fatal startup error).
@@ -449,13 +449,13 @@ func runDaemon(_ []string) {
 }
 
 // daemonStartTransport picks the transport implementation based on the
-// `mode` marker written by `clawpatrol join`. Tailscale mode boots a
+// `mode` marker written by `nebprx join`. Tailscale mode boots a
 // tsnet.Server with the gateway pinned as its exit node; WireGuard
 // mode boots a wireguard-go device + gVisor stack from the persisted
 // wg.conf. Either way, the returned transport carries one network
-// identity shared by every `clawpatrol run` on this host.
+// identity shared by every `nebprx run` on this host.
 func daemonStartTransport() (daemonTransport, error) {
-	modeFile := filepath.Join(defaultClawpatrolDir(), "mode")
+	modeFile := filepath.Join(defaultNebprxDir(), "mode")
 	mode := strings.TrimSpace(readFileSilent(modeFile))
 	switch mode {
 	case "tailscale":
@@ -469,9 +469,9 @@ func daemonStartTransport() (daemonTransport, error) {
 		if _, err := os.Stat(defaultRunConf()); err == nil {
 			return startWGTransport()
 		}
-		return nil, fmt.Errorf("no mode file at %s and no wg.conf — re-run `clawpatrol join`", modeFile)
+		return nil, fmt.Errorf("no mode file at %s and no wg.conf — re-run `nebprx join`", modeFile)
 	default:
-		return nil, fmt.Errorf("unknown mode %q in %s — re-run `clawpatrol join`", mode, modeFile)
+		return nil, fmt.Errorf("unknown mode %q in %s — re-run `nebprx join`", mode, modeFile)
 	}
 }
 
@@ -511,7 +511,7 @@ func (d *daemon) serve() {
 	}
 }
 
-// handle services a single `clawpatrol run` session. After the
+// handle services a single `nebprx run` session. After the
 // hello handshake the protocol is:
 //
 //	client → daemon:  "START\n"
@@ -552,7 +552,7 @@ func (d *daemon) handle(c net.Conn) {
 		// fall through below
 	case "ENV\n":
 		// Lightweight query: ship the env-pushdown JSON and return.
-		// No TUN handoff, no per-session gVisor stack — `clawpatrol
+		// No TUN handoff, no per-session gVisor stack — `nebprx
 		// env` is a one-shot read, not a wrapped child. Without this
 		// branch the env subcommand has no tailnet route to the
 		// gateway from its own process (the daemon's tsnet.Server is
@@ -643,7 +643,7 @@ func daemonWaitForClientClose(c net.Conn) {
 // freshEnvVars fetches the env-pushdown JSON from the gateway on
 // every call so a credential change made on the dashboard (operator
 // connects a credential, HCL reload pulls in a new credential block)
-// is visible to the next `clawpatrol run` without a daemon restart
+// is visible to the next `nebprx run` without a daemon restart
 // (#546). The gateway lives on-tailnet so the round-trip is sub-50ms;
 // agent sessions are not noticeably slower, and an idle daemon
 // generates no traffic.
@@ -694,7 +694,7 @@ func isEmptyEnvList(b []byte) bool {
 // failure we cache an empty list and log; clients then run without
 // pushdown until the daemon restarts.
 func daemonFetchEnvPushdown() []byte {
-	caDir := defaultClawpatrolDir()
+	caDir := defaultNebprxDir()
 	vars, err := fetchEnvPushdownFromGateway(caDir)
 	if err != nil {
 		log.Printf("daemon: env-pushdown fetch: %v (continuing with empty set)", err)
@@ -767,7 +767,7 @@ func daemonWriteReadyErr(w io.Writer, msg string) error {
 	return nil
 }
 
-// daemonHandshake reads the client's "CLAWPATROL/1\n<nonce>\n" hello
+// daemonHandshake reads the client's "NEBPRX/1\n<nonce>\n" hello
 // and echoes the nonce. Any framing error closes the conn (the client
 // re-enters the spawn path on a hello failure).
 func daemonHandshake(c net.Conn) error {

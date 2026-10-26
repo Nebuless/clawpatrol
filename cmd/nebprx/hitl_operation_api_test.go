@@ -114,11 +114,11 @@ func assertHITLOperationAcceptedResponse(t *testing.T, status int, header http.H
 	if got := header.Get("Content-Type"); got != "application/json" {
 		t.Fatalf("Content-Type = %q, want application/json", got)
 	}
-	if got := header.Get("Clawpatrol-HITL-State"); got != string(HITLOperationStatePendingApproval) {
-		t.Fatalf("Clawpatrol-HITL-State = %q", got)
+	if got := header.Get("Nebprx-HITL-State"); got != string(HITLOperationStatePendingApproval) {
+		t.Fatalf("Nebprx-HITL-State = %q", got)
 	}
-	if got := header.Get("Clawpatrol-Upstream-Called"); got != "false" {
-		t.Fatalf("Clawpatrol-Upstream-Called = %q", got)
+	if got := header.Get("Nebprx-Upstream-Called"); got != "false" {
+		t.Fatalf("Nebprx-Upstream-Called = %q", got)
 	}
 
 	var body map[string]any
@@ -307,11 +307,11 @@ func TestHITLOperationStatusEndpointReturnsStateSpecificEnvelope(t *testing.T) {
 			if rr.Code != http.StatusOK {
 				t.Fatalf("status = %d, want 200; body = %s", rr.Code, rr.Body.String())
 			}
-			if got := rr.Header().Get("Clawpatrol-HITL-State"); got != string(tc.wantState) {
-				t.Fatalf("Clawpatrol-HITL-State = %q, want %q", got, tc.wantState)
+			if got := rr.Header().Get("Nebprx-HITL-State"); got != string(tc.wantState) {
+				t.Fatalf("Nebprx-HITL-State = %q, want %q", got, tc.wantState)
 			}
-			if got := rr.Header().Get("Clawpatrol-Upstream-Called"); got != boolHeader(tc.wantUpstream) {
-				t.Fatalf("Clawpatrol-Upstream-Called = %q, want %s", got, boolHeader(tc.wantUpstream))
+			if got := rr.Header().Get("Nebprx-Upstream-Called"); got != boolHeader(tc.wantUpstream) {
+				t.Fatalf("Nebprx-Upstream-Called = %q, want %s", got, boolHeader(tc.wantUpstream))
 			}
 			if got := rr.Header().Get("Retry-After"); tc.wantRetryAfter && got != "5" {
 				t.Fatalf("Retry-After = %q, want 5", got)
@@ -461,7 +461,7 @@ func loadHITLOperationAPITestConfig(t *testing.T) *config.Gateway {
 	t.Helper()
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gateway.example.test"
 
   wireguard {

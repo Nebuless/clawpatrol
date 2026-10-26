@@ -1,4 +1,4 @@
-// Package main implements clawpatrol main support.
+// Package main implements nebprx main support.
 package main
 
 import (
@@ -226,7 +226,7 @@ func (r *AgentRegistry) trackUA(remoteAddr, host, ua string, in, out int64) {
 	a, ok := r.agents[ip]
 	if !ok {
 		a = &Agent{IP: ip, FirstAt: now}
-		// WG-mode override: hostname captured at `clawpatrol join` time.
+		// WG-mode override: hostname captured at `nebprx join` time.
 		// Tailscale whois fills more (User, OS) — see fillIdentity.
 		if r.onboard != nil {
 			if hn := r.onboard.HostnameForIP(ip); hn != "" {
@@ -1087,7 +1087,7 @@ func (w *webMux) agentsList() []*Agent {
 	return snap
 }
 
-// apiAgentDelete drops a device from clawpatrol's view. Removes the
+// apiAgentDelete drops a device from nebprx's view. Removes the
 // in-memory agent record, the onboard owner / hostname / profile
 // row, and (in WG mode) the WireGuard peer + allowed-IP entry — so
 // traffic from the deleted device's tunnel can't keep flowing under
@@ -1170,9 +1170,9 @@ func (w *webMux) apiPlugins(rw http.ResponseWriter, _ *http.Request) {
 }
 
 // apiPluginApprove re-records the named plugin's current permissions
-// in the lockfile (the dashboard equivalent of `clawpatrol plugins
+// in the lockfile (the dashboard equivalent of `nebprx plugins
 // approve`), then reloads so a previously-blocked plugin loads. This
-// writes clawpatrol.lock.hcl, so committing that file still surfaces
+// writes nebprx.lock.hcl, so committing that file still surfaces
 // the approval as a reviewable diff.
 func (w *webMux) apiPluginApprove(rw http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

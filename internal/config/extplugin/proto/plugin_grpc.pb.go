@@ -1,4 +1,4 @@
-// Plugin protocol v1 for clawpatrol's Terraform-style external plugins.
+// Plugin protocol v1 for nebprx's Terraform-style external plugins.
 //
 // One subprocess per plugin source. The gateway spawns the subprocess
 // via hashicorp/go-plugin, fetches its Manifest, and registers virtual
@@ -32,8 +32,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Plugin_Manifest_FullMethodName = "/clawpatrol.plugin.v1.Plugin/Manifest"
-	Plugin_Build_FullMethodName    = "/clawpatrol.plugin.v1.Plugin/Build"
+	Plugin_Manifest_FullMethodName = "/nebprx.plugin.v1.Plugin/Manifest"
+	Plugin_Build_FullMethodName    = "/nebprx.plugin.v1.Plugin/Build"
 )
 
 // PluginClient is the client API for Plugin service.
@@ -173,7 +173,7 @@ func _Plugin_Build_Handler(srv interface{}, ctx context.Context, dec func(interf
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Plugin_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "clawpatrol.plugin.v1.Plugin",
+	ServiceName: "nebprx.plugin.v1.Plugin",
 	HandlerType: (*PluginServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -190,8 +190,8 @@ var Plugin_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	Credential_InjectHTTP_FullMethodName    = "/clawpatrol.plugin.v1.Credential/InjectHTTP"
-	Credential_TransformHTTP_FullMethodName = "/clawpatrol.plugin.v1.Credential/TransformHTTP"
+	Credential_InjectHTTP_FullMethodName    = "/nebprx.plugin.v1.Credential/InjectHTTP"
+	Credential_TransformHTTP_FullMethodName = "/nebprx.plugin.v1.Credential/TransformHTTP"
 )
 
 // CredentialClient is the client API for Credential service.
@@ -339,7 +339,7 @@ type Credential_TransformHTTPServer = grpc.BidiStreamingServer[TransformHTTPUp, 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Credential_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "clawpatrol.plugin.v1.Credential",
+	ServiceName: "nebprx.plugin.v1.Credential",
 	HandlerType: (*CredentialServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -359,7 +359,7 @@ var Credential_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	Endpoint_HandleConn_FullMethodName = "/clawpatrol.plugin.v1.Endpoint/HandleConn"
+	Endpoint_HandleConn_FullMethodName = "/nebprx.plugin.v1.Endpoint/HandleConn"
 )
 
 // EndpointClient is the client API for Endpoint service.
@@ -454,7 +454,7 @@ type Endpoint_HandleConnServer = grpc.BidiStreamingServer[ConnMessage, ConnMessa
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Endpoint_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "clawpatrol.plugin.v1.Endpoint",
+	ServiceName: "nebprx.plugin.v1.Endpoint",
 	HandlerType: (*EndpointServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
@@ -469,9 +469,9 @@ var Endpoint_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	Tunnel_OpenTunnel_FullMethodName  = "/clawpatrol.plugin.v1.Tunnel/OpenTunnel"
-	Tunnel_Dial_FullMethodName        = "/clawpatrol.plugin.v1.Tunnel/Dial"
-	Tunnel_CloseTunnel_FullMethodName = "/clawpatrol.plugin.v1.Tunnel/CloseTunnel"
+	Tunnel_OpenTunnel_FullMethodName  = "/nebprx.plugin.v1.Tunnel/OpenTunnel"
+	Tunnel_Dial_FullMethodName        = "/nebprx.plugin.v1.Tunnel/Dial"
+	Tunnel_CloseTunnel_FullMethodName = "/nebprx.plugin.v1.Tunnel/CloseTunnel"
 )
 
 // TunnelClient is the client API for Tunnel service.
@@ -630,7 +630,7 @@ func _Tunnel_CloseTunnel_Handler(srv interface{}, ctx context.Context, dec func(
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Tunnel_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "clawpatrol.plugin.v1.Tunnel",
+	ServiceName: "nebprx.plugin.v1.Tunnel",
 	HandlerType: (*TunnelServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -654,8 +654,8 @@ var Tunnel_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	HostState_Get_FullMethodName = "/clawpatrol.plugin.v1.HostState/Get"
-	HostState_Put_FullMethodName = "/clawpatrol.plugin.v1.HostState/Put"
+	HostState_Get_FullMethodName = "/nebprx.plugin.v1.HostState/Get"
+	HostState_Put_FullMethodName = "/nebprx.plugin.v1.HostState/Put"
 )
 
 // HostStateClient is the client API for HostState service.
@@ -795,7 +795,7 @@ func _HostState_Put_Handler(srv interface{}, ctx context.Context, dec func(inter
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var HostState_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "clawpatrol.plugin.v1.HostState",
+	ServiceName: "nebprx.plugin.v1.HostState",
 	HandlerType: (*HostStateServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -812,7 +812,7 @@ var HostState_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	HostControl_Evaluate_FullMethodName = "/clawpatrol.plugin.v1.HostControl/Evaluate"
+	HostControl_Evaluate_FullMethodName = "/nebprx.plugin.v1.HostControl/Evaluate"
 )
 
 // HostControlClient is the client API for HostControl service.
@@ -828,7 +828,7 @@ const (
 //
 // Every call is scoped to one connection's evaluation context by the
 // opaque session_token the gateway issued in that connection's ConnInit.
-// The token rides in gRPC METADATA (key "clawpatrol-session"), not in the
+// The token rides in gRPC METADATA (key "nebprx-session"), not in the
 // message — session scope is cross-cutting, so a server interceptor
 // resolves it once and every method is scoped without repeating the field.
 // A forged / expired / removed token is rejected before the handler runs.
@@ -872,7 +872,7 @@ func (c *hostControlClient) Evaluate(ctx context.Context, in *EvaluateRequest, o
 //
 // Every call is scoped to one connection's evaluation context by the
 // opaque session_token the gateway issued in that connection's ConnInit.
-// The token rides in gRPC METADATA (key "clawpatrol-session"), not in the
+// The token rides in gRPC METADATA (key "nebprx-session"), not in the
 // message — session scope is cross-cutting, so a server interceptor
 // resolves it once and every method is scoped without repeating the field.
 // A forged / expired / removed token is rejected before the handler runs.
@@ -939,7 +939,7 @@ func _HostControl_Evaluate_Handler(srv interface{}, ctx context.Context, dec fun
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var HostControl_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "clawpatrol.plugin.v1.HostControl",
+	ServiceName: "nebprx.plugin.v1.HostControl",
 	HandlerType: (*HostControlServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -952,7 +952,7 @@ var HostControl_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	HostTunnel_DialUpstream_FullMethodName = "/clawpatrol.plugin.v1.HostTunnel/DialUpstream"
+	HostTunnel_DialUpstream_FullMethodName = "/nebprx.plugin.v1.HostTunnel/DialUpstream"
 )
 
 // HostTunnelClient is the client API for HostTunnel service.
@@ -1071,7 +1071,7 @@ type HostTunnel_DialUpstreamServer = grpc.BidiStreamingServer[DialMessage, DialM
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var HostTunnel_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "clawpatrol.plugin.v1.HostTunnel",
+	ServiceName: "nebprx.plugin.v1.HostTunnel",
 	HandlerType: (*HostTunnelServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{

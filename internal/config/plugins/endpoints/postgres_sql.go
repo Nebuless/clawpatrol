@@ -8,7 +8,7 @@ package endpoints
 // matcher consumes both endpoints' output without per-plugin
 // special cases.
 //
-// Audit reference: denoland/clawpatrol#143 catalogues the regex
+// Audit reference: denoland/nebprx#143 catalogues the regex
 // extractor's evasions. pgplex/pgparser ports postgres' own
 // grammar, so the parse-tree path natively covers the full PG
 // surface — LOCK / VACUUM / ANALYZE / REINDEX / REFRESH
@@ -100,7 +100,7 @@ func analysePiece(sql string) analysedStmt {
 	// postgres itself accepts. Retry on a normalised copy that papers
 	// over the known gaps; the analysis runs on the rewritten text but
 	// we keep `text` as the Statement so forwarding / display / fixture
-	// capture see exactly what came off the wire. denoland/clawpatrol#658.
+	// capture see exactly what came off the wire. denoland/nebprx#658.
 	if norm := normalizeParserGaps(text); norm != text {
 		if stmt := tryParseFirstStmt(norm); stmt != nil {
 			return analyseStmt(stmt, text)

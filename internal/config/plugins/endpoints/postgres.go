@@ -75,7 +75,7 @@ type PostgresEndpoint struct {
 	SSLMode string `hcl:"sslmode,optional"`
 }
 
-// EndpointHosts is part of the clawpatrol plugin API.
+// EndpointHosts is part of the PRX plugin API.
 func (e *PostgresEndpoint) EndpointHosts() []string { return []string{e.Host} }
 
 // ConnRouteHosts implements runtime.ConnRouter — postgres traffic
@@ -100,7 +100,7 @@ func (e *PostgresEndpoint) RequiresVIP() bool { return true }
 // password verbatim before injection.
 type PostgresEndpointRuntime struct{}
 
-// DetectPlaceholder is part of the clawpatrol plugin API.
+// DetectPlaceholder is part of the PRX plugin API.
 func (PostgresEndpointRuntime) DetectPlaceholder(req *runtime.Request, candidates []string) string {
 	if req == nil {
 		return ""

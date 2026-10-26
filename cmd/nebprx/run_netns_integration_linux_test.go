@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-const dnsLockdownHelperEnv = "CLAWPATROL_TEST_DNS_LOCKDOWN_HELPER"
+const dnsLockdownHelperEnv = "NEBPRX_TEST_DNS_LOCKDOWN_HELPER"
 
 // runDNSLockdownHelper re-execs the test binary pinned to the helper
 // test inside new user+mount namespaces and returns its combined
@@ -86,8 +86,8 @@ func TestHelperDNSLockdownApply(t *testing.T) {
 		// path must surface an error, which runRunChild turns fatal.
 		err := applyDNSLockdown(dnsLockdown{
 			Overrides: []etcOverride{{
-				Target:  "/etc/clawpatrol-definitely-missing.conf",
-				Pattern: "clawpatrol-test-*",
+				Target:  "/etc/nebprx-definitely-missing.conf",
+				Pattern: "nebprx-test-*",
 				Body:    "x\n",
 			}},
 		})
@@ -100,7 +100,7 @@ func TestHelperDNSLockdownApply(t *testing.T) {
 
 	// Stand-in for the resolved varlink socket: a host file with
 	// sensitive content that the mask must hide.
-	secret, err := os.CreateTemp("", "clawpatrol-secret-*")
+	secret, err := os.CreateTemp("", "nebprx-secret-*")
 	if err != nil {
 		t.Fatalf("temp: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestHelperDNSLockdownApply(t *testing.T) {
 	// paths can't be created by an unprivileged, uid-mapped test, so
 	// the mechanisms are exercised at temp paths; the planner tests
 	// pin the canonical paths.
-	sockDir, err := os.MkdirTemp("", "clawpatrol-varlink-*")
+	sockDir, err := os.MkdirTemp("", "nebprx-varlink-*")
 	if err != nil {
 		t.Fatalf("temp dir: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestHelperDNSLockdownApply(t *testing.T) {
 
 	// Stand-in for the nscd runtime dir: another live socket, this
 	// time hidden by masking its whole parent directory.
-	nscdDir, err := os.MkdirTemp("", "clawpatrol-nscd-*")
+	nscdDir, err := os.MkdirTemp("", "nebprx-nscd-*")
 	if err != nil {
 		t.Fatalf("temp dir: %v", err)
 	}
@@ -149,8 +149,8 @@ func TestHelperDNSLockdownApply(t *testing.T) {
 	const resolv = "nameserver 100.100.100.100\n"
 	plan := dnsLockdown{
 		Overrides: []etcOverride{
-			{Target: "/etc/resolv.conf", Pattern: "clawpatrol-resolv-*", Body: resolv},
-			{Target: "/etc/hosts", Pattern: "clawpatrol-hosts-*", Body: minimalHostsFile("nstest")},
+			{Target: "/etc/resolv.conf", Pattern: "nebprx-resolv-*", Body: resolv},
+			{Target: "/etc/hosts", Pattern: "nebprx-hosts-*", Body: minimalHostsFile("nstest")},
 		},
 		Masks:    []string{secret.Name(), sockPath},
 		DirMasks: []string{nscdDir},

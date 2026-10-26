@@ -82,7 +82,7 @@ func StartOtel(g *Gateway) (func(context.Context) error, error) {
 		log.Printf("otel: runtime instrumentation: %v", err)
 	}
 
-	if err := registerClawpatrolGauges(provider.Meter("clawpatrol"), g); err != nil {
+	if err := registerNebprxGauges(provider.Meter("nebprx"), g); err != nil {
 		return noop, fmt.Errorf("register gauges: %w", err)
 	}
 
@@ -100,9 +100,9 @@ func StartOtel(g *Gateway) (func(context.Context) error, error) {
 		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 			propagation.TraceContext{}, propagation.Baggage{},
 		))
-		genaiTracer = tp.Tracer("clawpatrol")
+		genaiTracer = tp.Tracer("nebprx")
 		tpShutdown = tp.Shutdown
-		_, span := tp.Tracer("clawpatrol").Start(context.Background(), "gateway.boot")
+		_, span := tp.Tracer("nebprx").Start(context.Background(), "gateway.boot")
 		span.SetAttributes(attribute.String("event", "startup"))
 		span.End()
 		// Force-flush so the boot span hits the backend immediately
@@ -118,7 +118,7 @@ func StartOtel(g *Gateway) (func(context.Context) error, error) {
 		go func() {
 			t := time.NewTicker(60 * time.Second)
 			defer t.Stop()
-			tracer := tp.Tracer("clawpatrol")
+			tracer := tp.Tracer("nebprx")
 			for range t.C {
 				_, sp := tracer.Start(context.Background(), "gateway.heartbeat")
 				sp.End()
@@ -133,8 +133,8 @@ func StartOtel(g *Gateway) (func(context.Context) error, error) {
 	}, nil
 }
 
-func registerClawpatrolGauges(meter metric.Meter, g *Gateway) error {
-	if _, err := meter.Int64ObservableGauge("clawpatrol.hitl.pending",
+func registerNebprxGauges(meter metric.Meter, g *Gateway) error {
+	if _, err := meter.Int64ObservableGauge("nebprx.hitl.pending",
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			if g.hitl == nil {
 				return nil
@@ -146,10 +146,10 @@ func registerClawpatrolGauges(meter metric.Meter, g *Gateway) error {
 			return nil
 		}),
 	); err != nil {
-		return fmt.Errorf("otel gauge clawpatrol.hitl.pending: %w", err)
+		return fmt.Errorf("otel gauge nebprx.hitl.pending: %w", err)
 	}
 
-	if _, err := meter.Int64ObservableGauge("clawpatrol.sse.subscribers",
+	if _, err := meter.Int64ObservableGauge("nebprx.sse.subscribers",
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			if g.sink == nil {
 				return nil
@@ -161,10 +161,10 @@ func registerClawpatrolGauges(meter metric.Meter, g *Gateway) error {
 			return nil
 		}),
 	); err != nil {
-		return fmt.Errorf("otel gauge clawpatrol.sse.subscribers: %w", err)
+		return fmt.Errorf("otel gauge nebprx.sse.subscribers: %w", err)
 	}
 
-	if _, err := meter.Int64ObservableCounter("clawpatrol.sse.drops",
+	if _, err := meter.Int64ObservableCounter("nebprx.sse.drops",
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			if g.sink == nil {
 				return nil
@@ -173,10 +173,10 @@ func registerClawpatrolGauges(meter metric.Meter, g *Gateway) error {
 			return nil
 		}),
 	); err != nil {
-		return fmt.Errorf("otel counter clawpatrol.sse.drops: %w", err)
+		return fmt.Errorf("otel counter nebprx.sse.drops: %w", err)
 	}
 
-	if _, err := meter.Int64ObservableGauge("clawpatrol.agents.count",
+	if _, err := meter.Int64ObservableGauge("nebprx.agents.count",
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			if g.agents == nil {
 				return nil
@@ -188,10 +188,10 @@ func registerClawpatrolGauges(meter metric.Meter, g *Gateway) error {
 			return nil
 		}),
 	); err != nil {
-		return fmt.Errorf("otel gauge clawpatrol.agents.count: %w", err)
+		return fmt.Errorf("otel gauge nebprx.agents.count: %w", err)
 	}
 
-	if _, err := meter.Int64ObservableGauge("clawpatrol.agents.sessions",
+	if _, err := meter.Int64ObservableGauge("nebprx.agents.sessions",
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			if g.agents == nil {
 				return nil
@@ -206,10 +206,10 @@ func registerClawpatrolGauges(meter metric.Meter, g *Gateway) error {
 			return nil
 		}),
 	); err != nil {
-		return fmt.Errorf("otel gauge clawpatrol.agents.sessions: %w", err)
+		return fmt.Errorf("otel gauge nebprx.agents.sessions: %w", err)
 	}
 
-	if _, err := meter.Int64ObservableCounter("clawpatrol.agents.requests",
+	if _, err := meter.Int64ObservableCounter("nebprx.agents.requests",
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			if g.agents == nil {
 				return nil
@@ -224,10 +224,10 @@ func registerClawpatrolGauges(meter metric.Meter, g *Gateway) error {
 			return nil
 		}),
 	); err != nil {
-		return fmt.Errorf("otel counter clawpatrol.agents.requests: %w", err)
+		return fmt.Errorf("otel counter nebprx.agents.requests: %w", err)
 	}
 
-	if _, err := meter.Int64ObservableGauge("clawpatrol.agents.bytes_total",
+	if _, err := meter.Int64ObservableGauge("nebprx.agents.bytes_total",
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			if g.agents == nil {
 				return nil
@@ -244,27 +244,27 @@ func registerClawpatrolGauges(meter metric.Meter, g *Gateway) error {
 			return nil
 		}),
 	); err != nil {
-		return fmt.Errorf("otel gauge clawpatrol.agents.bytes_total: %w", err)
+		return fmt.Errorf("otel gauge nebprx.agents.bytes_total: %w", err)
 	}
 
 	{
 		var err error
-		if mConns, err = meter.Int64UpDownCounter("clawpatrol.connections.open"); err != nil {
-			return fmt.Errorf("otel up-down clawpatrol.connections.open: %w", err)
+		if mConns, err = meter.Int64UpDownCounter("nebprx.connections.open"); err != nil {
+			return fmt.Errorf("otel up-down nebprx.connections.open: %w", err)
 		}
-		if mVerdicts, err = meter.Int64Counter("clawpatrol.verdicts"); err != nil {
-			return fmt.Errorf("otel counter clawpatrol.verdicts: %w", err)
+		if mVerdicts, err = meter.Int64Counter("nebprx.verdicts"); err != nil {
+			return fmt.Errorf("otel counter nebprx.verdicts: %w", err)
 		}
-		if mReqDuration, err = meter.Float64Histogram("clawpatrol.request.duration",
+		if mReqDuration, err = meter.Float64Histogram("nebprx.request.duration",
 			metric.WithUnit("s"),
 		); err != nil {
-			return fmt.Errorf("otel histogram clawpatrol.request.duration: %w", err)
+			return fmt.Errorf("otel histogram nebprx.request.duration: %w", err)
 		}
 	}
 
 	// contrib/instrumentation/runtime omits go.memory.type=heap
 	// (only stack and other), so we source heap from runtime.MemStats.
-	if _, err := meter.Int64ObservableGauge("clawpatrol.process.memory.heap_inuse",
+	if _, err := meter.Int64ObservableGauge("nebprx.process.memory.heap_inuse",
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			var ms gometrics.MemStats
@@ -273,7 +273,7 @@ func registerClawpatrolGauges(meter metric.Meter, g *Gateway) error {
 			return nil
 		}),
 	); err != nil {
-		return fmt.Errorf("otel gauge clawpatrol.process.memory.heap_inuse: %w", err)
+		return fmt.Errorf("otel gauge nebprx.process.memory.heap_inuse: %w", err)
 	}
 
 	return nil

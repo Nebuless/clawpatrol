@@ -17,7 +17,7 @@ const (
 	// raw-body request fingerprinting.
 	HITLAsyncDefaultMaxBodyBytes int64 = 1 << 20
 	// HITLAsyncHardMaxBodyBytes caps v1 raw-body fingerprinting so an
-	// approver config cannot make Claw Patrol buffer unbounded bodies.
+	// approver config cannot make PRX buffer unbounded bodies.
 	HITLAsyncHardMaxBodyBytes int64 = 8 << 20
 	// HITLAsyncFingerprintRawBody is the only v1 fingerprint mode.
 	HITLAsyncFingerprintRawBody = "raw"

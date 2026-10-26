@@ -16,8 +16,8 @@ import (
 const (
 	HITLFingerprintVersionV1 = "v1"
 
-	hitlRequestFingerprintDomainV1 = "clawpatrol hitl request fingerprint v1"
-	hitlBodyFingerprintDomainV1    = "clawpatrol hitl body fingerprint v1"
+	hitlRequestFingerprintDomainV1 = "nebprx hitl request fingerprint v1"
+	hitlBodyFingerprintDomainV1    = "nebprx hitl body fingerprint v1"
 )
 
 var ErrHITLFingerprintInvalid = errors.New("invalid hitl fingerprint input")

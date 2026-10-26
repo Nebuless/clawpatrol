@@ -404,7 +404,7 @@ func (r *onboardRegistry) ClaimIP(deviceCode, ip, hostnameOverride string) (stri
 }
 
 // SetHostname records a hostname for a peer IP outside the onboard
-// device-code flow (e.g. `clawpatrol run` register, which already
+// device-code flow (e.g. `nebprx run` register, which already
 // authenticated via api-token).
 func (r *onboardRegistry) SetHostname(ip, hostname string) {
 	if ip == "" || hostname == "" {
@@ -443,7 +443,7 @@ func (r *onboardRegistry) HostnameForIP(ip string) string {
 
 // IPForHostname returns the wg IP previously bound to (owner, hostname),
 // if any. Lets the approve flow recycle the existing /32 when the same
-// machine re-runs `clawpatrol join` — without it, every rejoin minted
+// machine re-runs `nebprx join` — without it, every rejoin minted
 // a fresh IP and the dashboard accumulated duplicate device rows.
 func (r *onboardRegistry) IPForHostname(owner, hostname string) string {
 	if hostname == "" {
@@ -804,7 +804,7 @@ type tailscaleOnboarder struct{ ts JoinConfig }
 func (t *tailscaleOnboarder) MintKey(ctx context.Context, _ string, _ bool) (string, string, string, error) {
 	// One persistent (non-ephemeral) auth key per device. The Linux
 	// daemon (cmd/nebprx daemon_linux.go) holds one stable tsnet identity
-	// shared across every `clawpatrol run` on the host, so the
+	// shared across every `nebprx run` on the host, so the
 	// per-process ephemeral model is gone. Whole-machine joins on
 	// Linux also want a persistent node so the host survives reboots.
 	k, err := mintTailscaleAuthKey(ctx, t.ts, false)
@@ -927,11 +927,11 @@ func (w *webMux) apiOnboardStart(rw http.ResponseWriter, r *http.Request) {
 	// device name instead of just the WG-side IP. Optional — we still
 	// fall back gracefully when missing.
 	hn := strings.TrimSpace(r.URL.Query().Get("hostname"))
-	// `clawpatrol join --profile X` forwards X here so the approver
+	// `nebprx join --profile X` forwards X here so the approver
 	// doesn't have to pick it manually. Stored as the session-level
 	// suggestion; the dashboard's approve call can still override.
 	prof := strings.TrimSpace(r.URL.Query().Get("profile"))
-	// `clawpatrol join --whole-machine` → the client installs a
+	// `nebprx join --whole-machine` → the client installs a
 	// persistent tailnet node (system tailscale on Linux, NE-routed on
 	// macOS) rather than per-process tsnet. It selects which transport
 	// the client sets up; it does not select the key's lifetime. Every
@@ -1081,7 +1081,7 @@ func (w *webMux) apiOnboardApprove(rw http.ResponseWriter, r *http.Request) {
 	// The body is the documented place for both parameters — a
 	// state-changing call whose inputs ride in the URL is reachable by
 	// navigation and lands in logs and history. The query string stays
-	// accepted for the `clawpatrol join --login` self-approve, which
+	// accepted for the `nebprx join --login` self-approve, which
 	// builds its URL that way.
 	code := body.Code
 	if code == "" {
@@ -1201,7 +1201,7 @@ func (w *webMux) apiOnboardApprove(rw http.ResponseWriter, r *http.Request) {
 		} else if loginServer == "" && !wholeMachine {
 			// Tsnet daemon mode: no devices row yet — the tailnet IP
 			// only exists once the per-host daemon joins, which happens
-			// later when the operator runs `clawpatrol run`. Hold the
+			// later when the operator runs `nebprx run`. Hold the
 			// profile in memory only against a synthetic placeholder
 			// and bind the api-token to it; both get repointed by
 			// /api/peer/tsnet/register on the daemon's first boot.
@@ -1334,7 +1334,7 @@ func (w *webMux) retirePlaceholderForClaim(dc, realIP string) {
 }
 
 // apiPeerTsnetRegister is the daemon's one-shot self-registration on
-// first boot after `clawpatrol join`: the api-token minted at approve
+// first boot after `nebprx join`: the api-token minted at approve
 // time is bound to a synthetic "tsnet-<host>" placeholder; the daemon
 // now has its real tailnet IP and asks the gateway to rebind the
 // token + create the real devices row. Subsequent calls (later daemon
@@ -1460,7 +1460,7 @@ func (w *webMux) apiOnboardPoll(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.delivered {
-		writeJSON(rw, map[string]string{"error": "expired_token", "detail": "auth material already delivered; re-run clawpatrol join"})
+		writeJSON(rw, map[string]string{"error": "expired_token", "detail": "auth material already delivered; re-run nebprx join"})
 		return
 	}
 	s.delivered = true
@@ -1471,17 +1471,17 @@ func (w *webMux) apiOnboardPoll(rw http.ResponseWriter, r *http.Request) {
 		"login_server": s.loginServer, // empty = Tailscale Inc default
 	}
 	// In Tailscale mode include gateway_host, gateway_ip, and control_url
-	// so the client can write mode marker files for `clawpatrol run`.
+	// so the client can write mode marker files for `nebprx run`.
 	// gateway_ip (100.x.x.x) lets the client write tailnet-url directly
 	// without a fragile peer-name lookup.
 	if s.loginServer == "" {
 		gwHost := w.ts.Hostname
 		if gwHost == "" {
-			gwHost = "clawpatrol-gateway"
+			gwHost = "nebprx-gateway"
 		}
 		// Prefer the actual registered node name (may differ from the
 		// configured hostname when tsnet resolved a conflict, e.g.
-		// "clawpatrol-gateway-1" vs "clawpatrol-gateway").
+		// "nebprx-gateway-1" vs "nebprx-gateway").
 		if w.g != nil && w.g.tailscaleHostname != "" {
 			gwHost = w.g.tailscaleHostname
 		}

@@ -14,9 +14,9 @@ func TestIsTailnetShapedURL(t *testing.T) {
 		want bool
 	}{
 		// MagicDNS hostnames.
-		{"https://clawpatrol-gateway.tail9a48e.ts.net", true},
-		{"http://clawpatrol-gateway-1.tail9a48e.ts.net:8080/api/onboard", true},
-		{"https://CLAWPATROL-GATEWAY.TAIL9A48E.TS.NET", true},
+		{"https://nebprx-gateway.tail9a48e.ts.net", true},
+		{"http://nebprx-gateway-1.tail9a48e.ts.net:8080/api/onboard", true},
+		{"https://NEBPRX-GATEWAY.TAIL9A48E.TS.NET", true},
 		// CGNAT range, the Tailscale-issued IPs.
 		{"http://100.79.206.14:8080", true},
 		{"http://100.64.0.1", true},
@@ -26,7 +26,7 @@ func TestIsTailnetShapedURL(t *testing.T) {
 		{"http://100.63.255.255", false},
 		{"http://100.128.0.0", false},
 		// Public hostnames and IPs the bootstrap can't help with.
-		{"https://clawpatrol-gateway.example.com", false},
+		{"https://nebprx-gateway.example.com", false},
 		{"http://1.1.1.1:53", false},
 		{"http://192.168.1.5", false},
 		// Garbage in -> false, don't crash.
@@ -73,12 +73,12 @@ func TestIsNetworkUnreachableErr(t *testing.T) {
 }
 
 // TestValidateGatewayURL pins the upfront URL check that prevents
-// runJoin from writing a bogus value to ~/.clawpatrol/gateway when
-// the operator types a scheme-less hostname like "clawpatrol-gw-1".
+// runJoin from writing a bogus value to ~/.nebprx/gateway when
+// the operator types a scheme-less hostname like "nebprx-gw-1".
 func TestValidateGatewayURL(t *testing.T) {
 	valid := []string{
-		"http://clawpatrol-gateway-1:8080",
-		"https://clawpatrol-gateway.tail9a48e.ts.net",
+		"http://nebprx-gateway-1:8080",
+		"https://nebprx-gateway.tail9a48e.ts.net",
 		"http://100.79.206.14:8080",
 		"https://gw.example.com",
 		"http://gw.example.com:80/",
@@ -99,8 +99,8 @@ func TestValidateGatewayURL(t *testing.T) {
 	}{
 		{"", "empty"},
 		{"   ", "empty"},
-		{"clawpatrol-gateway-1", "missing an http:// or https:// scheme"},
-		{"clawpatrol-gateway-1:8080", "missing an http:// or https:// scheme"},
+		{"nebprx-gateway-1", "missing an http:// or https:// scheme"},
+		{"nebprx-gateway-1:8080", "missing an http:// or https:// scheme"},
 		{"ftp://example.com", "missing an http:// or https:// scheme"},
 		// scheme-only with no host: rejected on the host check.
 		{"http://", "no host"},

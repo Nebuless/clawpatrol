@@ -13,10 +13,10 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// GeminiAPIKey is part of the clawpatrol plugin API.
+// GeminiAPIKey is part of the PRX plugin API.
 type GeminiAPIKey struct{}
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (g *GeminiAPIKey) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if len(sec.Bytes) == 0 || req.URL == nil {
 		return nil
@@ -34,12 +34,12 @@ func (g *GeminiAPIKey) InjectHTTP(_ context.Context, req *http.Request, sec runt
 	return nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*GeminiAPIKey) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Gemini API key"}}
 }
 
-// EnvVars is part of the clawpatrol plugin API.
+// EnvVars is part of the PRX plugin API.
 func (*GeminiAPIKey) EnvVars() []config.EnvVar {
 	return []config.EnvVar{
 		{Name: "GOOGLE_API_KEY", Value: phGemini, Description: "Gemini SDKs"},

@@ -1,4 +1,4 @@
-// Plugin protocol v1 for clawpatrol's Terraform-style external plugins.
+// Plugin protocol v1 for nebprx's Terraform-style external plugins.
 //
 // One subprocess per plugin source. The gateway spawns the subprocess
 // via hashicorp/go-plugin, fetches its Manifest, and registers virtual
@@ -13,7 +13,7 @@
 
 syntax = "proto3";
 
-package clawpatrol.plugin.v1;
+package nebprx.plugin.v1;
 
 option go_package = "github.com/Nebuless/nebprx/config/extplugin/proto;extpluginpb";
 
@@ -68,7 +68,7 @@ message PluginCapabilities {
   // plugin-declared. Unlike network and egress it is NOT
   // trust-on-first-use — handing a plugin full host access is too
   // dangerous to grant silently — so the gateway holds the plugin closed
-  // until the operator explicitly approves it (clawpatrol plugins approve,
+  // until the operator explicitly approves it (nebprx plugins approve,
   // or the dashboard). An upgrade re-pends approval.
   bool privileged = 3;
 }
@@ -769,7 +769,7 @@ message StatePutResponse {}
 //
 // Every call is scoped to one connection's evaluation context by the
 // opaque session_token the gateway issued in that connection's ConnInit.
-// The token rides in gRPC METADATA (key "clawpatrol-session"), not in the
+// The token rides in gRPC METADATA (key "nebprx-session"), not in the
 // message — session scope is cross-cutting, so a server interceptor
 // resolves it once and every method is scoped without repeating the field.
 // A forged / expired / removed token is rejected before the handler runs.

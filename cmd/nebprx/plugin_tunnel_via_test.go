@@ -33,7 +33,7 @@ plugin "example" {
   network = "none"
 }
 gateway {
-  state_dir  = "/tmp/clawpatrol-test"
+  state_dir  = "/tmp/nebprx-test"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -81,7 +81,7 @@ func TestPluginTunnelViaUnknownFails(t *testing.T) {
 	gw, diags := config.LoadBytes([]byte(fmt.Sprintf(`
 plugin "example" { source = %q, network = "none" }
 gateway {
-  state_dir  = "/tmp/clawpatrol-test"
+  state_dir  = "/tmp/nebprx-test"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -126,7 +126,7 @@ plugin "example" {
   network = "none"
 }
 gateway {
-  state_dir  = "/tmp/clawpatrol-test"
+  state_dir  = "/tmp/nebprx-test"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

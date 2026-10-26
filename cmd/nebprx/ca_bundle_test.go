@@ -120,7 +120,7 @@ func TestBuildBundlePEM(t *testing.T) {
 // host), while the MITM-CA-only file fails the passthrough leaf exactly
 // as the bug reports.
 func TestEnsureCABundleVerifiesBothChains(t *testing.T) {
-	mitmPEM, mitmCA, mitmKey := mintCA(t, "clawpatrol mitm", 1)
+	mitmPEM, mitmCA, mitmKey := mintCA(t, "nebprx mitm", 1)
 	sysPEM, sysCA, sysKey := mintCA(t, "public root", 2)
 
 	endpointLeaf := mintLeaf(t, "discord.com", mitmCA, mitmKey) // MITM'd endpoint
@@ -261,7 +261,7 @@ func TestEnsureCABundleContentRefresh(t *testing.T) {
 // TestEnsureCABundleRotationRace reproduces the join-vs-run race: ca.crt is
 // rewritten (rotated) while ensureCABundle is mid-build. The final bundle must
 // contain the NEW CA, never pin the old one. The injected reader rotates ca.crt
-// on its first call, standing in for a concurrent `clawpatrol join`.
+// on its first call, standing in for a concurrent `nebprx join`.
 func TestEnsureCABundleRotationRace(t *testing.T) {
 	oldPEM, _, _ := mintCA(t, "mitm-old", 1)
 	newPEM, _, _ := mintCA(t, "mitm-new", 2)
@@ -365,30 +365,30 @@ func TestCaPathPushdownVarsFallbackAllAtCA(t *testing.T) {
 // combined bundle even when the operator already had SSL_CERT_FILE (or another
 // replace-style CA var) set — otherwise the child trusts only the operator's
 // file and no MITM'd endpoint works. Non-CA pushdown vars keep the operator's
-// value, and CLAWPATROL_NO_ENV=1 opts out entirely.
+// value, and NEBPRX_NO_ENV=1 opts out entirely.
 func TestApplyEnvPushdownVarsForceSetsCAVars(t *testing.T) {
 	t.Setenv("SSL_CERT_FILE", "/operator/corp-roots.pem") // pre-existing operator value
 	t.Setenv("FOO_TOKEN", "operator-value")               // non-CA, must be preserved
-	t.Setenv("CLAWPATROL_NO_ENV", "")
+	t.Setenv("NEBPRX_NO_ENV", "")
 
 	applyEnvPushdownVars([]pushdownEnvVar{
-		{Name: "SSL_CERT_FILE", Value: "/clawpatrol/ca-bundle.crt"},
-		{Name: "FOO_TOKEN", Value: "clawpatrol-value"},
+		{Name: "SSL_CERT_FILE", Value: "/nebprx/ca-bundle.crt"},
+		{Name: "FOO_TOKEN", Value: "nebprx-value"},
 	})
 
-	if got := os.Getenv("SSL_CERT_FILE"); got != "/clawpatrol/ca-bundle.crt" {
+	if got := os.Getenv("SSL_CERT_FILE"); got != "/nebprx/ca-bundle.crt" {
 		t.Errorf("SSL_CERT_FILE = %q, want the forced bundle path", got)
 	}
 	if got := os.Getenv("FOO_TOKEN"); got != "operator-value" {
 		t.Errorf("FOO_TOKEN = %q, want the operator value preserved", got)
 	}
 
-	// CLAWPATROL_NO_ENV=1 disables the whole pushdown, CA vars included.
+	// NEBPRX_NO_ENV=1 disables the whole pushdown, CA vars included.
 	t.Setenv("SSL_CERT_FILE", "/operator/corp-roots.pem")
-	t.Setenv("CLAWPATROL_NO_ENV", "1")
-	applyEnvPushdownVars([]pushdownEnvVar{{Name: "SSL_CERT_FILE", Value: "/clawpatrol/ca-bundle.crt"}})
+	t.Setenv("NEBPRX_NO_ENV", "1")
+	applyEnvPushdownVars([]pushdownEnvVar{{Name: "SSL_CERT_FILE", Value: "/nebprx/ca-bundle.crt"}})
 	if got := os.Getenv("SSL_CERT_FILE"); got != "/operator/corp-roots.pem" {
-		t.Errorf("CLAWPATROL_NO_ENV should leave SSL_CERT_FILE untouched, got %q", got)
+		t.Errorf("NEBPRX_NO_ENV should leave SSL_CERT_FILE untouched, got %q", got)
 	}
 }
 
@@ -532,18 +532,18 @@ func TestEnsureCABundleMalformedMITMCA(t *testing.T) {
 	}
 }
 
-// TestDropClawpatrolCAVars (round-4 #2): a gateway/plugin-supplied CA var must
+// TestDropNebprxCAVars (round-4 #2): a gateway/plugin-supplied CA var must
 // be stripped so it can't override the locally forced bundle path; non-CA vars
 // pass through.
-func TestDropClawpatrolCAVars(t *testing.T) {
+func TestDropNebprxCAVars(t *testing.T) {
 	in := []pushdownEnvVar{
 		{Name: "SSL_CERT_FILE", Value: "/evil/roots.pem"},
 		{Name: "NODE_EXTRA_CA_CERTS", Value: "/evil/extra.pem"},
 		{Name: "CODEX_ACCESS_TOKEN", Value: "keep-me"},
 	}
-	out := dropClawpatrolCAVars(in)
+	out := dropNebprxCAVars(in)
 	if len(out) != 1 || out[0].Name != "CODEX_ACCESS_TOKEN" {
-		t.Fatalf("dropClawpatrolCAVars = %#v, want only CODEX_ACCESS_TOKEN", out)
+		t.Fatalf("dropNebprxCAVars = %#v, want only CODEX_ACCESS_TOKEN", out)
 	}
 }
 

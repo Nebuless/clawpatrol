@@ -626,7 +626,7 @@ func TestHITLOperationStoreSetsApproverMessageRef(t *testing.T) {
 
 func openHITLOperationTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := OpenDB(filepath.Join(t.TempDir(), "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(t.TempDir(), "nebprx.db"))
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}

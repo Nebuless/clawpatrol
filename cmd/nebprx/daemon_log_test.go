@@ -22,12 +22,12 @@ func TestLastLogLineSince(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.WriteString("daemon pid=2 starting\ndaemon: transport: no mode file — re-run `clawpatrol join`\n\n"); err != nil {
+	if _, err := f.WriteString("daemon pid=2 starting\ndaemon: transport: no mode file — re-run `nebprx join`\n\n"); err != nil {
 		t.Fatal(err)
 	}
 	_ = f.Close()
 
-	want := "daemon: transport: no mode file — re-run `clawpatrol join`"
+	want := "daemon: transport: no mode file — re-run `nebprx join`"
 	if got := lastLogLineSince(path, off); got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}

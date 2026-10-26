@@ -28,7 +28,7 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// SSHCredential is part of the clawpatrol plugin API.
+// SSHCredential is part of the PRX plugin API.
 type SSHCredential struct{}
 
 // SSHAuth implements sshproto.AuthCredential. Returns the raw
@@ -52,7 +52,7 @@ func (s *SSHCredential) SSHAuth(sec runtime.Secret) (sshproto.Creds, error) {
 	return creds, nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*SSHCredential) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{
 		{

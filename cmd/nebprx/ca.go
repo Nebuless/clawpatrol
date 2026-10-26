@@ -128,7 +128,7 @@ func mintAndStoreCA(db *sql.DB) (*CertCache, error) {
 	serial, _ := rand.Int(rand.Reader, big.NewInt(1<<62))
 	tmpl := &x509.Certificate{
 		SerialNumber:          serial,
-		Subject:               pkix.Name{CommonName: "clawpatrol gateway CA"},
+		Subject:               pkix.Name{CommonName: "nebprx gateway CA"},
 		NotBefore:             time.Now().Add(-1 * time.Hour),
 		NotAfter:              time.Now().Add(10 * 365 * 24 * time.Hour),
 		IsCA:                  true,
@@ -158,7 +158,7 @@ func mintAndStoreCA(db *sql.DB) (*CertCache, error) {
 // fingerprint of the DER-encoded certificate, formatted as
 // uppercase hex byte pairs separated by colons (matches
 // `openssl x509 -fingerprint -sha256`). Surfaced on the CLI at
-// `clawpatrol join` and on the dashboard approval page so the
+// `nebprx join` and on the dashboard approval page so the
 // operator can confirm out-of-band that the CA the CLI fetched
 // over plain HTTP matches the one the gateway actually serves.
 func caFingerprintFromCert(cert *x509.Certificate) string {

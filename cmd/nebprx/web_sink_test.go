@@ -40,7 +40,7 @@ func TestSinkAssignsIDToPersistentEvents(t *testing.T) {
 }
 
 func TestSinkPersistsGeneratedID(t *testing.T) {
-	db, err := OpenDB(filepath.Join(t.TempDir(), "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(t.TempDir(), "nebprx.db"))
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestSinkPersistsGeneratedID(t *testing.T) {
 }
 
 func TestSinkPersistsBodyCaptureState(t *testing.T) {
-	db, err := OpenDB(filepath.Join(t.TempDir(), "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(t.TempDir(), "nebprx.db"))
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}

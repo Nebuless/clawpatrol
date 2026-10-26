@@ -19,13 +19,13 @@ import (
 //     the dashboard (single-slot fills Bytes; multi-slot fills Extras).
 //  2. OAuthRegistry — for OAuth-flow credentials (claude / codex /
 //     github / ...), returns a refreshed access token.
-//  3. EnvSecretStore — CLAWPATROL_SECRET_<NAME>, last-resort fallback
+//  3. EnvSecretStore — NEBPRX_SECRET_<NAME>, last-resort fallback
 //     for operator-managed env-var secrets.
 //
 // All three keyspaces are the credential's bare name, so a credential
 // declared `credential "bearer_token" "stripe-live" {}` is reachable
 // via the dashboard, the OAuth registry (if it grew an OAuth flow),
-// or `CLAWPATROL_SECRET_STRIPE-LIVE`, in that priority.
+// or `NEBPRX_SECRET_STRIPE-LIVE`, in that priority.
 type gatewaySecretStore struct {
 	db    *sql.DB
 	oauth *OAuthRegistry
@@ -271,7 +271,7 @@ func newGatewayBlobStore(db *sql.DB) *gatewayBlobStore {
 	return &gatewayBlobStore{db: db}
 }
 
-// Get is part of the clawpatrol plugin API.
+// Get is part of the PRX plugin API.
 func (s *gatewayBlobStore) Get(kind, name string) ([]byte, bool, error) {
 	if s == nil || s.db == nil {
 		return nil, false, fmt.Errorf("blob store: no db")
@@ -290,7 +290,7 @@ func (s *gatewayBlobStore) Get(kind, name string) ([]byte, bool, error) {
 	return value, true, nil
 }
 
-// Put is part of the clawpatrol plugin API.
+// Put is part of the PRX plugin API.
 func (s *gatewayBlobStore) Put(kind, name string, data []byte) error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("blob store: no db")

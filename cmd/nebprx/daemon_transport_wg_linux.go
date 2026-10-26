@@ -8,8 +8,8 @@ package main
 // adapted to the Linux daemon's lifecycle.
 //
 // One wireguard-go device per daemon — the persistent peer minted at
-// `clawpatrol join` time, keyed by the wg.conf at
-// ~/.config/clawpatrol/wg.conf. Every `clawpatrol run` session
+// `nebprx join` time, keyed by the wg.conf at
+// ~/.config/nebprx/wg.conf. Every `nebprx run` session
 // multiplexes through this single device via the per-session gVisor
 // TCP forwarder built in daemon_linux.go.
 
@@ -166,7 +166,7 @@ func (t *wgTransport) Close() error {
 	return nil
 }
 
-// startWGTransport reads the user wg.conf written by `clawpatrol join`,
+// startWGTransport reads the user wg.conf written by `nebprx join`,
 // brings up a wireguard-go device + gVisor stack, and waits for the
 // first handshake to complete so the first user flow doesn't race
 // the initial wg negotiation.
@@ -174,7 +174,7 @@ func startWGTransport() (daemonTransport, error) {
 	confPath := defaultRunConf()
 	cfg, err := parseRunConf(confPath)
 	if err != nil {
-		return nil, fmt.Errorf("wg conf %s: %w (re-run `clawpatrol join`)", confPath, err)
+		return nil, fmt.Errorf("wg conf %s: %w (re-run `nebprx join`)", confPath, err)
 	}
 
 	addrs := splitWGAddresses(cfg.Address)
@@ -202,7 +202,7 @@ func startWGTransport() (daemonTransport, error) {
 	if err != nil {
 		return nil, fmt.Errorf("netTUN: %w", err)
 	}
-	logger := device.NewLogger(device.LogLevelError, "[clawpatrol daemon wg] ")
+	logger := device.NewLogger(device.LogLevelError, "[nebprx daemon wg] ")
 	dev := device.NewDevice(tun, newGSOFallbackBind("daemon: wg"), logger)
 
 	if err := dev.IpcSet(buildDaemonWGIpc(cfg)); err != nil {
@@ -227,7 +227,7 @@ func startWGTransport() (daemonTransport, error) {
 	bootReady := waitWGHandshake(dev, 10*time.Second)
 	if !bootReady {
 		bootWarning = fmt.Sprintf("wg probe: no handshake from gateway within 10s. "+
-			"Each `clawpatrol run` waits up to %s for the peer before failing. "+
+			"Each `nebprx run` waits up to %s for the peer before failing. "+
 			"Check the gateway endpoint and the host's egress UDP/51820 path.",
 			daemonReadyTimeout)
 		log.Printf("%s", bootWarning)
@@ -399,7 +399,7 @@ func newWGClientTun(addr, addr6 netip.Addr, mtu int) (*wgClientTun, error) {
 }
 
 func (t *wgClientTun) File() *os.File             { return nil }
-func (t *wgClientTun) Name() (string, error)      { return "clawpatrol-wg-client", nil }
+func (t *wgClientTun) Name() (string, error)      { return "nebprx-wg-client", nil }
 func (t *wgClientTun) MTU() (int, error)          { return t.mtu, nil }
 func (t *wgClientTun) Events() <-chan wgtun.Event { return t.events }
 func (t *wgClientTun) BatchSize() int             { return tunBatchSize }

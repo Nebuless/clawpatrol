@@ -12,10 +12,10 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// AnthropicOAuthSubscription is part of the clawpatrol plugin API.
+// AnthropicOAuthSubscription is part of the PRX plugin API.
 type AnthropicOAuthSubscription struct{}
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (a *AnthropicOAuthSubscription) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if len(sec.Bytes) == 0 {
 		return nil
@@ -25,7 +25,7 @@ func (a *AnthropicOAuthSubscription) InjectHTTP(_ context.Context, req *http.Req
 	return nil
 }
 
-// EnvVars is part of the clawpatrol plugin API.
+// EnvVars is part of the PRX plugin API.
 //
 // ANTHROPIC_AUTH_TOKEN is the standard env-var shape for the raw
 // Anthropic SDKs (Python, Node.js, …) and Claude Code. The value is a
@@ -39,7 +39,7 @@ func (a *AnthropicOAuthSubscription) InjectHTTP(_ context.Context, req *http.Req
 // Caveat for the `claude` CLI: it refuses OAuth-only features like
 // `/remote-control` whenever ANTHROPIC_AUTH_TOKEN is present (it reads
 // the env var as bearer/API-key auth via a LOCAL gate, before any
-// network call). `clawpatrol run` works around that for the `claude`
+// network call). `nebprx run` works around that for the `claude`
 // binary specifically via installClaudeCodeOAuthShim — it strips this
 // env var and supplies a synthesized OAuth credential instead. See
 // cmd/nebprx/integrations.go and doc/claude-code-oauth.md.

@@ -41,7 +41,7 @@ import (
 func TestMITMCredentialPinnedRuleMatchesOnHTTPSPath(t *testing.T) {
 	const policyHCL = `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gateway.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

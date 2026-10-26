@@ -14,15 +14,15 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// MTLSCredential is part of the clawpatrol plugin API.
+// MTLSCredential is part of the PRX plugin API.
 type MTLSCredential struct{}
 
-// ConfigureUpstreamTLS is part of the clawpatrol plugin API.
+// ConfigureUpstreamTLS is part of the PRX plugin API.
 func (m *MTLSCredential) ConfigureUpstreamTLS(cfg *tls.Config, sec runtime.Secret) error {
 	certPEM := []byte(sec.Extras["cert"])
 	keyPEM := []byte(sec.Extras["key"])
 	if len(certPEM) == 0 || len(keyPEM) == 0 {
-		return errors.New("mtls credential missing cert / key (set CLAWPATROL_SECRET_<NAME>_CERT and _KEY)")
+		return errors.New("mtls credential missing cert / key (set NEBPRX_SECRET_<NAME>_CERT and _KEY)")
 	}
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
@@ -39,7 +39,7 @@ func (m *MTLSCredential) ConfigureUpstreamTLS(cfg *tls.Config, sec runtime.Secre
 	return nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*MTLSCredential) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{
 		{Name: "cert", Label: "Client cert (PEM)", Multiline: true},

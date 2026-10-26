@@ -3,7 +3,7 @@
     "host": "api.github.com",
     "http": {
       "method": "DELETE",
-      "path":   "/repos/denoland/clawpatrol/issues/1",
+      "path":   "/repos/Nebuless/clawpatrol/issues/1",
       "headers": {
         "Authorization": ["***"]
       }

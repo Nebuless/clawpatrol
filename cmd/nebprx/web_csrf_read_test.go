@@ -102,13 +102,13 @@ func TestCSRFDashboardHostsAdmitsDeclaredName(t *testing.T) {
 	w := newCSRFTestWebMux(t)
 
 	req := csrfTestRequest(http.MethodGet, "/api/state", "")
-	req.Host = "clawpatrol-backend:8080"
+	req.Host = "nebprx-backend:8080"
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	csrfReadDenied(t, serveCSRF(w, req))
 
-	w.g.cfg.Load().Settings.DashboardHosts = []string{"clawpatrol-backend"}
+	w.g.cfg.Load().Settings.DashboardHosts = []string{"nebprx-backend"}
 	req = csrfTestRequest(http.MethodGet, "/api/state", "")
-	req.Host = "clawpatrol-backend:8080"
+	req.Host = "nebprx-backend:8080"
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	csrfReadPassed(t, serveCSRF(w, req))
 }
@@ -117,17 +117,17 @@ func TestCSRFDashboardHostsAdmitsDeclaredName(t *testing.T) {
 // set judges the name alone.
 func TestCSRFDashboardHostsEntryForms(t *testing.T) {
 	for _, entry := range []string{
-		"clawpatrol-backend",
-		"clawpatrol-backend:8080",
-		"https://clawpatrol-backend",
-		"https://clawpatrol-backend:8080",
-		"CLAWPATROL-BACKEND",
+		"nebprx-backend",
+		"nebprx-backend:8080",
+		"https://nebprx-backend",
+		"https://nebprx-backend:8080",
+		"NEBPRX-BACKEND",
 	} {
 		t.Run(entry, func(t *testing.T) {
 			w := newCSRFTestWebMux(t)
 			w.g.cfg.Load().Settings.DashboardHosts = []string{entry}
 			req := csrfTestRequest(http.MethodGet, "/api/state", "")
-			req.Host = "clawpatrol-backend:8080"
+			req.Host = "nebprx-backend:8080"
 			req.Header.Set("Sec-Fetch-Site", "same-origin")
 			csrfReadPassed(t, serveCSRF(w, req))
 		})
@@ -137,11 +137,11 @@ func TestCSRFDashboardHostsEntryForms(t *testing.T) {
 // A declared name admits that name and nothing adjacent to it.
 func TestCSRFDashboardHostsIsNotASuffixMatch(t *testing.T) {
 	w := newCSRFTestWebMux(t)
-	w.g.cfg.Load().Settings.DashboardHosts = []string{"clawpatrol-backend"}
+	w.g.cfg.Load().Settings.DashboardHosts = []string{"nebprx-backend"}
 	for _, host := range []string{
-		"clawpatrol-backend.evil.example",
-		"evil-clawpatrol-backend",
-		"notclawpatrol-backend",
+		"nebprx-backend.evil.example",
+		"evil-nebprx-backend",
+		"notnebprx-backend",
 	} {
 		t.Run(host, func(t *testing.T) {
 			req := csrfTestRequest(http.MethodGet, "/api/state", "")
@@ -166,7 +166,7 @@ func TestCSRFRejectsCrossSiteAPIRead(t *testing.T) {
 	}
 }
 
-// A client with no Sec-Fetch headers at all is the `clawpatrol` daemon
+// A client with no Sec-Fetch headers at all is the `nebprx` daemon
 // and an operator's curl. A browser always sets the header, so a page
 // cannot land in this bucket; rejecting it would only break the
 // non-browser callers. "none" is the user themself — a typed URL or a
@@ -202,7 +202,7 @@ func TestCSRFAllowsCrossSiteNavigationToDashboard(t *testing.T) {
 
 // The unauthenticated surface stays open to any Host. None of it is
 // gated, so none of it is anything a rebound name unlocks — and
-// `clawpatrol join` reaches it by whatever URL the operator typed,
+// `nebprx join` reaches it by whatever URL the operator typed,
 // which the gateway cannot derive from itself.
 func TestCSRFLeavesPublicReadsOpenToAnyHost(t *testing.T) {
 	w := newCSRFTestWebMux(t)

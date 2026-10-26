@@ -47,7 +47,7 @@ type Manager struct {
 	// install|update|lock` paths leave it unset, so the cache lands beside
 	// the gateway's state as before. The verification commands (validate,
 	// test) set it via the --plugin-cache-dir flag so a config pointing at
-	// a production state_dir (e.g. /var/lib/clawpatrol) can be linted on a
+	// a production state_dir (e.g. /var/lib/nebprx) can be linted on a
 	// dev machine without writing there. Distinct from stateDir, which
 	// stays the secret-store dir for the sandbox read_paths-overlap check.
 	cacheDir string
@@ -97,21 +97,21 @@ type blockedRecord struct {
 func New(out *log.Logger) *Manager {
 	level := hclog.Info
 	var output io.Writer = hclogWriter{out}
-	// CLAWPATROL_PLUGIN_LOG raises the plugin-subprocess log level
+	// NEBPRX_PLUGIN_LOG raises the plugin-subprocess log level
 	// (trace/debug/info/warn/error/off). At trace/debug this surfaces the
 	// plugin's own stderr — invaluable when a sandboxed plugin dies before
 	// the go-plugin handshake. When no gateway log sink is wired (e.g.
 	// `validate`), send it to stderr so it isn't discarded. An unrecognized
 	// value is ignored (level stays Info) with a warning, rather than
 	// silently jumping to max verbosity on a typo.
-	if v := os.Getenv("CLAWPATROL_PLUGIN_LOG"); v != "" {
+	if v := os.Getenv("NEBPRX_PLUGIN_LOG"); v != "" {
 		if lvl := hclog.LevelFromString(v); lvl != hclog.NoLevel {
 			level = lvl
 			if out == nil {
 				output = os.Stderr
 			}
 		} else {
-			fmt.Fprintf(os.Stderr, "clawpatrol: ignoring invalid CLAWPATROL_PLUGIN_LOG=%q (want trace|debug|info|warn|error|off)\n", v)
+			fmt.Fprintf(os.Stderr, "nebprx: ignoring invalid NEBPRX_PLUGIN_LOG=%q (want trace|debug|info|warn|error|off)\n", v)
 		}
 	}
 	logger := hclog.New(&hclog.LoggerOptions{
@@ -131,7 +131,7 @@ func New(out *log.Logger) *Manager {
 // SetLockfile points the manager at the permission lockfile beside the
 // gateway config. Without it (tests, config.LoadBytes) plugins fall
 // back to their manifest-declared capabilities with no persistence or
-// escalation check. readOnly (used by `clawpatrol validate`) resolves
+// escalation check. readOnly (used by `nebprx validate`) resolves
 // and reports escalations but never writes the lockfile.
 func (m *Manager) SetLockfile(path string, readOnly bool) {
 	m.lock.configure(path, readOnly)
@@ -403,7 +403,7 @@ func (m *Manager) spawnClient(ctx context.Context, source string, spec sandbox.S
 		Cmd: cmd,
 		// The plugin's environment is exactly what sandbox.Command
 		// set (plus go-plugin's handshake vars): the gateway's own
-		// environment — CLAWPATROL_SECRET_*, cloud credentials —
+		// environment — NEBPRX_SECRET_*, cloud credentials —
 		// must never reach plugin code.
 		SkipHostEnv:      true,
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
@@ -535,7 +535,7 @@ func (m *Manager) resolveNetwork(ctx context.Context, sp config.PluginSource, bi
 		return "", "", fmt.Errorf(
 			"plugin %q upgrade escalates permissions: it now requests network=%q but was approved for network=%q. "+
 				"A compromised plugin update gaining an exfiltration path looks exactly like this. "+
-				"If you trust this update, re-approve it: clawpatrol plugins approve %s",
+				"If you trust this update, re-approve it: nebprx plugins approve %s",
 			sp.Name, declared, rec, sp.Name)
 	}
 	// Same or reduced permissions: add this binary's hash to the
@@ -592,7 +592,7 @@ func (m *Manager) resolveEgress(sp config.PluginSource, prior lockEntry, priorRe
 		return nil, "", fmt.Errorf(
 			"plugin %q upgrade broadens its network egress: it now wants to reach %v but was approved only for %v. "+
 				"A compromised plugin update adding an exfiltration destination looks exactly like this. "+
-				"If you trust this update, re-approve it: clawpatrol plugins approve %s",
+				"If you trust this update, re-approve it: nebprx plugins approve %s",
 			sp.Name, broadened, prior.Egress, sp.Name)
 	}
 	// Same or narrowed: record the (possibly tightened) declared set.
@@ -642,7 +642,7 @@ func privilegedFromManifest(mf *pb.ManifestResponse) bool {
 // resolvePrivileged decides whether sp runs unsandboxed. Privileged is the
 // strongest grant a plugin can ask for — full host access — so unlike
 // network and egress it is NEVER trust-on-first-use: the operator must
-// approve it explicitly with `clawpatrol plugins approve` (or the
+// approve it explicitly with `nebprx plugins approve` (or the
 // dashboard), which records it in the lockfile gated on the binary's hash.
 //
 // prior is the lockfile entry as it was at the start of this pass (the
@@ -688,9 +688,9 @@ func (m *Manager) resolvePrivileged(sp config.PluginSource, prior lockEntry, pri
 	// explicit `plugins approve` does.
 	return false, "", fmt.Errorf(
 		"plugin %q declares the privileged capability: it needs to run with the sandbox OFF (full host access — "+
-			"it can read every file this user can, including clawpatrol's own secrets, and run any command). "+
-			"clawpatrol will not grant that silently. If you trust this plugin, approve it explicitly: "+
-			"clawpatrol plugins approve %s", sp.Name, sp.Name)
+			"it can read every file this user can, including nebprx's own secrets, and run any command). "+
+			"nebprx will not grant that silently. If you trust this plugin, approve it explicitly: "+
+			"nebprx plugins approve %s", sp.Name, sp.Name)
 }
 
 func networkFromManifest(mf *pb.ManifestResponse) sandbox.Network {
@@ -1007,7 +1007,7 @@ func facetStreamFieldNames(decl *pb.FacetDecl) []string {
 }
 
 // Plugins returns every loaded plugin's *Client, sorted by name.
-// Used by callers (clawpatrol validate, dashboard surfaces, etc.)
+// Used by callers (nebprx validate, dashboard surfaces, etc.)
 // that want to enumerate manifests after LoadPlugins has run.
 func (m *Manager) Plugins() []*Client {
 	m.mu.Lock()
@@ -1040,7 +1040,7 @@ type PluginInfo struct {
 	// UpdateAvailable is the newest release tag satisfying the plugin's
 	// constraint that is newer than the locked version (GitHub sources
 	// only). Set by the background update check; the operator applies it
-	// with `clawpatrol plugins update`.
+	// with `nebprx plugins update`.
 	UpdateAvailable string   `json:"updateAvailable,omitempty"`
 	Credentials     []string `json:"credentials,omitempty"`
 	Tunnels         []string `json:"tunnels,omitempty"`

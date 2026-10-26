@@ -141,7 +141,7 @@ func decodeSignalMessageRef(raw string) (signalMessageRef, bool) {
 	return ref, true
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*SignalCLI) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{
 		{Name: "api_url", Label: "signal-cli-rest-api URL", Description: "Base URL of the signal-cli-rest-api, e.g. http://localhost:8080"},
@@ -206,7 +206,7 @@ func signalHITLMessage(req runtime.ApproveRequest, target runtime.HITLTarget) st
 	title := runtime.HITLTitle(req.Method, endpoint)
 
 	var b strings.Builder
-	b.WriteString("clawpatrol: " + slackTrunc(title, 200) + "\n")
+	b.WriteString("PRX: " + slackTrunc(title, 200) + "\n")
 
 	switch {
 	case strings.TrimSpace(target.Message) != "":

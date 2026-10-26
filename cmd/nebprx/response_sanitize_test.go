@@ -222,14 +222,14 @@ func (s basicAuthChallengeSecretStore) Get(name string) (runtime.Secret, error) 
 
 func TestMITMPreservesBasicChallengeThenRewritesPlaceholder(t *testing.T) {
 	const (
-		placeholder = "glpat-clawpatrol-git-placeholder-do-not-use"
+		placeholder = "glpat-nebprx-git-placeholder-do-not-use"
 		realSecret  = "glpat-real-secret"
 		username    = "oauth2"
 	)
 
 	gw, diags := config.LoadBytes([]byte(fmt.Sprintf(`
 gateway {
-  state_dir  = "/tmp/clawpatrol-test"
+  state_dir  = "/tmp/nebprx-test"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -238,7 +238,7 @@ endpoint "https" "gitlab" {
 }
 credential "header_token" "gitlab-api-token" {
   endpoint    = https.gitlab
-  placeholder = "glpat-clawpatrol-api-placeholder-do-not-use"
+  placeholder = "glpat-nebprx-api-placeholder-do-not-use"
   header      = "PRIVATE-TOKEN"
 }
 credential "basic_auth" "gitlab-git-token" {

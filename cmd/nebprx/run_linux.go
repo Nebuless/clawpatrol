@@ -2,13 +2,13 @@
 
 package main
 
-// `clawpatrol run -- <cmd> [args...]` — route a single process tree's
+// `nebprx run -- <cmd> [args...]` — route a single process tree's
 // traffic through the gateway, leave the rest of the machine alone.
 //
-// The parent process is a thin client to the per-host `clawpatrol
+// The parent process is a thin client to the per-host `nebprx
 // daemon` (see daemon_linux.go), which owns one shared network
 // identity for the host (tsnet peer or WireGuard peer, depending on
-// `clawpatrol join` mode). Every concurrent run multiplexes through
+// `nebprx join` mode). Every concurrent run multiplexes through
 // the daemon — no per-process WG keys, no per-process tsnet nodes.
 //
 // Flow:
@@ -65,20 +65,20 @@ import (
 )
 
 const (
-	runChildEnv        = "CLAWPATROL_RUN_CHILD"
-	runNoAutoExposeEnv = "CLAWPATROL_RUN_NO_AUTO_EXPOSE"
+	runChildEnv        = "NEBPRX_RUN_CHILD"
+	runNoAutoExposeEnv = "NEBPRX_RUN_NO_AUTO_EXPOSE"
 	// runTunAddrEnv is the CIDR-less IP the child binds to its TUN
 	// inside the netns. Set by the parent from the daemon's ADDR
 	// reply; emitted into the child's environment so the child
 	// netns can configure `ip addr add` without round-tripping
 	// the value through the SCM_RIGHTS conn.
-	runTunAddrEnv = "CLAWPATROL_TUN_ADDR"
+	runTunAddrEnv = "NEBPRX_TUN_ADDR"
 	// runDropUIDEnv / runDropGIDEnv are set by the privileged (sudo)
 	// parent (run_sudo_linux.go) to tell runRunChild to drop from root
 	// to the invoking user before exec'ing the command. Absent on the
 	// unprivileged userns path, where the child already runs as the user.
-	runDropUIDEnv = "CLAWPATROL_RUN_DROP_UID"
-	runDropGIDEnv = "CLAWPATROL_RUN_DROP_GID"
+	runDropUIDEnv = "NEBPRX_RUN_DROP_UID"
+	runDropGIDEnv = "NEBPRX_RUN_DROP_GID"
 	tunIfName     = "wg0"
 	// runTunMTU is the TUN MTU inside the child's netns. Set to the
 	// max IPv4 packet size — the daemon's transport handles real
@@ -94,7 +94,7 @@ const (
 	runTunAddr6 = "fd63:6c61:7770::2"
 )
 
-// runRun is `clawpatrol run`. Re-execs self in new user+net+mnt
+// runRun is `nebprx run`. Re-execs self in new user+net+mnt
 // namespaces with CAP_NET_ADMIN in the ambient set, hands the TUN fd
 // to the per-host daemon, and execs the user's cmd inside the child.
 func runRun(args []string) {
@@ -110,7 +110,7 @@ func runRun(args []string) {
 	_ = fs.Parse(args)
 	cmd := fs.Args()
 	if len(cmd) == 0 {
-		fail("usage: clawpatrol run [--no-auto-expose] -- <cmd> [args...]")
+		fail("usage: nebprx run [--no-auto-expose] -- <cmd> [args...]")
 	}
 
 	// Whole-machine join: the host already routes all traffic through
@@ -125,14 +125,14 @@ func runRun(args []string) {
 	// With passwordless sudo we can set the netns up as real root
 	// instead of an unprivileged user namespace, so the wrapped command
 	// keeps real uids and `sudo` works inside it. Opt out with
-	// CLAWPATROL_NO_SUDO.
+	// NEBPRX_NO_SUDO.
 	if sudoSetupAvailable() {
 		runViaSudo(cmd)
 		return
 	}
 
 	if os.Geteuid() == 0 {
-		fail("run as your normal user; clawpatrol run uses unprivileged user namespaces which root cannot enter on this distro")
+		fail("run as your normal user; nebprx run uses unprivileged user namespaces which root cannot enter on this distro")
 	}
 	if *noAutoExpose {
 		_ = os.Setenv(runNoAutoExposeEnv, "1")
@@ -160,7 +160,7 @@ func runRun(args []string) {
 		fail("daemon START: %v", err)
 	}
 	if daemonWarn != "" {
-		fmt.Fprintf(os.Stderr, "clawpatrol: daemon: %s\n", daemonWarn)
+		fmt.Fprintf(os.Stderr, "nebprx: daemon: %s\n", daemonWarn)
 	}
 	_ = os.Setenv(runTunAddrEnv, tunAddr.String())
 
@@ -173,8 +173,8 @@ func runRun(args []string) {
 	// our MITM CA, sees the gateway's mint as untrusted, and either
 	// fails the handshake or falls back to its own bundle (which
 	// doesn't have our CA).
-	caPath := filepath.Join(defaultClawpatrolDir(), "ca.crt")
-	allVars := append(caPathPushdownVars(caPath), dropClawpatrolCAVars(envVars)...)
+	caPath := filepath.Join(defaultNebprxDir(), "ca.crt")
+	allVars := append(caPathPushdownVars(caPath), dropNebprxCAVars(envVars)...)
 	applyEnvPushdownVars(allVars)
 	installClaudeCodeOAuthShim(cmd)
 
@@ -378,14 +378,14 @@ func awaitRunExit(childDone, supDone <-chan error, grace time.Duration, killSup 
 // relayExitWarning so one runaway log line can't swamp the terminal.
 const relayLastLineMaxRunes = 200
 
-// relayExitWarning formats the one-line warning `clawpatrol run` prints
+// relayExitWarning formats the one-line warning `nebprx run` prints
 // when the auto-expose relay supervisor exits while the wrapped command
 // is still running. waitErr is the supervisor's Wait result (nil for a
 // clean exit 0); lastLine is its final stderr line, quoted when present
 // so the operator sees the cause without tailing anything.
 func relayExitWarning(waitErr error, lastLine string) string {
 	var b strings.Builder
-	b.WriteString("⚠ clawpatrol run: auto-expose relay supervisor exited")
+	b.WriteString("⚠ nebprx run: auto-expose relay supervisor exited")
 	if waitErr != nil {
 		fmt.Fprintf(&b, " (%v)", waitErr)
 	}
@@ -440,21 +440,21 @@ func (l *lastLineWriter) LastLine() string {
 	return strings.TrimSpace(s)
 }
 
-// runWholeMachineDirect handles `clawpatrol run <cmd>` on a
+// runWholeMachineDirect handles `nebprx run <cmd>` on a
 // --whole-machine device. The host already routes all traffic through
 // the gateway, so there's no per-process namespace/daemon: just inject
 // the credential env and exec the command. Env is fetched straight
 // from the gateway — the daemon fetcher would try to spawn the
 // per-host daemon, which whole-machine mode doesn't run.
 func runWholeMachineDirect(cmd []string) {
-	if os.Getenv("CLAWPATROL_NO_ENV") != "1" {
-		applyEnvPushdownVars(wholeMachineEnvVars(defaultClawpatrolDir()))
+	if os.Getenv("NEBPRX_NO_ENV") != "1" {
+		applyEnvPushdownVars(wholeMachineEnvVars(defaultNebprxDir()))
 	}
 	bin, err := exec.LookPath(cmd[0])
 	if err != nil {
 		fail("%s: %v", cmd[0], err)
 	}
-	fmt.Fprintln(os.Stderr, "[clawpatrol] whole-machine join — traffic already routes through the gateway; running directly (no sandbox)")
+	fmt.Fprintln(os.Stderr, "[nebprx] whole-machine join — traffic already routes through the gateway; running directly (no sandbox)")
 	if err := syscall.Exec(bin, cmd, os.Environ()); err != nil {
 		fail("exec %s: %v", bin, err)
 	}
@@ -464,14 +464,14 @@ func runWholeMachineDirect(cmd []string) {
 // path. Unlike the namespaced paths there is no daemon to ship CA vars, so this
 // path must inject the local combined-bundle CA vars itself (caPathPushdownVars)
 // — otherwise the wrapped agent never trusts the MITM CA. The gateway's vars
-// are appended with their clawpatrol-owned CA names stripped, so a plugin can't
+// are appended with their nebprx-owned CA names stripped, so a plugin can't
 // override the local bundle (same guard as run/sudo/env).
 func wholeMachineEnvVars(caDir string) []pushdownEnvVar {
 	out := caPathPushdownVars(filepath.Join(caDir, "ca.crt"))
 	if vars, err := envPushdownGatewayFetcher(caDir); err == nil {
-		out = append(out, dropClawpatrolCAVars(vars)...)
+		out = append(out, dropNebprxCAVars(vars)...)
 	} else {
-		fmt.Fprintf(os.Stderr, "[clawpatrol] env pushdown: %v (continuing without injected credentials)\n", err)
+		fmt.Fprintf(os.Stderr, "[nebprx] env pushdown: %v (continuing without injected credentials)\n", err)
 	}
 	return out
 }
@@ -514,7 +514,7 @@ func runRunChild() {
 		c.Stderr = os.Stderr
 		if err := c.Run(); err != nil {
 			if step.optional {
-				fmt.Fprintf(os.Stderr, "[clawpatrol] %s: %v — continuing without IPv6 in the sandbox\n",
+				fmt.Fprintf(os.Stderr, "[nebprx] %s: %v — continuing without IPv6 in the sandbox\n",
 					strings.Join(step.args, " "), err)
 				continue
 			}
@@ -535,13 +535,13 @@ func runRunChild() {
 		err = applyDNSLockdown(plan)
 	}
 	if err != nil {
-		fail("dns sandbox setup: %v\n  set CLAWPATROL_RUN_KEEP_RESOLV=1 to skip DNS sandboxing (tunnel-backed endpoints will then be unreachable)", err)
+		fail("dns sandbox setup: %v\n  set NEBPRX_RUN_KEEP_RESOLV=1 to skip DNS sandboxing (tunnel-backed endpoints will then be unreachable)", err)
 	}
 
 	// The agent runs as the same uid as the parent and can therefore
 	// read anything the parent can; the daemon owns the underlay key
-	// material (tsnet auth key under $XDG_STATE_HOME/clawpatrol/, or
-	// the wg.conf at ~/.config/clawpatrol/) and never hands it back.
+	// material (tsnet auth key under $XDG_STATE_HOME/nebprx/, or
+	// the wg.conf at ~/.config/nebprx/) and never hands it back.
 	// PR_SET_DUMPABLE in the parent still closes the ptrace_scope=0
 	// /proc memory bypass.
 
@@ -587,7 +587,7 @@ func runRunChild() {
 	}
 }
 
-// strippedRunEnv returns the process environment with clawpatrol's
+// strippedRunEnv returns the process environment with nebprx's
 // internal run-coordination variables removed, so the wrapped command
 // doesn't inherit them.
 func strippedRunEnv() []string {
@@ -616,7 +616,7 @@ func strippedRunEnv() []string {
 // --- daemon client protocol ------------------------------------------
 
 // daemonClientFetchEnv sends "ENV\n" on ctrl and parses the daemon's
-// single "ENV <n>\n<n bytes>" reply. Used by `clawpatrol env` so the
+// single "ENV <n>\n<n bytes>" reply. Used by `nebprx env` so the
 // env subcommand can fetch the gateway-declared push-down vars even
 // in tsnet-only deployments, where the env process has no host-side
 // tailnet route and the in-process gatewayDialOverride is unset
@@ -742,7 +742,7 @@ func readLenPrefixed(br *bufio.Reader, tag string, maxLen int) (int, error) {
 //   - "READYERR <n>\n<n bytes>" — the daemon couldn't confirm
 //     transport readiness within daemonReadyTimeout (handshake
 //     stalled, exit-node ACL missing, etc). We surface the body as
-//     the error so `clawpatrol run` exits with the actual reason
+//     the error so `nebprx run` exits with the actual reason
 //     instead of "expected ATTACHED, got ..." gibberish.
 //
 // The deadline is daemonReadyTimeout + buffer so the wrapper's read
@@ -813,7 +813,7 @@ func clearAmbientCaps() error {
 // /proc/<parent_pid>/{mem,root,fd,maps,environ} flip to root:root
 // ownership, so a same-uid agent (forked under us) is denied ptrace
 // attach and cannot dereference /proc/<parent_pid>/root to reach the
-// host mnt namespace's view of ~/.clawpatrol/. Closes the
+// host mnt namespace's view of ~/.nebprx/. Closes the
 // kernel.yama.ptrace_scope=0 bypass.
 func hideParentFromAgent() error {
 	_, _, errno := unix.RawSyscall6(unix.SYS_PRCTL,
@@ -858,9 +858,9 @@ type runConf struct {
 
 func defaultRunConf() string {
 	if dir, _ := os.UserConfigDir(); dir != "" {
-		return filepath.Join(dir, "clawpatrol", "wg.conf")
+		return filepath.Join(dir, "nebprx", "wg.conf")
 	}
-	return filepath.Join(os.Getenv("HOME"), ".config", "clawpatrol", "wg.conf")
+	return filepath.Join(os.Getenv("HOME"), ".config", "nebprx", "wg.conf")
 }
 
 func parseRunConf(path string) (*runConf, error) {
@@ -962,10 +962,10 @@ func checkUserNS() {
 		if strings.TrimSpace(string(b)) == "1" {
 			self, _ := os.Executable()
 			fmt.Fprintf(os.Stderr, "warning: AppArmor restricts unprivileged user namespaces on this host (Ubuntu 24.04 default).\n"+
-				"  If `clawpatrol run` fails, either give this user passwordless sudo (clawpatrol then\n"+
+				"  If `nebprx run` fails, either give this user passwordless sudo (nebprx then\n"+
 				"  sets the namespace up as root and needs no user namespace), or grant this binary\n"+
 				"  the userns permission with an AppArmor profile:\n"+
-				"    https://clawpatrol.dev/docs/cli/#ubuntu-2404-and-apparmor\n"+
+				"    https://prx.nebuless.cloud/docs/cli/#ubuntu-2404-and-apparmor\n"+
 				"  (binary: %s)\n", self)
 		}
 	}
@@ -1132,7 +1132,7 @@ func childNetnsSteps(tunAddr string) []netnsStep {
 // The other lockdown layers (see run_dns_lockdown_linux.go) handle
 // that case.
 func childResolvConf() string {
-	caDir := defaultClawpatrolDir()
+	caDir := defaultNebprxDir()
 	if gwIP := strings.TrimSpace(readFileSilent(filepath.Join(caDir, "tailnet-gateway-ip"))); gwIP != "" {
 		return "nameserver " + gwIP + "\n"
 	}
@@ -1234,7 +1234,7 @@ func cutHostsDefinition(line string) (services string, ok bool) {
 // rather than audited.
 //
 // Hosts that resolve internal names through sssd/LDAP/NIS lose that
-// inside the sandbox; CLAWPATROL_RUN_KEEP_RESOLV=1 remains the escape
+// inside the sandbox; NEBPRX_RUN_KEEP_RESOLV=1 remains the escape
 // hatch for runs that need host NSS behavior (and can live with
 // tunnel-backed endpoints being unreachable).
 //
@@ -1284,7 +1284,7 @@ func rewriteHostsLines(raw string) (body string, changed bool) {
 // success: once the bind-mount is in place it holds a reference to
 // the inode, so removing the source directory entry leaves target
 // intact (the mount points at the inode, not the path) while ensuring
-// we don't strand a temp file per `clawpatrol run`. The kernel
+// we don't strand a temp file per `nebprx run`. The kernel
 // reclaims the inode when the mount goes away on namespace exit. The
 // file is made world-readable (0644) so an unprivileged wrapped
 // command can read it on the sudo path.

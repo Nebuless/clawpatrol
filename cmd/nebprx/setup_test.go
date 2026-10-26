@@ -17,7 +17,7 @@ func TestIsTailnetOnlyURL(t *testing.T) {
 		{"100.127.255.254 upper bound", "http://100.127.255.254/", true},
 		{"100.128.x outside cgnat", "http://100.128.0.1/", false},
 		{"100.63.x outside cgnat", "http://100.63.255.255/", false},
-		{".ts.net magicdns", "https://clawpatrol-gateway.tail9a48e.ts.net/#/onboard/X", true},
+		{".ts.net magicdns", "https://nebprx-gateway.tail9a48e.ts.net/#/onboard/X", true},
 		{".TS.NET case-insensitive", "https://gw.TAIL9A48E.TS.NET/", true},
 		{"public dns", "https://gw.example.com/", false},
 		{"loopback ip", "http://127.0.0.1:8080/", false},
@@ -40,7 +40,7 @@ func TestIsTailnetOnlyURL(t *testing.T) {
 // the bootstrap node's whois identity is checked), not the public
 // Funnel join URL whose allowlist 404s /api/onboard/approve.
 func TestApproveBaseFromVerifyURL(t *testing.T) {
-	const fallback = "https://clawpatrol-gateway.tail9a48e.ts.net"
+	const fallback = "https://nebprx-gateway.tail9a48e.ts.net"
 	cases := []struct {
 		name      string
 		verifyURL string

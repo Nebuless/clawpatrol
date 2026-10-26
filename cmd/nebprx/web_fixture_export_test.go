@@ -18,7 +18,7 @@ import (
 // testGatewayPrefix wraps inline HCL fixtures with a minimal valid
 // gateway block so loader-level operational validation passes.
 const testGatewayPrefix = `gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -66,7 +66,7 @@ func TestExporterHTTPSHappyPath(t *testing.T) {
 		ReqBodyState: bodyCaptureComplete,
 		ReqHeaders: map[string]string{
 			"Authorization": "***",
-			"User-Agent":    "clawpatrol-test",
+			"User-Agent":    "nebprx-test",
 		},
 	}
 	rw := httptest.NewRecorder()
@@ -195,7 +195,7 @@ profile "default" { credentials = [bearer_token.a, bearer_token.b] }
 
 // approved / denied (and their pre-migration aliases hitl_allow /
 // hitl_deny) collapse to "approve" in the fixture (the chain is
-// terminal — see site/doc/clawpatrol-test.md). in_flight is a start
+// terminal — see site/doc/nebprx-test.md). in_flight is a start
 // event and isn't exportable.
 func TestExporterEventActionMapping(t *testing.T) {
 	for _, action := range []string{"approved", "denied", "hitl_allow", "hitl_deny"} {
@@ -250,7 +250,7 @@ profile "default" { credentials = [postgres_credential.pg-cred] }
 
 // SQL exporter must include verb / tables / functions / database
 // when the recorded facets supply them — the dashboard's request
-// detail view already renders these, and `clawpatrol test` fixtures
+// detail view already renders these, and `nebprx test` fixtures
 // are supposed to be self-contained (cl-m6wv).
 func TestExporterSQLEmitsAllFacets(t *testing.T) {
 	const hcl = `
@@ -637,7 +637,7 @@ profile "default" { credentials = [ssh_key.key] }
 }
 
 // passthrough fixtures parse fine but the runner rejects them at
-// replay (site/doc/clawpatrol-test.md). Lock in both halves so a future change has
+// replay (site/doc/nebprx-test.md). Lock in both halves so a future change has
 // to pick one side intentionally.
 func TestRunnerRejectsPassthrough(t *testing.T) {
 	gw := gatewayWithPolicy(t, fixtureHCL)

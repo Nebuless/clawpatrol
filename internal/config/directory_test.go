@@ -20,7 +20,7 @@ func TestLoadDirectory(t *testing.T) {
 
 	writeHCL(t, dir, "00-gateway.hcl", `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
 
   wireguard {
@@ -161,7 +161,7 @@ endpoint "https" "github" {
 `)
 	writeHCL(t, dir, "d-gateway.hcl", `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
 
   wireguard {
@@ -241,7 +241,7 @@ func TestLoadDirectoryRejectsDuplicateGatewayBlock(t *testing.T) {
 	dir := t.TempDir()
 	writeHCL(t, dir, "00-a.hcl", `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard {
     subnet_cidr = "10.55.0.0/24"
@@ -321,7 +321,7 @@ func TestLoadDirectorySingleFileWorksLikeBefore(t *testing.T) {
 	dir := t.TempDir()
 	writeHCL(t, dir, "only.hcl", `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
 
   wireguard {
@@ -364,7 +364,7 @@ func writeHCL(t *testing.T, dir, name, body string) {
 
 const minimalGateway = `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
 
   wireguard {

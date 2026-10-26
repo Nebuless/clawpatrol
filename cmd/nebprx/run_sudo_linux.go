@@ -2,7 +2,7 @@
 
 package main
 
-// Privileged `clawpatrol run` setup on a host with passwordless sudo.
+// Privileged `nebprx run` setup on a host with passwordless sudo.
 //
 // The default path (run_linux.go) runs the wrapped command in an
 // unprivileged user namespace to obtain CAP_NET_ADMIN / CAP_SYS_ADMIN
@@ -23,11 +23,11 @@ package main
 // there's no syscall that grants root from sudoers — so we exec sudo
 // exactly once and do everything else with syscalls.
 //
-// Opt out with CLAWPATROL_NO_SUDO to force the unprivileged userns path.
+// Opt out with NEBPRX_NO_SUDO to force the unprivileged userns path.
 //
 // Limitation: the auto-expose relay (port mirroring) is not wired into
 // this path yet; listeners the command opens aren't published to the
-// host. Use the userns path (CLAWPATROL_NO_SUDO=1) if you need that.
+// host. Use the userns path (NEBPRX_NO_SUDO=1) if you need that.
 
 import (
 	"errors"
@@ -48,9 +48,9 @@ import (
 
 // sudoSetupAvailable reports whether runRun should set the namespace up
 // via passwordless sudo (real root) rather than an unprivileged user
-// namespace. Gated off by CLAWPATROL_NO_SUDO.
+// namespace. Gated off by NEBPRX_NO_SUDO.
 func sudoSetupAvailable() bool {
-	if os.Getenv("CLAWPATROL_NO_SUDO") != "" {
+	if os.Getenv("NEBPRX_NO_SUDO") != "" {
 		return false
 	}
 	if os.Geteuid() == 0 {
@@ -94,7 +94,7 @@ func runViaSudo(cmd []string) {
 		"--", self, "__run-privileged",
 		"--sock", daemonControlSockPath(),
 		"--env-file", envFile,
-		"--ca", filepath.Join(defaultClawpatrolDir(), "ca.crt"),
+		"--ca", filepath.Join(defaultNebprxDir(), "ca.crt"),
 		"--",
 	}
 	args = append(args, cmd...)
@@ -170,7 +170,7 @@ func runRunPrivileged(args []string) {
 		fail("daemon START: %v", err)
 	}
 	if warn != "" {
-		fmt.Fprintf(os.Stderr, "clawpatrol: daemon: %s\n", warn)
+		fmt.Fprintf(os.Stderr, "nebprx: daemon: %s\n", warn)
 	}
 	uc, _ := ctrl.(*net.UnixConn)
 	if uc == nil {
@@ -213,7 +213,7 @@ func runRunPrivileged(args []string) {
 	// command (runRunChild handles the drop when runDropUIDEnv is set).
 	// The command thus runs as that user in a namespace where root
 	// exists — sudo works — and can't tell it was launched via sudo
-	// (clean env, normal uid, parent is clawpatrol, no stray fds).
+	// (clean env, normal uid, parent is nebprx, no stray fds).
 	self, err := os.Executable()
 	if err != nil {
 		fail("self path: %v", err)
@@ -230,7 +230,7 @@ func runRunPrivileged(args []string) {
 		// mount namespace inherits the host's shared propagation, so
 		// the resolv.conf bind-mount runRunChild does propagates back
 		// to the host /etc/resolv.conf and stacks up one overmount per
-		// `clawpatrol run` (and pins the /tmp temp file forever). The
+		// `nebprx run` (and pins the /tmp temp file forever). The
 		// unprivileged userns path doesn't need this — a userns-owned
 		// mount namespace is already private. Real root here can
 		// unshare the mount namespace directly.
@@ -301,7 +301,7 @@ func sudoTargetIDs() (uid, gid int, ok bool) {
 // buildPrivilegedEnv reconstructs the command's environment: the user's
 // captured env (from envFile, which it deletes) plus the cert-bundle and
 // gateway push-down vars, the latter skipped when the user set
-// CLAWPATROL_NO_ENV and never overriding a var the user already set.
+// NEBPRX_NO_ENV and never overriding a var the user already set.
 func buildPrivilegedEnv(envFile, caPath string, pushVars []pushdownEnvVar) []string {
 	data, err := os.ReadFile(envFile)
 	if err != nil {
@@ -319,7 +319,7 @@ func buildPrivilegedEnv(envFile, caPath string, pushVars []pushdownEnvVar) []str
 		env = append(env, kv)
 		if i := strings.IndexByte(kv, '='); i > 0 {
 			have[kv[:i]] = true
-			if kv == "CLAWPATROL_NO_ENV=1" {
+			if kv == "NEBPRX_NO_ENV=1" {
 				noEnv = true
 			}
 		}
@@ -327,7 +327,7 @@ func buildPrivilegedEnv(envFile, caPath string, pushVars []pushdownEnvVar) []str
 	if noEnv {
 		return env
 	}
-	// The clawpatrol-owned CA vars are force-set: the child MUST trust the
+	// The nebprx-owned CA vars are force-set: the child MUST trust the
 	// combined bundle / MITM CA even if the captured user env already named
 	// SSL_CERT_FILE etc. Drop any captured value for those names first, then
 	// re-add ours below. Non-CA pushdown vars keep the user's captured value.
@@ -337,14 +337,14 @@ func buildPrivilegedEnv(envFile, caPath string, pushVars []pushdownEnvVar) []str
 		if i := strings.IndexByte(kv, '='); i > 0 {
 			name = kv[:i]
 		}
-		if clawpatrolCAVarNames[name] {
+		if nebprxCAVarNames[name] {
 			continue
 		}
 		filtered = append(filtered, kv)
 	}
 	env = filtered
-	for _, ev := range append(caPathPushdownVars(caPath), dropClawpatrolCAVars(pushVars)...) {
-		if !clawpatrolCAVarNames[ev.Name] && have[ev.Name] {
+	for _, ev := range append(caPathPushdownVars(caPath), dropNebprxCAVars(pushVars)...) {
+		if !nebprxCAVarNames[ev.Name] && have[ev.Name] {
 			continue
 		}
 		env = append(env, ev.Name+"="+ev.Value)

@@ -373,18 +373,18 @@ func TestRelayExitWarning(t *testing.T) {
 	}{
 		{
 			name: "clean exit no output",
-			want: "⚠ clawpatrol run: auto-expose relay supervisor exited; port auto-expose and host-loopback forwarding are off for the rest of this run",
+			want: "⚠ nebprx run: auto-expose relay supervisor exited; port auto-expose and host-loopback forwarding are off for the rest of this run",
 		},
 		{
 			name:     "error with last line",
 			err:      errors.New("exit status 1"),
 			lastLine: "relay-supervisor: boom",
-			want:     "⚠ clawpatrol run: auto-expose relay supervisor exited (exit status 1); port auto-expose and host-loopback forwarding are off for the rest of this run; last output: \"relay-supervisor: boom\"",
+			want:     "⚠ nebprx run: auto-expose relay supervisor exited (exit status 1); port auto-expose and host-loopback forwarding are off for the rest of this run; last output: \"relay-supervisor: boom\"",
 		},
 		{
 			name:     "long last line truncated at rune boundary",
 			lastLine: strings.Repeat("é", relayLastLineMaxRunes+50),
-			want: "⚠ clawpatrol run: auto-expose relay supervisor exited; port auto-expose and host-loopback forwarding are off for the rest of this run; last output: \"" +
+			want: "⚠ nebprx run: auto-expose relay supervisor exited; port auto-expose and host-loopback forwarding are off for the rest of this run; last output: \"" +
 				strings.Repeat("é", relayLastLineMaxRunes) + "…\"",
 		},
 	}

@@ -41,7 +41,7 @@ import (
 // unless they are shaped like a submitted form. Every browser sets
 // Origin on a request whose method is not GET or HEAD, so a page
 // cannot drive a request into that bucket; what lands there is the
-// `clawpatrol` CLI, which POSTs to operator-gated endpoints
+// `nebprx` CLI, which POSTs to operator-gated endpoints
 // (/api/onboard/approve during `join --login` self-approval) with no
 // browser headers at all. Rejecting the bucket outright would turn
 // every such call into a 403. The content-type filter keeps the
@@ -57,7 +57,7 @@ func (w *webMux) csrfProtect(next http.Handler) http.Handler {
 			w.csrfProtectRead(rw, r, next)
 			return
 		}
-		// authPublic covers the device-flow handshakes `clawpatrol
+		// authPublic covers the device-flow handshakes `nebprx
 		// join` drives (/api/onboard/{start,poll,claim}).
 		// authSelfAuthenticating covers /api/cred/* and the HITL
 		// operation-status paths, whose callers are external providers
@@ -354,7 +354,7 @@ func (w *webMux) csrfProtectRead(rw http.ResponseWriter, r *http.Request, next h
 	// dashboard served as plain HTTP on a tailnet address gets none of
 	// it — the lock engages on the Funnel, on a TLS-terminating proxy
 	// and on loopback. Non-browser callers send none either: the
-	// `clawpatrol` daemon polling /api/env-pushdown, an operator's
+	// `nebprx` daemon polling /api/env-pushdown, an operator's
 	// curl. "none" is the user themself — a typed URL or a bookmark.
 	if strings.HasPrefix(r.URL.Path, "/api/") {
 		switch site := r.Header.Get("Sec-Fetch-Site"); site {
@@ -376,7 +376,7 @@ func (w *webMux) csrfProtectRead(rw http.ResponseWriter, r *http.Request, next h
 // authPublic is the surface a client with no credential at all reads:
 // /info, /ca.crt, the login form and the assets it loads. None of it
 // is gated, so none of it is anything the attacker could not fetch
-// directly, and holding it to the set would mean `clawpatrol join`
+// directly, and holding it to the set would mean `nebprx join`
 // could only name the gateway the way the gateway names itself.
 //
 // authSelfAuthenticating routes carry their own proof per request — a

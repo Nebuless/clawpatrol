@@ -44,7 +44,7 @@ func TestGatewayTsnetDir_EmptyStateDir(t *testing.T) {
 // TestOpenListener_WireGuardOnlyBindsLoopback covers the WG-only path:
 // the loopback TCP listener at 127.0.0.1:8443 is for host-local
 // agents (single-host deployments where the gateway runs under one
-// UID and clawpatrol-run from another). No tsnet bring-up.
+// UID and nebprx-run from another). No tsnet bring-up.
 func TestOpenListener_WireGuardOnlyBindsLoopback(t *testing.T) {
 	t.Setenv("HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", "")

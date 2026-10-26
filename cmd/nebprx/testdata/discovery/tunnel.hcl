@@ -9,7 +9,7 @@
 # tunnel line). A direct `github` endpoint is kept alongside as the
 # contrast — the tunneled endpoints must read no differently from it.
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -23,7 +23,7 @@ tunnel "local_command" "csql" {
 }
 
 tunnel "tailscale" "ts" {
-  hostname = "clawpatrol-tunnel-o11y"
+  hostname = "nebprx-tunnel-o11y"
 }
 
 credential "ssh_key" "bastion" {}

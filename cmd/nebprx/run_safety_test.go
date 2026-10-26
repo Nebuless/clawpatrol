@@ -7,14 +7,14 @@ import (
 )
 
 // TestFindGatewayStateLeakHomeDB drops a fake gateway sqlite db into
-// $HOME/.clawpatrol/state and checks that findGatewayStateLeak picks
+// $HOME/.nebprx/state and checks that findGatewayStateLeak picks
 // it up. HOME is rewritten for the duration of the test.
 func TestFindGatewayStateLeakHomeDB(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, ".clawpatrol/state"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, ".nebprx/state"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	dbPath := filepath.Join(dir, ".clawpatrol/state/clawpatrol.db")
+	dbPath := filepath.Join(dir, ".nebprx/state/nebprx.db")
 	if err := os.WriteFile(dbPath, []byte("fake sqlite\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -26,8 +26,8 @@ func TestFindGatewayStateLeakHomeDB(t *testing.T) {
 }
 
 // TestFindGatewayStateLeakNone confirms that an isolated HOME with
-// no clawpatrol artifacts returns "". (The well-known absolute paths
-// like /opt/clawpatrol/... are unlikely to exist on a CI runner, but
+// no nebprx artifacts returns "". (The well-known absolute paths
+// like /opt/nebprx/... are unlikely to exist on a CI runner, but
 // we don't assert that — the test would be flaky on a developer
 // machine that does run a local gateway.)
 func TestFindGatewayStateLeakNone(t *testing.T) {

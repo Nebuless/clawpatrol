@@ -4,7 +4,7 @@
 // carries no SNI / Host header, so an agent dialling
 // "ssh build.example.com" reaches the gateway's WG forwarder with
 // nothing more than a destination IP. To know which logical endpoint
-// the user meant, clawpatrol gives every SSH-able hostname a unique
+// the user meant, nebprx gives every SSH-able hostname a unique
 // IP from a private range (10.78.0.0/16 v4, fd78::/64 v6) and answers
 // agent DNS queries with those instead of the real upstream IP. When
 // the connection comes back, the destination IP is the VIP — and the
@@ -93,15 +93,15 @@ var (
 const MaxID uint32 = 0xFFFE
 
 // InternalHostname is the reserved name the gateway answers locally —
-// the canonical entrypoint a device uses to reach the clawpatrol API
+// the canonical entrypoint a device uses to reach the nebprx API
 // from inside the tunnel (see cmd/nebprx's internal API endpoint).
 // The allocator hands back a fixed VIP for it so `curl
-// https://clawpatrol.internal/manifest` resolves inside the tunnel; the
+// https://nebprx.internal/manifest` resolves inside the tunnel; the
 // WG forwarder then routes the :443 SYN to the local internal API
 // handler rather than any upstream. It is a fully-qualified name under
 // the `.internal` private-use TLD rather than a bare single label, so
 // resolvers don't append search domains or treat it as a dotless name.
-const InternalHostname = "clawpatrol.internal"
+const InternalHostname = "nebprx.internal"
 
 // internalID is the VIP slot reserved for the internal API name. It
 // sits one past MaxID so allocateLocked never hands it to a real
@@ -757,7 +757,7 @@ func (a *Allocator) lazyAllocateForPattern(hostname string) bool {
 // and AAAA we synthesise the response from the gateway's host
 // resolver — /etc/hosts, /etc/resolv.conf, and any platform-native
 // split-horizon backends — so internal names the operator's machine
-// can resolve work transparently inside `clawpatrol run`. The naive
+// can resolve work transparently inside `nebprx run`. The naive
 // alternative (forwarding verbatim to the dstIP the agent's
 // resolv.conf pointed at — typically 1.1.1.1 from the WG conf's
 // PostUp) produces NXDOMAIN for any internal name and is the bug
@@ -970,8 +970,8 @@ func negSOA(name string) *dns.SOA {
 			Class:  dns.ClassINET,
 			Ttl:    negTTL,
 		},
-		Ns:      "clawpatrol.invalid.",
-		Mbox:    "clawpatrol.invalid.",
+		Ns:      "nebprx.invalid.",
+		Mbox:    "nebprx.invalid.",
 		Serial:  1,
 		Refresh: 3600,
 		Retry:   600,

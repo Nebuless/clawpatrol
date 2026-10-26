@@ -29,7 +29,7 @@ func (a captureBodySampleApprover) Approve(_ context.Context, req runtime.Approv
 func TestHTTPSApproveChainReceivesBufferedRequestBodySample(t *testing.T) {
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

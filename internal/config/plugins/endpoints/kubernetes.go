@@ -18,7 +18,7 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// KubernetesEndpoint is part of the clawpatrol plugin API.
+// KubernetesEndpoint is part of the PRX plugin API.
 //
 // ClusterName + Region are EKS auth parameters: when the bound
 // credential is `aws_credential`, the gateway presigns an STS
@@ -46,7 +46,7 @@ type KubernetesEndpoint struct {
 // bearer placeholder that a Kubernetes client sends in Authorization.
 type KubernetesEndpointRuntime struct{}
 
-// DetectPlaceholder is part of the clawpatrol plugin API. Kubernetes bearer
+// DetectPlaceholder is part of the PRX plugin API. Kubernetes bearer
 // placeholders must match the complete bearer value. This prevents one
 // placeholder from selecting another credential when their values overlap.
 func (KubernetesEndpointRuntime) DetectPlaceholder(req *runtime.Request, candidates []string) string {
@@ -66,7 +66,7 @@ func (KubernetesEndpointRuntime) DetectPlaceholder(req *runtime.Request, candida
 	return ""
 }
 
-// EndpointHosts is part of the clawpatrol plugin API.
+// EndpointHosts is part of the PRX plugin API.
 func (e *KubernetesEndpoint) EndpointHosts() []string {
 	if len(e.Hosts) > 0 {
 		return e.Hosts

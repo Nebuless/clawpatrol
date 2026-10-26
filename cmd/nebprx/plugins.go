@@ -10,7 +10,7 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/extplugin"
 )
 
-const pluginsHelp = `usage: clawpatrol plugins <command> <config.hcl> [name...]
+const pluginsHelp = `usage: nebprx plugins <command> <config.hcl> [name...]
 
 commands:
   install   Download and cache each GitHub-sourced plugin at the version

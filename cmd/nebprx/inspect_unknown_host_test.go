@@ -14,7 +14,7 @@ import (
 func TestInspectUnknownHostRules(t *testing.T) {
 	const hcl = `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gateway.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -61,7 +61,7 @@ profile "default" { credentials = [] }
 func TestInspectNamedHostWins(t *testing.T) {
 	const hcl = `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gateway.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

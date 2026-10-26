@@ -166,7 +166,7 @@ func (w *webMux) authRequirementForPath(path string) authRequirement {
 
 // isLoginPageAsset matches the exact set of static assets the login
 // page (www/login.html) loads while the user is unauthenticated:
-// favicon and mark, and the woff2 font subset. The old Claw Patrol
+// favicon and mark, and the woff2 font subset. The old PRX
 // icon and logo stay listed so cached login pages keep rendering.
 // Anything else under / stays gated.
 func isLoginPageAsset(path string) bool {
@@ -317,7 +317,7 @@ const credentialWebhookPrefix = "/api/cred/"
 const (
 	hitlOperationStatusPrefix       = "/api/hitl/operations/"
 	hitlOperationStatusSuffix       = "/status"
-	hitlRetryOperationHeader        = "Clawpatrol-HITL-Operation"
+	hitlRetryOperationHeader        = "Nebprx-HITL-Operation"
 	hitlDefaultRetryAfterSeconds    = 5
 	hitlOperationNotFoundErrorValue = "hitl_operation_not_found"
 )
@@ -370,7 +370,7 @@ func (w *webMux) dashboardAuthGate(next http.Handler) http.Handler {
 				return
 			}
 			if strings.HasPrefix(path, "/api/") {
-				http.Error(rw, "dashboard not initialized — open the dashboard and set a password, or run `clawpatrol gateway --set-dashboard-password <pw>`", http.StatusUnauthorized)
+				http.Error(rw, "dashboard not initialized — open the dashboard and set a password, or run `nebprx gateway --set-dashboard-password <pw>`", http.StatusUnauthorized)
 				return
 			}
 			http.Redirect(rw, r, dashboardLoginPath+"?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusFound)
@@ -628,7 +628,7 @@ func (w *webMux) tailnetGate(next http.Handler) http.Handler {
 			}
 		}
 		if login == "" {
-			http.Error(rw, "tailnet access required — onboard via `clawpatrol join <gateway>`", http.StatusForbidden)
+			http.Error(rw, "tailnet access required — onboard via `nebprx join <gateway>`", http.StatusForbidden)
 			return
 		}
 		// Operator-class routes — approving onboarding devices, looking
@@ -707,7 +707,7 @@ func (w *webMux) mountCredentialWebhooks(mux *http.ServeMux) {
 
 // apiEnvPushdown returns the env-var push-down list assembled from
 // the gateway's currently-loaded policy, scoped to the calling
-// peer's profile. Clients (`clawpatrol env`, `clawpatrol run`)
+// peer's profile. Clients (`nebprx env`, `nebprx run`)
 // fetch this instead of iterating their own compiled-in plugin
 // set, so the binary on the client doesn't have to track which
 // endpoint plugins the operator has enabled on the gateway.
@@ -715,7 +715,7 @@ func (w *webMux) mountCredentialWebhooks(mux *http.ServeMux) {
 // Auth: requires `Authorization: Bearer <token>` where <token>
 // matches a row in peer_api_tokens. The token was minted for the
 // caller at onboard-approve time and persisted next to ca.crt by
-// `clawpatrol join`. Only the (name, value, description,
+// `nebprx join`. Only the (name, value, description,
 // plugin_type) bytes for plugins reachable from the peer's
 // profile are returned; CA-bundle vars stay client-side because
 // they reference a path on the *client's* disk.
@@ -892,8 +892,8 @@ func writeHITLOperationResponse(rw http.ResponseWriter, status int, op HITLOpera
 	rw.Header().Set("Content-Type", "application/json")
 	rw.Header().Set("Cache-Control", "no-store")
 	rw.Header().Set("Referrer-Policy", "no-referrer")
-	rw.Header().Set("Clawpatrol-HITL-State", string(op.State))
-	rw.Header().Set("Clawpatrol-Upstream-Called", strconv.FormatBool(upstreamCalled))
+	rw.Header().Set("Nebprx-HITL-State", string(op.State))
+	rw.Header().Set("Nebprx-Upstream-Called", strconv.FormatBool(upstreamCalled))
 	if op.State == HITLOperationStatePendingApproval || op.State == HITLOperationStateSyncWaiting {
 		rw.Header().Set("Retry-After", strconv.Itoa(hitlDefaultRetryAfterSeconds))
 	}
@@ -940,23 +940,23 @@ func hitlOperationStatusBody(op HITLOperation, statusURL string, upstreamCalled 
 func hitlOperationStatusMessage(state HITLOperationState) string {
 	switch state {
 	case HITLOperationStateSyncWaiting:
-		return "This request is waiting for human approval. Claw Patrol has not called the upstream service yet."
+		return "This request is waiting for human approval. PRX has not called the upstream service yet."
 	case HITLOperationStatePendingApproval:
-		return "This request is waiting for human approval. Claw Patrol has not called the upstream service, so no upstream side effect has been executed. Poll status_url until the state changes. If the state becomes approved_waiting_for_retry, retry the same original request with Clawpatrol-HITL-Operation before retry_expires_at."
+		return "This request is waiting for human approval. PRX has not called the upstream service, so no upstream side effect has been executed. Poll status_url until the state changes. If the state becomes approved_waiting_for_retry, retry the same original request with Nebprx-HITL-Operation before retry_expires_at."
 	case HITLOperationStateApprovedWaitingForRetry:
-		return "Human approval has been granted. Claw Patrol has not called upstream yet. Retry the same original request with Clawpatrol-HITL-Operation before retry_expires_at to execute it."
+		return "Human approval has been granted. PRX has not called upstream yet. Retry the same original request with Nebprx-HITL-Operation before retry_expires_at to execute it."
 	case HITLOperationStateDenied:
-		return "Human approval was denied. Claw Patrol did not call upstream."
+		return "Human approval was denied. PRX did not call upstream."
 	case HITLOperationStateExpired:
-		return "Human approval or retry time expired. Claw Patrol did not call upstream."
+		return "Human approval or retry time expired. PRX did not call upstream."
 	case HITLOperationStateExecutingUpstream:
 		return "The approved retry is being forwarded upstream now."
 	case HITLOperationStateUpstreamSucceeded:
 		return "The approved request completed upstream."
 	case HITLOperationStateUpstreamFailed:
-		return "The approved retry reached the forwarding attempt, but Claw Patrol could not confirm success."
+		return "The approved retry reached the forwarding attempt, but PRX could not confirm success."
 	case HITLOperationStateClientDisconnected:
-		return "The original client connection closed before Claw Patrol could return an async polling handle. Upstream was not called."
+		return "The original client connection closed before PRX could return an async polling handle. Upstream was not called."
 	default:
 		return "HITL operation status is available."
 	}
@@ -1022,7 +1022,7 @@ func (w *webMux) serveInfo(rw http.ResponseWriter, _ *http.Request) {
 	// liveness + identity endpoint. Same value the OnboardPage
 	// renders next to the user_code.
 	writeJSON(rw, map[string]any{
-		"clawpatrol":     true,
+		"nebprx":         true,
 		"version":        "0.1",
 		"ca_fingerprint": w.caFingerprint(),
 	})
@@ -1076,7 +1076,7 @@ func (w *webMux) selectedProfileForRequest(r *http.Request) (key, label string) 
 	if p := r.URL.Query().Get("profile"); p != "" {
 		return p, p
 	}
-	if p := r.Header.Get("X-Clawpatrol-Profile"); p != "" {
+	if p := r.Header.Get("X-Nebprx-Profile"); p != "" {
 		return p, p
 	}
 	if def := defaultProfileName(w.g.cfg.Load().Policy); def != "" {
@@ -1542,7 +1542,7 @@ func (w *webMux) apiConfigApply(rw http.ResponseWriter, r *http.Request) {
 	}
 	candidate := appendConfigSnippet(current, body.AppendHCL)
 	dir := filepath.Dir(w.g.cfgPath)
-	tmp, err := os.CreateTemp(dir, ".clawpatrol-config-*.hcl")
+	tmp, err := os.CreateTemp(dir, ".nebprx-config-*.hcl")
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
@@ -2027,8 +2027,8 @@ func (w *webMux) apiActionByID(
 	writeJSON(rw, e)
 }
 
-// writeActionFixture emits the Action JSON for `clawpatrol test`
-// (site/doc/clawpatrol-test.md). 400s on events that pre-date
+// writeActionFixture emits the Action JSON for `nebprx test`
+// (site/doc/nebprx-test.md). 400s on events that pre-date
 // endpoint tracking or can't be mapped to a terminal verdict.
 func (w *webMux) writeActionFixture(rw http.ResponseWriter, ev *Event) {
 	policy := w.g.Policy()
@@ -2248,7 +2248,7 @@ func exportK8s(ev *Event) *K8sAction {
 // sqlfacet.Report). Statement is required; verb / tables / functions
 // / database are emitted when the recorded facets supply them so the
 // downloaded fixture mirrors what the dashboard renders and stays
-// self-contained for `clawpatrol test` (the loader still tolerates
+// self-contained for `nebprx test` (the loader still tolerates
 // missing facets — the SQLParser re-derives them at replay).
 func exportSQL(ev *Event) *SQLAction {
 	stmt, _ := ev.Facets["statement"].(string)
@@ -2711,7 +2711,7 @@ type Event struct {
 	// matched CompiledRule.Name (empty when no rule fired). Populated
 	// at the existing dispatch sites so the action-fixture exporter
 	// can pin a downloaded action to a specific endpoint and assert
-	// the rule that produced its verdict (site/doc/clawpatrol-test.md).
+	// the rule that produced its verdict (site/doc/nebprx-test.md).
 	Endpoint string `json:"endpoint,omitempty"`
 	Rule     string `json:"rule,omitempty"`
 
@@ -3189,11 +3189,11 @@ func (s *sampler) Write(p []byte) (int, error) {
 // a "truncated" badge instead of pretending the prefix is the whole
 // body. The marker is a fixed ASCII sentinel the dashboard strips before
 // parsing/rendering; see HttpBody in dashboard RequestDetailPage.tsx.
-const bodyTruncatedMarker = "\n[clawpatrol:body-truncated]"
+const bodyTruncatedMarker = "\n[nebprx:body-truncated]"
 
 const (
-	legacyBodyIncompleteMarker = "\n[clawpatrol:body-incomplete]"
-	legacyBodyAbortedMarker    = "\n[clawpatrol:body-aborted]"
+	legacyBodyIncompleteMarker = "\n[nebprx:body-incomplete]"
+	legacyBodyAbortedMarker    = "\n[nebprx:body-aborted]"
 )
 
 // truncated reports whether the sampler saw more bytes than it kept,

@@ -324,7 +324,7 @@ func TestRecordGenAITurnDisabled(t *testing.T) {
 	// No genai_telemetry block → disabled.
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -353,7 +353,7 @@ func TestRecordGenAITurnEnabledNoContent(t *testing.T) {
 
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   genai_telemetry {}
@@ -402,7 +402,7 @@ func TestRecordGenAITurnEnabledWithContent(t *testing.T) {
 
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   genai_telemetry { include_message_content = true }
@@ -554,7 +554,7 @@ func TestRecordGenAITurnToolDefsNoContent(t *testing.T) {
 
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   genai_telemetry {}
@@ -596,7 +596,7 @@ func TestRecordGenAITurnToolDefsWithContent(t *testing.T) {
 
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   genai_telemetry { include_message_content = true }
@@ -704,7 +704,7 @@ func TestRecordGenAITurnRichAttributes(t *testing.T) {
 
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   genai_telemetry {}
@@ -766,7 +766,7 @@ gateway {
 	}
 }
 
-// TestRecordGenAITurnDeviceAttributes asserts the clawpatrol.device.*
+// TestRecordGenAITurnDeviceAttributes asserts the prx.nebuless.cloudice.*
 // attributes are resolved from the calling device's peer IP via the
 // onboard registry / profileFor path, and that an unknown device omits
 // the name/owner attributes rather than emitting a wrong value.
@@ -778,7 +778,7 @@ func TestRecordGenAITurnDeviceAttributes(t *testing.T) {
 
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   genai_telemetry {}
@@ -808,14 +808,14 @@ gateway {
 		t.Fatalf("got %d spans, want 1", len(spans))
 	}
 	m := attrMap(spans[0].Attributes())
-	if got := m["clawpatrol.device.name"].AsString(); got != "laptop-01" {
-		t.Errorf("clawpatrol.device.name = %q, want laptop-01", got)
+	if got := m["prx.nebuless.cloudice.name"].AsString(); got != "laptop-01" {
+		t.Errorf("prx.nebuless.cloudice.name = %q, want laptop-01", got)
 	}
-	if got := m["clawpatrol.device.profile"].AsString(); got != "engineering" {
-		t.Errorf("clawpatrol.device.profile = %q, want engineering", got)
+	if got := m["prx.nebuless.cloudice.profile"].AsString(); got != "engineering" {
+		t.Errorf("prx.nebuless.cloudice.profile = %q, want engineering", got)
 	}
-	if got := m["clawpatrol.device.owner"].AsString(); got != "alice@example.com" {
-		t.Errorf("clawpatrol.device.owner = %q, want alice@example.com", got)
+	if got := m["prx.nebuless.cloudice.owner"].AsString(); got != "alice@example.com" {
+		t.Errorf("prx.nebuless.cloudice.owner = %q, want alice@example.com", got)
 	}
 
 	// Unknown device: name/owner omitted rather than emitting a wrong value.
@@ -828,10 +828,10 @@ gateway {
 		t.Fatalf("got %d spans, want 2", len(spans))
 	}
 	m = attrMap(spans[1].Attributes())
-	if _, ok := m["clawpatrol.device.name"]; ok {
-		t.Errorf("clawpatrol.device.name set for unknown device: %q", m["clawpatrol.device.name"].AsString())
+	if _, ok := m["prx.nebuless.cloudice.name"]; ok {
+		t.Errorf("prx.nebuless.cloudice.name set for unknown device: %q", m["prx.nebuless.cloudice.name"].AsString())
 	}
-	if _, ok := m["clawpatrol.device.owner"]; ok {
-		t.Errorf("clawpatrol.device.owner set for unknown device: %q", m["clawpatrol.device.owner"].AsString())
+	if _, ok := m["prx.nebuless.cloudice.owner"]; ok {
+		t.Errorf("prx.nebuless.cloudice.owner set for unknown device: %q", m["prx.nebuless.cloudice.owner"].AsString())
 	}
 }

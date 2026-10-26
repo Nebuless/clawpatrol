@@ -8,30 +8,30 @@ import (
 
 // findGatewayStateLeak returns the path of a gateway sqlite db that
 // is readable from the current process, or "" if none is found.
-// Almost always means `clawpatrol run` is being invoked on the
+// Almost always means `nebprx run` is being invoked on the
 // gateway host itself — the intended workflow runs on a client
 // device that joined over WireGuard. The wrapped agent inherits the
 // calling user's filesystem access, so the gateway's sqlite db
 // (CA private key, OAuth tokens, audit log) would be reachable to it.
 //
-// This is a UX hint, not a security boundary: even if `clawpatrol
+// This is a UX hint, not a security boundary: even if `nebprx
 // run` refuses, the same exposure exists for any agent the operator
 // launches directly. The actual fix is locking down state_dir's
 // permissions and running the gateway under a dedicated service
 // user — see site/doc/getting-started.md.
 func findGatewayStateLeak() string {
 	candidates := []string{
-		"/opt/clawpatrol/clawpatrol.db",
-		"/opt/clawpatrol/state/clawpatrol.db", // legacy
-		"/opt/clawpatrol/oauth/clawpatrol.db", // legacy
-		"/srv/clawpatrol/clawpatrol.db",
-		"/var/lib/clawpatrol/clawpatrol.db",
+		"/opt/nebprx/nebprx.db",
+		"/opt/nebprx/state/nebprx.db", // legacy
+		"/opt/nebprx/oauth/nebprx.db", // legacy
+		"/srv/nebprx/nebprx.db",
+		"/var/lib/nebprx/nebprx.db",
 	}
 	if home, err := os.UserHomeDir(); err == nil {
 		candidates = append(candidates,
-			filepath.Join(home, ".clawpatrol/clawpatrol.db"),
-			filepath.Join(home, ".clawpatrol/state/clawpatrol.db"), // legacy
-			filepath.Join(home, ".clawpatrol/oauth/clawpatrol.db"), // legacy
+			filepath.Join(home, ".nebprx/nebprx.db"),
+			filepath.Join(home, ".nebprx/state/nebprx.db"), // legacy
+			filepath.Join(home, ".nebprx/oauth/nebprx.db"), // legacy
 		)
 	}
 	for _, p := range candidates {
@@ -46,7 +46,7 @@ func findGatewayStateLeak() string {
 }
 
 // warnIfOnGatewayHost prints a stderr hint when a gateway state db
-// is readable from the current process. Non-fatal — `clawpatrol run`
+// is readable from the current process. Non-fatal — `nebprx run`
 // continues either way.
 func warnIfOnGatewayHost() {
 	p := findGatewayStateLeak()
@@ -54,8 +54,8 @@ func warnIfOnGatewayHost() {
 		return
 	}
 	fmt.Fprintf(os.Stderr,
-		"clawpatrol: heads up — gateway state db %q is readable from this process.\n"+
-			"  `clawpatrol run` is meant for client devices that joined the gateway over\n"+
+		"nebprx: heads up — gateway state db %q is readable from this process.\n"+
+			"  `nebprx run` is meant for client devices that joined the gateway over\n"+
 			"  WireGuard, not the gateway host itself. The wrapped agent will have direct\n"+
 			"  filesystem access to the CA private key, OAuth tokens, and audit log.\n",
 		p)

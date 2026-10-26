@@ -33,10 +33,10 @@ func TestWholeMachineMarkerRejoinInvalidatesPreviousCommit(t *testing.T) {
 func TestFinishJoinSetupDoesNotCommitWholeMachineMarker(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
-	if err := os.MkdirAll(defaultClawpatrolDir(), 0o700); err != nil {
+	if err := os.MkdirAll(defaultNebprxDir(), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	setup := joinSetup{caPath: filepath.Join(defaultClawpatrolDir(), "ca.crt")}
+	setup := joinSetup{caPath: filepath.Join(defaultNebprxDir(), "ca.crt")}
 	finishJoinSetup(&setup, true, true, true)
 
 	assertWholeMachineMarkerAbsent(t)
@@ -87,7 +87,7 @@ func TestCompleteWholeMachineRoutingSuccessCommitsDirectRunGate(t *testing.T) {
 	if info.Mode().Perm() != 0o600 {
 		t.Fatalf("marker mode = %o, want 600", info.Mode().Perm())
 	}
-	temps, err := filepath.Glob(filepath.Join(defaultClawpatrolDir(), ".whole-machine-*.tmp"))
+	temps, err := filepath.Glob(filepath.Join(defaultNebprxDir(), ".whole-machine-*.tmp"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestWholeMachineMarkerPerProcessSuccessNeverCommits(t *testing.T) {
 func TestWholeMachineMarkerCommitFailureLeavesRunSandboxed(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	if err := os.WriteFile(defaultClawpatrolDir(), []byte("not a directory"), 0o600); err != nil {
+	if err := os.WriteFile(defaultNebprxDir(), []byte("not a directory"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -213,7 +213,7 @@ func TestWholeMachineMarkerLocalGatewayRejectionPreservesPreviousCommit(t *testi
 }
 
 func TestWholeMachineMarkerRejectedJoinHelper(_ *testing.T) {
-	switch os.Getenv("CLAWPATROL_REJECTED_JOIN_HELPER") {
+	switch os.Getenv("NEBPRX_REJECTED_JOIN_HELPER") {
 	case "invalid":
 		runJoin(nil)
 	case "local-gateway":
@@ -224,7 +224,7 @@ func TestWholeMachineMarkerRejectedJoinHelper(_ *testing.T) {
 func runRejectedJoinSubprocess(t *testing.T, scenario string) {
 	t.Helper()
 	cmd := exec.Command(os.Args[0], "-test.run=^TestWholeMachineMarkerRejectedJoinHelper$")
-	cmd.Env = append(os.Environ(), "CLAWPATROL_REJECTED_JOIN_HELPER="+scenario)
+	cmd.Env = append(os.Environ(), "NEBPRX_REJECTED_JOIN_HELPER="+scenario)
 	err := cmd.Run()
 	var exitErr *exec.ExitError
 	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 2 {
@@ -234,7 +234,7 @@ func runRejectedJoinSubprocess(t *testing.T, scenario string) {
 
 func seedWholeMachineMarker(t *testing.T) {
 	t.Helper()
-	if err := os.MkdirAll(defaultClawpatrolDir(), 0o700); err != nil {
+	if err := os.MkdirAll(defaultNebprxDir(), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(wholeMachineMarkerPath(), []byte("1\n"), 0o600); err != nil {

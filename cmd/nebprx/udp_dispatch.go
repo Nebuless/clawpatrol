@@ -11,10 +11,10 @@ const (
 )
 
 // udpPortDisposition is the destination-port half of UDP dispatch. It is
-// the single place that decides what a UDP port means to clawpatrol, and
+// the single place that decides what a UDP port means to nebprx, and
 // every transport consumes it: the WireGuard promiscuous forwarder
 // (udpDispatch in runGateway, gated by refuseUDPPort), the tsnet
-// exit-node catch-all (tsnetUDPDisposition) and the Linux `clawpatrol
+// exit-node catch-all (tsnetUDPDisposition) and the Linux `nebprx
 // run` daemon (newTransportUDPProtocolHandler, gated by refuseUDPPort).
 //
 //   - UDP/53 → dnsvip, whatever resolver IP the client aimed at.

@@ -159,7 +159,7 @@ func TestWireGuardCAStageRejectsMissingCandidateBeforeWGState(t *testing.T) {
 	caB, _, _ := mintCA(t, "candidate-ca-b", 7766)
 	conf := "[Interface]\nAddress = 10.0.0.2/32\n"
 	h := newWireGuardCAStageServer(t, caB, 5, func(w http.ResponseWriter) {
-		writeWireGuardPollSuccess(w, "clawpatrol-test", conf)
+		writeWireGuardPollSuccess(w, "nebprx-test", conf)
 	})
 	caDir := t.TempDir()
 	setup := joinSetup{caPath: filepath.Join(caDir, "ca.crt")}
@@ -193,7 +193,7 @@ func TestWireGuardCAStageFreshJoinCommitsApprovedSnapshot(t *testing.T) {
 	}
 	conf := "[Interface]\nPrivateKey = test-private\nAddress = 10.0.0.2/32\n\n[Peer]\nPublicKey = test-public\nAllowedIPs = 0.0.0.0/0\nEndpoint = 192.0.2.1:51820\n"
 	h := newWireGuardCAStageServer(t, caB, 5, func(w http.ResponseWriter) {
-		writeWireGuardPollSuccess(w, "clawpatrol-test", conf)
+		writeWireGuardPollSuccess(w, "nebprx-test", conf)
 	})
 	caDir := t.TempDir()
 	caPath := filepath.Join(caDir, "ca.crt")

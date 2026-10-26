@@ -70,8 +70,8 @@ func TestChHelloPlaceholderInjection(t *testing.T) {
 		VersionMinor:     0,
 		ProtocolRevision: 54448,
 		Database:         "default",
-		Username:         "CLAWPATROL_PH_user",
-		Password:         "CLAWPATROL_PH_pass",
+		Username:         "NEBPRX_PH_user",
+		Password:         "NEBPRX_PH_pass",
 	}
 	wire := chBuildHelloWire(t, original)
 

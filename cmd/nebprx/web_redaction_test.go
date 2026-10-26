@@ -11,7 +11,7 @@ func TestFlatHeadersRedactsSensitiveHeaders(t *testing.T) {
 		"Cookie":         []string{"session=secret"},
 		"X-Api-Key":      []string{"abc123"},
 		"X-Secret-Token": []string{"secret-token"},
-		"User-Agent":     []string{"clawpatrol-test"},
+		"User-Agent":     []string{"nebprx-test"},
 		"Accept":         []string{"application/json"},
 	}
 
@@ -22,7 +22,7 @@ func TestFlatHeadersRedactsSensitiveHeaders(t *testing.T) {
 			t.Fatalf("%s = %q, want redacted", key, got[key])
 		}
 	}
-	if got["User-Agent"] != "clawpatrol-test" {
+	if got["User-Agent"] != "nebprx-test" {
 		t.Fatalf("User-Agent = %q, want original value", got["User-Agent"])
 	}
 	if got["Accept"] != "application/json" {

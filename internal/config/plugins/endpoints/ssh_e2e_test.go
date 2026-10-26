@@ -203,7 +203,7 @@ type mapSecrets map[string]cruntime.Secret
 func (m mapSecrets) Get(name string) (cruntime.Secret, error) { return m[name], nil }
 
 const e2eGatewayPrefix = `gateway {
-  state_dir  = "/tmp/clawpatrol-test"
+  state_dir  = "/tmp/nebprx-test"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

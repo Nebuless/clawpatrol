@@ -48,8 +48,8 @@ type JoinConfig = config.JoinConfig
 
 // resolveStateDir picks the directory where the gateway keeps its
 // sqlite DB. The HCL `state_dir` attribute is the only knob;
-// defaults to ${HOME}/.clawpatrol when unset. The DB filename
-// (clawpatrol.db) coexists with the client-side ca.crt that lives
+// defaults to ${HOME}/.nebprx when unset. The DB filename
+// (nebprx.db) coexists with the client-side ca.crt that lives
 // in the same dir on dev machines.
 func resolveStateDir(cfg *config.Gateway) string {
 	if d := cfg.ResolvedStateDir(); d != "" {
@@ -61,12 +61,12 @@ func resolveStateDir(cfg *config.Gateway) string {
 
 // checkDirWritable verifies the current process can create files in
 // dir. os.MkdirAll is a no-op when the directory already exists, so a
-// root-owned directory — the example config's /opt/clawpatrol created
+// root-owned directory — the example config's /opt/nebprx created
 // under sudo, or a Docker `-v` mount owned by root — passes MkdirAll
 // but fails every later write. Probing with a temp file surfaces that
 // as a clear error instead of an opaque downstream failure (sqlite's
 // "unable to open database file (14)" / SQLITE_CANTOPEN when the
-// gateway opens clawpatrol.db, a silently-dropped write on join).
+// gateway opens nebprx.db, a silently-dropped write on join).
 func checkDirWritable(dir string) error {
 	probe := filepath.Join(dir, ".write-probe")
 	if err := os.WriteFile(probe, nil, 0o600); err != nil {
@@ -104,7 +104,7 @@ func runHITLOperationStartupMaintenance(ctx context.Context, db *sql.DB) (HITLOp
 }
 
 // warnIfStateLooselyPermissioned logs a warning when state_dir or
-// clawpatrol.db is readable by group / others. The sqlite db holds
+// nebprx.db is readable by group / others. The sqlite db holds
 // the CA private key, OAuth tokens, and audit log — anything not
 // owned and 0700/0600 is a credential-leak path. Non-fatal so a
 // fresh-from-mkdir setup that hasn't yet been tightened can still
@@ -121,7 +121,7 @@ func warnIfStateLooselyPermissioned(stateDir string) {
 		}
 	}
 	check(stateDir, 0o700)
-	check(filepath.Join(stateDir, "clawpatrol.db"), 0o600)
+	check(filepath.Join(stateDir, "nebprx.db"), 0o600)
 }
 
 // seedAgentsFromDevices pre-populates the agent registry from the
@@ -419,7 +419,7 @@ type Gateway struct {
 	// secrets hands credential plugins the secret bytes they inject
 	// at request time. gatewaySecretStore stacks the credential_secrets
 	// table (dashboard slots), OAuthRegistry (refreshed access tokens),
-	// and CLAWPATROL_SECRET_<NAME> env vars in that priority.
+	// and NEBPRX_SECRET_<NAME> env vars in that priority.
 	secrets runtime.SecretStore
 	// connIdx maps WG-forwarder dstIPs back to the endpoint that
 	// claims them — populated by every endpoint plugin whose body
@@ -443,9 +443,9 @@ type Gateway struct {
 	// responses so clients can write tailnet-url without a peer-name lookup.
 	tailscaleIP string
 	// tailscaleHostname is the actual registered node name (e.g.
-	// "clawpatrol-gateway-1") — may differ from cfg.Hostname when tsnet
+	// "nebprx-gateway-1") — may differ from cfg.Hostname when tsnet
 	// resolves a conflict. Included in onboard join responses as
-	// gateway_host so clawpatrol-run peer lookups succeed.
+	// gateway_host so nebprx-run peer lookups succeed.
 	tailscaleHostname string
 	// tsnetLC is the embedded tsnet's LocalClient. Used to resolve a
 	// peer's full address set (e.g. IPv4 → IPv6 ULA) when seeding
@@ -850,7 +850,7 @@ func defaultProfileName(p *config.Policy) string {
 // watchPluginUpdates periodically checks GitHub for newer releases of
 // pinned plugins and records "update available" for the dashboard. It
 // never downloads or applies anything — upgrading is the operator's
-// explicit `clawpatrol plugins update`. The first check runs shortly
+// explicit `nebprx plugins update`. The first check runs shortly
 // after startup, then daily.
 func (g *Gateway) watchPluginUpdates() {
 	if g.pluginMgr == nil {
@@ -964,10 +964,10 @@ func (t logTee) Write(p []byte) (int, error) {
 
 // logDashboardAuthState emits a one-line summary of dashboard-auth
 // state every time the config (re)loads, so an uninitialized or
-// misconfigured dashboard shows up in `journalctl -u clawpatrol-
+// misconfigured dashboard shows up in `journalctl -u nebprx-
 // gateway` even when nobody opens the dashboard in a browser.
 //
-// The root password lives in clawpatrol.db, not in gateway.hcl —
+// The root password lives in nebprx.db, not in gateway.hcl —
 // so we resolve its presence by querying the DB.
 func logDashboardAuthState(db *sql.DB, cfg *config.Gateway) {
 	_, rootSet, err := lookupDashboardUser(db, dashboardRootUsername)
@@ -987,9 +987,9 @@ func logDashboardAuthState(db *sql.DB, cfg *config.Gateway) {
 	case rootSet:
 		log.Printf("dashboard auth: enabled (root password)")
 	case !rootSet && allowlist && tailnetMode:
-		log.Printf("dashboard auth: pending — no root password yet; tailnet operator allowlist alone cannot bootstrap. Open the dashboard or run `clawpatrol gateway --set-dashboard-password <pw>`.")
+		log.Printf("dashboard auth: pending — no root password yet; tailnet operator allowlist alone cannot bootstrap. Open the dashboard or run `nebprx gateway --set-dashboard-password <pw>`.")
 	default:
-		log.Printf("dashboard auth: pending — no root password yet. Open the dashboard at dashboard_listen %q to set one, or run `clawpatrol gateway --set-dashboard-password <pw>`.", cfg.DashboardListen())
+		log.Printf("dashboard auth: pending — no root password yet. Open the dashboard at dashboard_listen %q to set one, or run `nebprx gateway --set-dashboard-password <pw>`.", cfg.DashboardListen())
 	}
 }
 
@@ -1041,7 +1041,7 @@ func applyDashboardPasswordFlags(db *sql.DB, setPassword string, reset bool) {
 // user prompt (client→server) and usage info (server→client). Sessions
 // key on the per-connection wsSessionID supplied by handleWSUpgrade
 // — usually codex's own `Session_id` request header so two parallel
-// `clawpatrol run codex` instances on the same device land in
+// `nebprx run codex` instances on the same device land in
 // distinct rows. Empty wsSessionID falls back to a per-remoteAddr
 // hash so older code paths still produce one row per connection.
 func (g *Gateway) trackCodexWSUsage(remoteAddr, wsSessionID string, payload []byte) {
@@ -2455,7 +2455,7 @@ func (g *Gateway) splice(c net.Conn, host string) {
 }
 
 // serveTSNetDirect handles a direct (non-PROXY) TLS connection in tsnet mode.
-// These come from admins opening the dashboard, clawpatrol join, etc. We
+// These come from admins opening the dashboard, nebprx join, etc. We
 // terminate TLS using our CA (minting a cert for whatever SNI the client
 // sends) and then serve the dashboard HTTP mux over the decrypted connection.
 func (g *Gateway) serveTSNetDirect(c net.Conn, mux http.Handler) {
@@ -2463,7 +2463,7 @@ func (g *Gateway) serveTSNetDirect(c net.Conn, mux http.Handler) {
 	host, prefix, err := peekSNI(c)
 	conn := wrapPeek(c, prefix)
 	if err != nil {
-		// No SNI — client connected via IP literal (common during `clawpatrol join`
+		// No SNI — client connected via IP literal (common during `nebprx join`
 		// before the CA is trusted). Fall back to the server-side IP so mint() can
 		// produce a cert with an IP SAN that Go's TLS stack will accept.
 		if local := c.LocalAddr().String(); local != "" {
@@ -3021,7 +3021,7 @@ func (g *Gateway) mitmHTTPSWithCertHost(c net.Conn, host, certHost string, ep *c
 
 		// Endpoint-level synthetic-response hook. The endpoint
 		// plugin's runtime can short-circuit specific paths and
-		// return a clawpatrol-generated response without forwarding
+		// return a nebprx-generated response without forwarding
 		// upstream — used by openai_codex_https to serve the JWKS +
 		// agent-task-register stubs that anchor codex's Agent
 		// Identity flow on hosts we MITM. Endpoints without a
@@ -3035,7 +3035,7 @@ func (g *Gateway) mitmHTTPSWithCertHost(c net.Conn, host, certHost string, ep *c
 				}
 				ev.Status = strconv.Itoa(r.StatusCode)
 				ev.Action = "synth"
-				// Synthetic responses are clawpatrol-generated, so the
+				// Synthetic responses are nebprx-generated, so the
 				// stock plugins don't set auth-bearing headers — but
 				// the no-injected-credential-reaches-the-agent guarantee
 				// shouldn't rely on plugin authors remembering that.
@@ -3091,7 +3091,7 @@ func (g *Gateway) mitmHTTPSWithCertHost(c net.Conn, host, certHost string, ep *c
 				if err != nil {
 					log.Printf("secret %s: %v — forwarding without injection", cc.Credential.Symbol.Name, err)
 				} else if len(sec.Bytes) == 0 && len(sec.Extras) == 0 {
-					log.Printf("secret %s: not configured (set CLAWPATROL_SECRET_%s)", cc.Credential.Symbol.Name, secretEnvName(cc.Credential.Symbol.Name))
+					log.Printf("secret %s: not configured (set NEBPRX_SECRET_%s)", cc.Credential.Symbol.Name, secretEnvName(cc.Credential.Symbol.Name))
 				} else {
 					// SignHTTPRequest takes precedence over InjectHTTP:
 					// signing schemes (SigV4) read the endpoint to
@@ -3529,13 +3529,13 @@ func main() {
 	case "run":
 		runRun(os.Args[2:])
 	case "daemon-internal":
-		// internal: re-exec'd by `clawpatrol run` (Linux only) to host
+		// internal: re-exec'd by `nebprx run` (Linux only) to host
 		// the per-user tsnet daemon. Hidden from usage(); name carries
 		// the -internal suffix so it doesn't read like a user-facing
 		// command if it leaks into help text or shell history.
 		runDaemon(os.Args[2:])
 	case "relay-supervisor":
-		// internal: re-exec'd by `clawpatrol run` to host the auto-expose
+		// internal: re-exec'd by `nebprx run` to host the auto-expose
 		// supervisor in the host netns. Hidden from usage.
 		runRelaySupervisor(os.Args[2:])
 	case "relay-worker":
@@ -3543,7 +3543,7 @@ func main() {
 		// auto-expose worker. Hidden from usage.
 		runRelayWorker(os.Args[2:])
 	case "__run-privileged":
-		// internal: re-exec'd via sudo by `clawpatrol run` on hosts with
+		// internal: re-exec'd via sudo by `nebprx run` on hosts with
 		// passwordless sudo, to set up the netns as real root (so the
 		// wrapped command can sudo). Hidden from usage.
 		runRunPrivileged(os.Args[2:])
@@ -3624,55 +3624,55 @@ func printVersion() {
 	if buildGitSHA != "" {
 		v += " (" + buildGitSHA + ")"
 	}
-	fmt.Println("clawpatrol", v)
+	fmt.Println("nebprx", v)
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, `clawpatrol — secret-injection MITM proxy for AI agents
+	fmt.Fprintln(os.Stderr, `nebprx — secret-injection MITM proxy for AI agents
 
 usage:
-  clawpatrol gateway <config.hcl>        run the gateway server
-  clawpatrol join [flags] <gateway-url>  onboard this machine via wg device flow
+  nebprx gateway <config.hcl>        run the gateway server
+  nebprx join [flags] <gateway-url>  onboard this machine via wg device flow
                   --hostname NAME        device name to register (default: os.Hostname)
                   --profile NAME         suggest a profile for the approver
                   --whole-machine        bring up wg-quick (route all traffic)
                   --login                interactive tailnet login for gateways
                                          with no public URL (creds discarded
                                          once join completes)
-  clawpatrol run -- <cmd> [args...]      route one process tree through gateway
-  clawpatrol status                      report install + tunnel state
-  clawpatrol uninstall                   remove local join state and tunnel config
-  clawpatrol env                         print shell exports for sourcing
-  clawpatrol validate <config.hcl>       parse + compile a config and exit
-  clawpatrol test <config> <path>        replay action fixtures against a candidate policy
-  clawpatrol plugins <cmd> <config.hcl>  install / update / lock / approve plugins
-  clawpatrol version | -v | --version    print version and exit
+  nebprx run -- <cmd> [args...]      route one process tree through gateway
+  nebprx status                      report install + tunnel state
+  nebprx uninstall                   remove local join state and tunnel config
+  nebprx env                         print shell exports for sourcing
+  nebprx validate <config.hcl>       parse + compile a config and exit
+  nebprx test <config> <path>        replay action fixtures against a candidate policy
+  nebprx plugins <cmd> <config.hcl>  install / update / lock / approve plugins
+  nebprx version | -v | --version    print version and exit
 
-Documentation: https://clawpatrol.dev/docs/`)
+Documentation: https://prx.nebuless.cloud/docs/`)
 	os.Exit(2)
 }
 
-// gatewayHelp is shown for `clawpatrol gateway -h` and any wrong
+// gatewayHelp is shown for `nebprx gateway -h` and any wrong
 // invocation. The example HCL + config-reference URL is the
 // discoverability path for first-time users.
-const gatewayHelp = `usage: clawpatrol gateway [flags] <config.hcl>
+const gatewayHelp = `usage: nebprx gateway [flags] <config.hcl>
 
 flags:
   --set-dashboard-password <pw>   upsert the dashboard root password from this
                                   value, then start (skips the first-run web
                                   flow). The password is stored bcrypt-hashed
-                                  in clawpatrol.db.
+                                  in nebprx.db.
   --reset-dashboard-password      delete the stored dashboard root password,
                                   then start. The next dashboard request will
                                   re-run first-run setup.
 
 Start from the example config:
-  https://github.com/denoland/clawpatrol/blob/main/examples/gateway.example.hcl
+  https://github.com/Nebuless/clawpatrol/blob/main/examples/gateway.example.hcl
 
 HCL reference:
-  https://clawpatrol.dev/docs/config-reference`
+  https://prx.nebuless.cloud/docs/config-reference`
 
-// runGateway is the entry point for the `clawpatrol gateway` subcommand.
+// runGateway is the entry point for the `nebprx gateway` subcommand.
 //
 // Exit-site discipline:
 //   - usage errors (bad/missing config path) use `os.Exit(2)` — the
@@ -3707,7 +3707,7 @@ func runGateway(args []string) {
 
 	startModelRefresh()
 	pluginMgr := extplugin.New(log.Default())
-	// Record approved plugin permissions in clawpatrol.lock.hcl beside
+	// Record approved plugin permissions in nebprx.lock.hcl beside
 	// the config (committed to VCS); trust-on-first-use, fail closed on
 	// escalation.
 	pluginMgr.SetLockfile(extplugin.LockfilePathFor(cfgPath), false)
@@ -3746,7 +3746,7 @@ func runGateway(args []string) {
 	if err := checkDirWritable(stateDir); err != nil {
 		log.Fatalf("state dir: cannot create files in state_dir %s as uid %d: %v\n      Fix: run the gateway as the user that owns it, `chown` it to that user, or set a writable state_dir in the gateway block of %s.", stateDir, os.Getuid(), err, cfgPath)
 	}
-	db, err := OpenDB(filepath.Join(stateDir, "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(stateDir, "nebprx.db"))
 	if err != nil {
 		log.Fatalf("db: %v", err)
 	}
@@ -3916,7 +3916,7 @@ func runGateway(args []string) {
 	go g.servePorts()
 
 	// Embedded userspace WireGuard server. When the `wireguard {}`
-	// block is present, the clawpatrol process becomes the WG endpoint
+	// block is present, the nebprx process becomes the WG endpoint
 	// — peers established at onboard time route ALL traffic into our
 	// netstack (AllowedIPs=0.0.0.0/0). The promiscuous forwarder
 	// accepts SYNs to any dst IP/port:
@@ -4094,7 +4094,7 @@ func runGateway(args []string) {
 			log.Printf("tsnet: LocalClient for whois: %v", err)
 		}
 		// Serve the dashboard mux on tsnet's virtual network so
-		// clawpatrol-run clients connecting to this tsnet IP on the
+		// nebprx-run clients connecting to this tsnet IP on the
 		// dashboard port can mint ephemeral auth keys and reach the
 		// dashboard.
 		if dashPort := portOf(dashListen); dashPort != 0 {
@@ -4140,7 +4140,7 @@ func runGateway(args []string) {
 			}()
 		}
 		// Layer a UDP catch-all onto tsnet's underlying netstack so
-		// exit-node clients' UDP reaches clawpatrol: UDP/53 to any
+		// exit-node clients' UDP reaches nebprx: UDP/53 to any
 		// resolver IP reaches dnsvip (the IP-bound listener above only
 		// catches packets aimed at the gateway's own tailnet IP), UDP/443
 		// is refused, and other UDP from onboarded peers is relayed. tsnet
@@ -4192,7 +4192,7 @@ func runGateway(args []string) {
 		go func(c net.Conn) {
 			// Host-local TCP listener (only opened when wireguard is
 			// enabled). Used by single-host deployments where the
-			// gateway runs under one user account and clawpatrol-run
+			// gateway runs under one user account and nebprx-run
 			// is invoked from another on the same machine — both
 			// loop back through 127.0.0.1:8443. No PROXY framing in
 			// this mode — terminate TLS, serve the dashboard mux.

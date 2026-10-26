@@ -57,7 +57,7 @@ func compile(t *testing.T) *config.CompiledPolicy {
 // runtime tests don't care about transport config, only the policy
 // blocks they declare.
 const testGatewayPrefix = `gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

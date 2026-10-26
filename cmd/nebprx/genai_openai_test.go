@@ -19,7 +19,7 @@ func newGenAIGateway(t *testing.T, content bool) *Gateway {
 	}
 	src := `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   ` + block + `
@@ -405,7 +405,7 @@ func TestTrackLLMUsageCodexModelFromRequest(t *testing.T) {
 
 	gw, diags := config.LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   genai_telemetry {}

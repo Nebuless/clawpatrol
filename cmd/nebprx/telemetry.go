@@ -29,7 +29,7 @@ import (
 //
 // Three opt-out paths, any of which silences the goroutine entirely:
 //   - HCL: telemetry = false in gateway.hcl
-//   - env: CLAWPATROL_TELEMETRY=0
+//   - env: NEBPRX_TELEMETRY=0
 //   - env: DO_NOT_TRACK=1 (de-facto OSS standard)
 //
 // Hard contract: a failing telemetry call must not affect the
@@ -73,7 +73,7 @@ func telemetryEnabled(cfg *config.Gateway) bool {
 	if os.Getenv("DO_NOT_TRACK") == "1" {
 		return false
 	}
-	if v := os.Getenv("CLAWPATROL_TELEMETRY"); v == "0" {
+	if v := os.Getenv("NEBPRX_TELEMETRY"); v == "0" {
 		return false
 	}
 	if cfg != nil {
@@ -97,7 +97,7 @@ func startTelemetry(g *Gateway) {
 	log.Printf(
 		"telemetry: on (instance %s, every %s). "+
 			"opt out: telemetry = false in gateway.hcl, "+
-			"CLAWPATROL_TELEMETRY=0, or DO_NOT_TRACK=1",
+			"NEBPRX_TELEMETRY=0, or DO_NOT_TRACK=1",
 		shortID(id), telemetryInterval,
 	)
 	go telemetryLoop(g, id)
@@ -148,7 +148,7 @@ func applyTelemetryResponse(r *telemetryResp) {
 	currentUpdateBanner.Store(b)
 	if prev == nil || prev.Latest != b.Latest {
 		log.Printf(
-			"clawpatrol %s available; you're on %s. see %s",
+			"nebprx %s available; you're on %s. see %s",
 			r.Latest, buildVersion, r.URL,
 		)
 	}
@@ -167,7 +167,7 @@ func postTelemetry(payload []byte) (*telemetryResp, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "clawpatrol/"+buildVersion)
+	req.Header.Set("User-Agent", "nebprx/"+buildVersion)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err

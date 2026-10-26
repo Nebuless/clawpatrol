@@ -33,7 +33,7 @@ var systemRootsReader = defaultSystemRootsReader
 // bytes, and whether any were found.
 func readSystemRootsPEM() ([]byte, bool) { return systemRootsReader() }
 
-// buildBundlePEM concatenates the system roots and the clawpatrol MITM CA
+// buildBundlePEM concatenates the system roots and the nebprx MITM CA
 // with a guaranteed newline between them, then hands the result to
 // normalizeCertsPEM so the seam and every source file are re-encoded cleanly.
 func buildBundlePEM(systemPEM, caPEM []byte) []byte {
@@ -146,7 +146,7 @@ func validateMITMCAPEM(pemBytes []byte) error {
 // the raw payload. Otherwise a response of `legitimate-CA || attacker-CA` would
 // display the legitimate first-cert fingerprint the operator confirms
 // out-of-band, yet install/bundle the appended attacker CA too — a TOFU bypass.
-// clawpatrol's gateway serves a single self-signed CA, so requiring exactly one
+// nebprx's gateway serves a single self-signed CA, so requiring exactly one
 // certificate is the correct contract.
 func canonicalMITMCAPEM(pemBytes []byte) ([]byte, error) {
 	if !bytes.HasPrefix(bytes.TrimLeft(pemBytes, " \t\r\n"), []byte("-----BEGIN CERTIFICATE-----")) {
@@ -274,7 +274,7 @@ func ensureCABundle(caPath string) string {
 }
 
 // atomicWriteFile writes data to path via a temp file + rename so a
-// concurrent reader (or a second `clawpatrol run`) never observes a
+// concurrent reader (or a second `nebprx run`) never observes a
 // half-written file. The temp lives in the destination directory so the
 // rename stays on one filesystem.
 func atomicWriteFile(path string, data []byte, mode os.FileMode) error {

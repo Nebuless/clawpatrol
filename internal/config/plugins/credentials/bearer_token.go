@@ -15,14 +15,14 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// BearerToken is part of the clawpatrol plugin API.
+// BearerToken is part of the PRX plugin API.
 type BearerToken struct {
 	// IdempotencyKey stamps a deterministic Idempotency-Key header on
 	// non-GET/HEAD HTTP requests when the agent did not provide one.
 	IdempotencyKey bool `hcl:"idempotency_key,optional"`
 }
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (b *BearerToken) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if len(sec.Bytes) == 0 {
 		return nil
@@ -43,13 +43,13 @@ func (b *BearerToken) InjectHTTP(_ context.Context, req *http.Request, sec runti
 // agent's idempotency hint. Falls back to method+path when the agent
 // didn't set one.
 func idempotencyKeyFor(req *http.Request) string {
-	if k := req.Header.Get("X-Clawpatrol-Idempotency-Hint"); k != "" {
+	if k := req.Header.Get("X-Nebprx-Idempotency-Hint"); k != "" {
 		return k
 	}
 	return req.URL.Path + "@" + req.Method
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*BearerToken) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Bearer token", Description: "Stamped as `Authorization: Bearer …`."}}
 }

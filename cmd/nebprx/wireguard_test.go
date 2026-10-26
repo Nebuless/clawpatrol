@@ -128,7 +128,7 @@ func TestWGBindPort(t *testing.T) {
 func TestStartWGServerHonorsListenPort(t *testing.T) {
 	port := freeUDPPort(t)
 
-	db, err := OpenDB(filepath.Join(t.TempDir(), "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(t.TempDir(), "nebprx.db"))
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}

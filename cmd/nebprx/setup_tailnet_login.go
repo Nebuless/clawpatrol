@@ -1,11 +1,11 @@
 package main
 
-// Tailnet-bootstrap path for `clawpatrol join` against a gateway that
+// Tailnet-bootstrap path for `nebprx join` against a gateway that
 // isn't reachable from the public internet — typical for production
 // gateways with Funnel disabled or with Funnel exposing only a strict
 // allowlist that omits /ca.crt.
 //
-// The trick: the clawpatrol binary already statically links tsnet, so
+// The trick: the nebprx binary already statically links tsnet, so
 // the CLI can stand up a temporary tsnet node, drive an interactive
 // Tailscale login (browser → IdP → control-plane), reach the gateway
 // over the tailnet, run the existing device-flow approval, then tear
@@ -71,22 +71,22 @@ func (s *ramStateStore) WriteState(k ipn.StateKey, v []byte) error {
 	return nil
 }
 
-// clawpatrolDebugEnabled reports whether CLAWPATROL_DEBUG selects the
+// nebprxDebugEnabled reports whether NEBPRX_DEBUG selects the
 // verbose diagnostics (same semantics as the Linux relay / macOS
 // helper: any value other than "" or "0").
-func clawpatrolDebugEnabled() bool {
-	v := os.Getenv("CLAWPATROL_DEBUG")
+func nebprxDebugEnabled() bool {
+	v := os.Getenv("NEBPRX_DEBUG")
 	return v != "" && v != "0"
 }
 
 // tailnetBootstrap is a transient tsnet.Server that exists only for
-// the duration of `clawpatrol join`. Use Client() to talk to the
+// the duration of `nebprx join`. Use Client() to talk to the
 // bootstrapHostnamePrefix names the ephemeral tsnet node a `--login`
 // join spins up to reach the gateway over the tailnet. The gateway
 // filters agents whose whois hostname carries this prefix out of the
 // device list — the node is discarded the instant join completes and
 // is never a managed device.
-const bootstrapHostnamePrefix = "clawpatrol-bootstrap-"
+const bootstrapHostnamePrefix = "nebprx-bootstrap-"
 
 // gateway over the tailnet, then call Close to log the node out and
 // reclaim the log dir.
@@ -133,10 +133,10 @@ func (b *tailnetBootstrap) Close(ctx context.Context) {
 }
 
 // bootstrapTsnetLogf returns the logf the bootstrap tsnet node uses:
-// silent unless CLAWPATROL_DEBUG is set, in which case it forwards
+// silent unless NEBPRX_DEBUG is set, in which case it forwards
 // tsnet's lines to stderr behind a [tsnet] prefix.
 func bootstrapTsnetLogf() func(string, ...any) {
-	if !clawpatrolDebugEnabled() {
+	if !nebprxDebugEnabled() {
 		return func(string, ...any) {}
 	}
 	return func(format string, a ...any) {
@@ -163,7 +163,7 @@ func bootstrapTsnetLogf() func(string, ...any) {
 // isn't *mem.Store, so it dodges the gate while keeping browser
 // auth working.
 func bootstrapTailnetForJoin(ctx context.Context) (*tailnetBootstrap, error) {
-	dir, err := os.MkdirTemp("", "clawpatrol-bootstrap-")
+	dir, err := os.MkdirTemp("", "nebprx-bootstrap-")
 	if err != nil {
 		return nil, fmt.Errorf("tailnet bootstrap: mkdir temp: %w", err)
 	}
@@ -201,7 +201,7 @@ func bootstrapTailnetForJoin(ctx context.Context) (*tailnetBootstrap, error) {
 			Hostname: hostname,
 			Store:    store,
 			// Silent by default — we drive the auth-URL display ourselves.
-			// CLAWPATROL_DEBUG surfaces tsnet's control-plane chatter for
+			// NEBPRX_DEBUG surfaces tsnet's control-plane chatter for
 			// diagnosing a stuck login.
 			Logf:     bootstrapTsnetLogf(),
 			UserLogf: bootstrapTsnetLogf(),
@@ -251,7 +251,7 @@ func bootstrapTailnetForJoin(ctx context.Context) (*tailnetBootstrap, error) {
 			// Stop this engine WITHOUT logging out — logout would discard
 			// the authorized node key in `store` that we're about to
 			// reuse — then loop to start a fresh node on the same store.
-			if clawpatrolDebugEnabled() {
+			if nebprxDebugEnabled() {
 				fmt.Fprintf(os.Stderr, "[bootstrap] auth path consumed (device approved); re-registering the approved key (attempt %d/%d)\n", attempt+1, maxLoginRecoveries)
 			}
 			_ = s.Close()
@@ -339,7 +339,7 @@ func awaitTailnetAuth(ctx context.Context, lc *local.Client) error {
 			continue
 		}
 		if st.BackendState != lastState {
-			if clawpatrolDebugEnabled() {
+			if nebprxDebugEnabled() {
 				fmt.Fprintf(os.Stderr, "[bootstrap] backend state: %s -> %s\n", lastState, st.BackendState)
 			}
 			lastState = st.BackendState
@@ -364,7 +364,7 @@ func awaitTailnetAuth(ctx context.Context, lc *local.Client) error {
 			consumedSince = time.Time{}
 		}
 		if st.AuthURL != "" && st.AuthURL != shownURL {
-			// The box running `clawpatrol join` is usually headless
+			// The box running `nebprx join` is usually headless
 			// (SSH session, no browser). Show the login URL + a QR so
 			// the operator can scan from a phone — it's a public
 			// login.tailscale.com link, reachable from any device. The

@@ -74,7 +74,7 @@ func (p *pluginFacet) NewMatcher(condition string) (match.Matcher, error) {
 // installs it under the bare name from the decl. Returns a
 // diagnostic when the name collides with another already-registered
 // facet (built-in like "http", or another plugin's facet) so the
-// operator sees a clean error from `clawpatrol validate` instead of
+// operator sees a clean error from `nebprx validate` instead of
 // a process panic from facet.Register.
 func registerFacet(pluginName string, decl *pb.FacetDecl) hcl.Diagnostics {
 	var diags hcl.Diagnostics

@@ -1,4 +1,4 @@
-// Standalone clawpatrol plugin demonstrating the v1 plugin protocol.
+// Standalone nebprx plugin demonstrating the v1 plugin protocol.
 //
 // Build:   go build -o example ./pluginsdk/example
 // Run:     the gateway spawns the binary; not invoked directly.

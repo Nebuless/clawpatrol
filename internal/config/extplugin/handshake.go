@@ -1,4 +1,4 @@
-// Package extplugin spawns and proxies clawpatrol's Terraform-style
+// Package extplugin spawns and proxies nebprx's Terraform-style
 // external plugins. The gateway uses HashiCorp go-plugin for
 // subprocess lifecycle and gRPC for the wire protocol; the
 // gateway-side Manager registers a virtual *config.Plugin per type

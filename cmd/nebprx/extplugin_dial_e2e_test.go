@@ -95,7 +95,7 @@ plugin "example" {
 }
 
 gateway {
-  state_dir  = "/tmp/clawpatrol-test"
+  state_dir  = "/tmp/nebprx-test"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

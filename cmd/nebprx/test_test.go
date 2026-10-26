@@ -87,7 +87,7 @@ func TestExampleFixtureDetectsDrift(t *testing.T) {
 func TestResolveEndpointByHost(t *testing.T) {
 	hcl := `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

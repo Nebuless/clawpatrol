@@ -12,7 +12,7 @@ import (
 )
 
 // TestInternalPendingList exercises the parked-action list surface the
-// discovery manifest documents (clawpatrol.internal/pending): a device sees
+// discovery manifest documents (nebprx.internal/pending): a device sees
 // the requests it has parked awaiting human approval — resolved from the
 // connection-derived profile/principal — and never another device's, with
 // no async-poll machinery (operation id, status token) in the response.
@@ -87,7 +87,7 @@ func TestInternalPendingList(t *testing.T) {
 	decode := func(t *testing.T, prof, prin string) []map[string]any {
 		t.Helper()
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest("GET", "https://clawpatrol.internal"+hitlPendingPath, nil)
+		req := httptest.NewRequest("GET", "https://nebprx.internal"+hitlPendingPath, nil)
 		g.serveInternalPending(rec, req, prof, prin, strings.TrimPrefix(prin, "peer:"))
 		if rec.Code != 200 {
 			t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
@@ -139,7 +139,7 @@ func TestInternalPendingList(t *testing.T) {
 	// Non-GET is rejected.
 	t.Run("method not allowed", func(t *testing.T) {
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest("POST", "https://clawpatrol.internal"+hitlPendingPath, nil)
+		req := httptest.NewRequest("POST", "https://nebprx.internal"+hitlPendingPath, nil)
 		g.serveInternalPending(rec, req, profile, principal, "100.64.0.2")
 		if rec.Code != 405 {
 			t.Errorf("status = %d, want 405", rec.Code)
@@ -193,7 +193,7 @@ func TestInternalPendingListsSyncPool(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "https://clawpatrol.internal"+hitlPendingPath, nil)
+	req := httptest.NewRequest("GET", "https://nebprx.internal"+hitlPendingPath, nil)
 	g.serveInternalPending(rec, req, "ops", principal, agentIP)
 	if rec.Code != 200 {
 		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())

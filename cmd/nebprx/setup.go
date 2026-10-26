@@ -33,7 +33,7 @@ type tsStatus struct {
 	User           map[string]tsUser  `json:"User"`
 }
 
-// reorderJoinArgsForFlagParse lets `clawpatrol join` accept flags either
+// reorderJoinArgsForFlagParse lets `nebprx join` accept flags either
 // before or after the gateway URL. Go's flag package stops parsing at the
 // first positional argument, but the CLI help historically showed the URL
 // first followed by optional flags.
@@ -91,26 +91,26 @@ type tsPeer struct {
 // straight into the post-join setup (set exit-node, fetch CA, install
 // system trust) — single command, full setup.
 func runJoin(args []string) {
-	// `sudo clawpatrol join` lands wg.conf + api-token as root:root in
-	// /root/.config/clawpatrol, then the user's `clawpatrol run` (no
+	// `sudo nebprx join` lands wg.conf + api-token as root:root in
+	// /root/.config/nebprx, then the user's `nebprx run` (no
 	// sudo) can't read them. The CA-install step is the only piece that
 	// needs elevated rights, and runAsRoot() shells out to sudo on demand.
 	if os.Geteuid() == 0 && os.Getenv("SUDO_USER") != "" {
 		fail("don't run join under sudo — invoke as your normal user; I'll sudo internally for the CA install step")
 	}
 	fs := flag.NewFlagSet("join", flag.ExitOnError)
-	gwName := fs.String("name", "clawpatrol", "exit-node hostname on the tailnet (only used with --whole-machine)")
-	caOut := fs.String("ca-dir", defaultClawpatrolDir(), "where to store the fetched CA")
+	gwName := fs.String("name", "nebprx", "exit-node hostname on the tailnet (only used with --whole-machine)")
+	caOut := fs.String("ca-dir", defaultNebprxDir(), "where to store the fetched CA")
 	skipTrust := fs.Bool("no-trust", false, "fetch CA but skip system trust install (do it manually)")
 	caPin := fs.String("ca-fingerprint", "", "SHA-256 fingerprint the gateway's CA must match before it is written or trusted (from the dashboard); pins a non-interactive join instead of relying on a visual comparison")
-	wholeMachine := fs.Bool("whole-machine", false, "bring up wg-quick to route ALL host traffic through the gateway (default: persist conf only, use `clawpatrol run` for per-process routing)")
+	wholeMachine := fs.Bool("whole-machine", false, "bring up wg-quick to route ALL host traffic through the gateway (default: persist conf only, use `nebprx run` for per-process routing)")
 	profile := fs.String("profile", "", "profile to assign at approval time (defaults to the gateway's default profile if the approver doesn't pick one)")
 	hostname := fs.String("hostname", "", "device name to register with the gateway (defaults to os.Hostname)")
 	loginFlag := fs.Bool("login", false, "interactively log in to the gateway's tailnet first (use when the gateway has no public URL). The temporary tailnet credentials are discarded once the gateway-minted device identity lands.")
 	_ = fs.Parse(reorderJoinArgsForFlagParse(args))
 	rest := fs.Args()
 	if len(rest) != 1 || rest[0] == "" {
-		fail("usage: clawpatrol join [--hostname NAME] [--profile NAME] [--whole-machine] <gateway-url>")
+		fail("usage: nebprx join [--hostname NAME] [--profile NAME] [--whole-machine] <gateway-url>")
 	}
 	gatewayURL, err := validateGatewayURL(rest[0])
 	if err != nil {
@@ -130,8 +130,8 @@ func runJoin(args []string) {
 			fail("refusing --whole-machine join: gateway URL points at this host (%s).\n"+
 				"  Whole-machine routing on the gateway box itself creates a routing loop —\n"+
 				"  the gateway daemon's own outbound traffic would re-enter its own tunnel.\n"+
-				"  Drop --whole-machine and use `clawpatrol run` for per-process routing\n"+
-				"  on this host, or run `clawpatrol join` from a separate client device.",
+				"  Drop --whole-machine and use `nebprx run` for per-process routing\n"+
+				"  on this host, or run `nebprx join` from a separate client device.",
 				reason)
 		}
 	}
@@ -239,10 +239,10 @@ func runJoin(args []string) {
 // validateGatewayURL rejects gateway URLs that wouldn't survive a
 // round-trip through http.Client — historically the join flow only
 // noticed at the dial layer, after preJoinFetchCA had already written
-// the bogus string to ~/.clawpatrol/gateway. The most common shape
-// that bit operators was a bare hostname like "clawpatrol-gateway-1":
+// the bogus string to ~/.nebprx/gateway. The most common shape
+// that bit operators was a bare hostname like "nebprx-gateway-1":
 // neturl.Parse accepts it (everything parses as opaque), but
-// http.Client.Get("clawpatrol-gateway-1/ca.crt") errors with
+// http.Client.Get("nebprx-gateway-1/ca.crt") errors with
 // "unsupported protocol scheme \"\"" — and by the time you see the
 // error the state file is already corrupt.
 //
@@ -316,7 +316,7 @@ type joinSetup struct {
 	caHint        string // manual-trust hint when caInstalled == false
 	caFingerprint string // SHA-256 of the fetched cert (operator-readable)
 	pinnedCAFP    string // --ca-fingerprint: the CA the operator authorised
-	shellRC       bool   // shell rc updated with `eval "$(clawpatrol env)"`
+	shellRC       bool   // shell rc updated with `eval "$(nebprx env)"`
 }
 
 // caFingerprintHexDigits is the length of a SHA-256 digest written as hex —
@@ -399,7 +399,7 @@ func preJoinFetchCA(gateway, caDir, pinnedFP string, cli *http.Client) (joinSetu
 		return s, fmt.Errorf("config dir %s is not writable (owner mismatch?): %w", caDir, err)
 	}
 	// Persist the dashboard URL before the CA fetch so subsequent
-	// `clawpatrol env` / `clawpatrol run` invocations work even when
+	// `nebprx env` / `nebprx run` invocations work even when
 	// the CA fetch is deferred (Tailscale mode, 404 on /ca.crt).
 	_ = os.WriteFile(filepath.Join(caDir, "gateway"),
 		[]byte(strings.TrimRight(gateway, "/")+"\n"), 0o644)
@@ -424,18 +424,18 @@ func preJoinFetchCA(gateway, caDir, pinnedFP string, cli *http.Client) (joinSetu
 //
 // installShellRC fires only in --whole-machine mode. In
 // per-process mode every agent picks up CA + push-down vars
-// through `clawpatrol run`, so the shell-rc shim is dead weight
-// — and worse, the `clawpatrol env` it eval's on every new
+// through `nebprx run`, so the shell-rc shim is dead weight
+// — and worse, the `nebprx env` it eval's on every new
 // terminal would dial the gateway's tailnet IP, which the
 // parent shell can't reach (only the NE can).
 // wholeMachineMarkerName is a sentinel file written under the
-// clawpatrol dir by a --whole-machine join. `clawpatrol run` checks for
+// nebprx dir by a --whole-machine join. `nebprx run` checks for
 // it: in whole-machine mode the host already routes all traffic through
 // the gateway, so there's no per-process daemon/sandbox to attach to.
 const wholeMachineMarkerName = "whole-machine"
 
 func wholeMachineMarkerPath() string {
-	return filepath.Join(defaultClawpatrolDir(), wholeMachineMarkerName)
+	return filepath.Join(defaultNebprxDir(), wholeMachineMarkerName)
 }
 
 func clearWholeMachineMarker() error {
@@ -467,8 +467,8 @@ func completeWholeMachineTailscaleRouting(exitNode string, apply func(string) er
 }
 
 func commitWholeMachineMarker() error {
-	if err := os.MkdirAll(defaultClawpatrolDir(), 0o700); err != nil {
-		return fmt.Errorf("create clawpatrol dir for whole-machine marker: %w", err)
+	if err := os.MkdirAll(defaultNebprxDir(), 0o700); err != nil {
+		return fmt.Errorf("create nebprx dir for whole-machine marker: %w", err)
 	}
 	if err := atomicWriteFile(wholeMachineMarkerPath(), []byte("1\n"), 0o600); err != nil {
 		return fmt.Errorf("commit whole-machine marker: %w", err)
@@ -699,7 +699,7 @@ func fetchCAHTTP(gateway string, cli *http.Client) ([]byte, string, error) {
 	return canonical, fp, nil
 }
 
-// installShellRC appends `eval "$(clawpatrol env)"` to the user's shell
+// installShellRC appends `eval "$(nebprx env)"` to the user's shell
 // rc file (idempotent — looks for the existing marker line). This way
 // agent CLIs (claude, gh, codex) automatically pick up the placeholder
 // tokens + CA bundle in every new shell, no manual sourcing needed.
@@ -708,9 +708,9 @@ func installShellRC() error {
 	if err != nil {
 		return err
 	}
-	const marker = "# clawpatrol: agent env (clawpatrol env)"
-	const block = "\n" + "# clawpatrol: agent env (clawpatrol env)\n" +
-		"command -v clawpatrol >/dev/null 2>&1 && eval \"$(clawpatrol env)\"\n"
+	const marker = "# nebprx: agent env (nebprx env)"
+	const block = "\n" + "# nebprx: agent env (nebprx env)\n" +
+		"command -v nebprx >/dev/null 2>&1 && eval \"$(nebprx env)\"\n"
 	for _, name := range []string{".zshrc", ".bashrc", ".profile"} {
 		p := filepath.Join(home, name)
 		b, err := os.ReadFile(p)
@@ -823,8 +823,8 @@ func exemptPublicIPFromExitNode() error {
 	// Persist via networkd-dispatcher so the rule survives reboots.
 	dir := "/etc/networkd-dispatcher/routable.d"
 	_ = exec.Command("sudo", "mkdir", "-p", dir).Run()
-	script := fmt.Sprintf("#!/bin/sh\n# clawpatrol: keep public IP replies on direct path (not exit-node)\nip rule show | grep -q '%s' || ip rule add from %s lookup main priority 100\n", pubIP, pubIP)
-	tmp, err := os.CreateTemp("", "clawpatrol-routing-*")
+	script := fmt.Sprintf("#!/bin/sh\n# nebprx: keep public IP replies on direct path (not exit-node)\nip rule show | grep -q '%s' || ip rule add from %s lookup main priority 100\n", pubIP, pubIP)
+	tmp, err := os.CreateTemp("", "nebprx-routing-*")
 	if err != nil {
 		return fmt.Errorf("create routing temp file: %w", err)
 	}
@@ -839,7 +839,7 @@ func exemptPublicIPFromExitNode() error {
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close routing temp file: %w", err)
 	}
-	dst := dir + "/50-clawpatrol-public-ip"
+	dst := dir + "/50-nebprx-public-ip"
 	c := exec.Command("sudo", "sh", "-c", fmt.Sprintf("mv %s %s && chmod +x %s", tmp.Name(), dst, dst))
 	c.Stderr = os.Stderr
 	if err := c.Run(); err != nil {
@@ -917,7 +917,7 @@ func findPeerByName(s *tsStatus, name string) *tsPeer {
 // failure only warns and returns — it must never abort the join, so the
 // mandatory CA commit and state finalization downstream always run. A missing
 // api-token only means env-pushdown (GH_TOKEN, …) is empty until the operator
-// re-runs `clawpatrol join`.
+// re-runs `nebprx join`.
 func claimTailnetPeer(cli *http.Client, gateway, deviceCode, hn, tailIP, caDir string) {
 	if tailIP == "" {
 		fmt.Fprintln(os.Stderr, "⚠ couldn't read tailnet IP — onboard claim skipped")
@@ -1061,7 +1061,7 @@ func (s *joinSetup) warnCATrustFailed() {
 // with the new CA trusted while routing/credentials still belong to the old
 // gateway. (Linux whole-machine also runs `applyWholeMachineExitNode` in
 // runJoin afterward; that routing step is separately recoverable by re-running
-// `clawpatrol join`, which re-commits the CA idempotently.)
+// `nebprx join`, which re-commits the CA idempotently.)
 //
 // The ca.crt write is transactional (a failure aborts the join); trust
 // installation is best-effort and surfaces a manual-install hint on failure.
@@ -1121,7 +1121,7 @@ func installCATrust(caPath string) error {
 			"-k", "/Library/Keychains/System.keychain",
 			caPath).Run()
 	case "linux":
-		dst := "/usr/local/share/ca-certificates/clawpatrol.crt"
+		dst := "/usr/local/share/ca-certificates/nebprx.crt"
 		if err := exec.Command("sudo", "cp", caPath, dst).Run(); err != nil {
 			return err
 		}
@@ -1136,7 +1136,7 @@ func manualTrustHint(caPath string) string {
 	case "darwin":
 		return fmt.Sprintf("sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s", caPath)
 	case "linux":
-		return fmt.Sprintf("sudo cp %s /usr/local/share/ca-certificates/clawpatrol.crt && sudo update-ca-certificates", caPath)
+		return fmt.Sprintf("sudo cp %s /usr/local/share/ca-certificates/nebprx.crt && sudo update-ca-certificates", caPath)
 	}
 	return "manually add " + caPath + " to your system trust store"
 }
@@ -1157,12 +1157,12 @@ func pinDNSAtGatewayIfNeeded(gwIP string) {
 	}
 	const path = "/etc/resolv.conf"
 	cur, _ := os.ReadFile(path)
-	desired := fmt.Sprintf("# clawpatrol: routed via Tailscale exit-node\nnameserver %s\n", gwIP)
-	if strings.Contains(string(cur), gwIP) && strings.Contains(string(cur), "clawpatrol:") {
+	desired := fmt.Sprintf("# nebprx: routed via Tailscale exit-node\nnameserver %s\n", gwIP)
+	if strings.Contains(string(cur), gwIP) && strings.Contains(string(cur), "nebprx:") {
 		return
 	}
-	if _, err := os.Stat(path + ".clawpatrol.bak"); errors.Is(err, os.ErrNotExist) && len(cur) > 0 {
-		_ = writeSudo(path+".clawpatrol.bak", cur)
+	if _, err := os.Stat(path + ".nebprx.bak"); errors.Is(err, os.ErrNotExist) && len(cur) > 0 {
+		_ = writeSudo(path+".nebprx.bak", cur)
 	}
 	if err := writeSudo(path, []byte(desired)); err != nil {
 		fmt.Fprintf(os.Stderr, "⚠ resolv.conf: %v\n", err)
@@ -1181,24 +1181,24 @@ func writeSudo(path string, content []byte) error {
 	return nil
 }
 
-func defaultClawpatrolDir() string {
+func defaultNebprxDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".clawpatrol")
+	return filepath.Join(home, ".nebprx")
 }
 
 // daemonStateDir returns the per-user **persistent** directory for
 // daemon-only state (auth-key, future daemon-private files). XDG
-// spec: $XDG_STATE_HOME/clawpatrol, fall back to
-// ~/.local/state/clawpatrol when unset. Separate from
-// defaultClawpatrolDir so that the agent-visible ~/.clawpatrol/
+// spec: $XDG_STATE_HOME/nebprx, fall back to
+// ~/.local/state/nebprx when unset. Separate from
+// defaultNebprxDir so that the agent-visible ~/.nebprx/
 // directory only holds files the agent legitimately needs (ca.crt,
 // mode marker, etc.).
 func daemonStateDir() string {
 	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
-		return filepath.Join(d, "clawpatrol")
+		return filepath.Join(d, "nebprx")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "state", "clawpatrol")
+	return filepath.Join(home, ".local", "state", "nebprx")
 }
 
 // readFileSilent reads a file and returns its contents as a string,
@@ -1212,7 +1212,7 @@ func readFileSilent(path string) string {
 }
 
 func fail(format string, a ...any) {
-	fmt.Fprintf(os.Stderr, "clawpatrol: "+format+"\n", a...)
+	fmt.Fprintf(os.Stderr, "nebprx: "+format+"\n", a...)
 	os.Exit(2)
 }
 
@@ -1236,19 +1236,19 @@ func printChecklist(items []string) {
 }
 
 // printWholeMachineDone prints the closing message for a --whole-machine
-// join. Unlike per-process mode there's no `clawpatrol run` — all host
+// join. Unlike per-process mode there's no `nebprx run` — all host
 // traffic already routes through the gateway, so tools run directly.
 // But the credential env (placeholders + SSL_CERT_FILE) only landed in
 // the shell rc, which the current shell hasn't sourced yet, so point
-// the operator at `clawpatrol env` / a fresh shell. via names the
+// the operator at `nebprx env` / a fresh shell. via names the
 // routing mechanism (interface, "system extension", "exit-node").
 func printWholeMachineDone(via string) {
 	fmt.Println()
 	fmt.Printf("Installed! All host traffic now routes through the gateway (%s).\n", via)
-	fmt.Println("Run your tools directly — no `clawpatrol run` needed. This shell hasn't")
+	fmt.Println("Run your tools directly — no `nebprx run` needed. This shell hasn't")
 	fmt.Println("loaded the injected credentials yet; start a new shell or run:")
 	fmt.Println()
-	fmt.Println(`    eval "$(clawpatrol env)"`)
+	fmt.Println(`    eval "$(nebprx env)"`)
 }
 
 // setupSummaryItems lowers a joinSetup into the human-facing one-liners
@@ -1263,7 +1263,7 @@ func printWholeMachineDone(via string) {
 func setupSummaryItems(s joinSetup) []string {
 	var out []string
 	if s.shellRC {
-		out = append(out, `✓ shell rc updated (eval "$(clawpatrol env)")`)
+		out = append(out, `✓ shell rc updated (eval "$(nebprx env)")`)
 	}
 	return out
 }
@@ -1446,7 +1446,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 	}
 	deadline := time.Now().Add(time.Duration(start.ExpiresIn) * time.Second)
 
-	// In whole-machine mode the clawpatrol WireGuard tunnel already routes
+	// In whole-machine mode the nebprx WireGuard tunnel already routes
 	// all traffic — including these poll requests. When the admin approves,
 	// MintKey evicts our old peer from the gateway device, killing the
 	// tunnel mid-poll and hanging the join indefinitely. Bring it down
@@ -1454,7 +1454,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 	// the approve step below, so wg-quick's own output doesn't land inside
 	// that step's block.
 	if wholeMachine {
-		_ = runAsRoot("wg-quick", "down", "clawpatrol").Run()
+		_ = runAsRoot("wg-quick", "down", "nebprx").Run()
 	}
 
 	// Manual approval: show the approve step and leave it up until the
@@ -1614,7 +1614,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 	if strings.HasPrefix(loginServer, "wireguard://") {
 		iface := strings.TrimPrefix(loginServer, "wireguard://")
 		if iface == "" {
-			iface = "clawpatrol"
+			iface = "nebprx"
 		}
 		// Send our hostname BEFORE wg-quick brings the tunnel up — once
 		// 0.0.0.0/0 routes through the tunnel the public gateway URL
@@ -1634,8 +1634,8 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 				_ = cr.Body.Close()
 			}
 		}
-		// Always persist a user-readable copy at ~/.config/clawpatrol/
-		// wg.conf so the per-host `clawpatrol` daemon (Linux) and the
+		// Always persist a user-readable copy at ~/.config/nebprx/
+		// wg.conf so the per-host `nebprx` daemon (Linux) and the
 		// macOS NE extension can spin up a userspace WG tunnel without
 		// reading root-owned /etc/wireguard/<iface>.conf.
 		var persistErr error
@@ -1650,7 +1650,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 			[]byte("wireguard\n"), 0o600)
 		// macOS: kick off the NE bootstrap right after the wg.conf is
 		// in place. Surfaces the one-time sysext approval prompt now
-		// (better than waiting until first `clawpatrol run`).
+		// (better than waiting until first `nebprx run`).
 		var macErr error
 		if runtime.GOOS == "darwin" {
 			macErr = macHelperInstall(wholeMachine)
@@ -1670,7 +1670,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 		printChecklist(items)
 		if !wholeMachine {
 			fmt.Println()
-			fmt.Println("Installed! Try: clawpatrol run claude")
+			fmt.Println("Installed! Try: nebprx run claude")
 		} else if runtime.GOOS == "darwin" {
 			printWholeMachineDone("system extension")
 		} else {
@@ -1688,11 +1688,11 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 	// 3b. tailscale branch — ensure binary + daemon.
 	//
 	// Per-process tsnet mode: the in-process tsnet node joins the
-	// tailnet at `clawpatrol run` time using the auth_key persisted
+	// tailnet at `nebprx run` time using the auth_key persisted
 	// below. No system Tailscale touched.
 	//
 	// macOS NEVER uses system Tailscale — the NETransparentProxyProvider
-	// (Clawpatrol.app system extension) handles all routing. --whole-
+	// (Nebprx.app system extension) handles all routing. --whole-
 	// machine on darwin is honored at NE-config time, not here.
 	//
 	// On Linux, --whole-machine falls through to the system-Tailscale
@@ -1722,7 +1722,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 		if gatewayIP != "" {
 			tailnetURL := fmt.Sprintf("http://%s:8080", gatewayIP)
 			_ = os.WriteFile(filepath.Join(clawDir, "tailnet-url"), []byte(tailnetURL+"\n"), 0o600)
-			// Used by `clawpatrol run` to set the gateway as its tsnet
+			// Used by `nebprx run` to set the gateway as its tsnet
 			// exit node so the gateway sees the original dst via
 			// RegisterFallbackTCPHandler (no PROXY-header smuggling).
 			_ = os.WriteFile(filepath.Join(clawDir, "tailnet-gateway-ip"), []byte(gatewayIP+"\n"), 0o600)
@@ -1735,8 +1735,8 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 		// holds the bearer on disk.
 		//
 		// Linux: write to the daemon's persistent state directory
-		// (separate from ~/.clawpatrol, which holds agent-visible
-		// files like ca.crt). The clawpatrol daemon is the sole
+		// (separate from ~/.nebprx, which holds agent-visible
+		// files like ca.crt). The nebprx daemon is the sole
 		// reader.
 		if runtime.GOOS == "darwin" {
 			c := exec.Command(macHelperPath, "start-tsnet",
@@ -1763,13 +1763,13 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 			// transient claim failure must not abort the join and leave a
 			// half-configured host. Warn and continue — the daemon still
 			// falls back to the poll-delivered placeholder token (written
-			// above) and the operator can re-run `clawpatrol join`. This
+			// above) and the operator can re-run `nebprx join`. This
 			// mirrors the whole-machine claim below, which also only warns.
 			if err := claimPeerAPIToken(gateway, start.DeviceCode, hn, authKey,
 				tailnetControlURL, stateDir, filepath.Dir(setup.caPath), httpCli); err != nil {
 				fmt.Fprintf(os.Stderr,
 					"⚠ peer api-token claim failed: %v\n"+
-						"  env-pushdown may be unavailable until you re-run `clawpatrol join`.\n", err)
+						"  env-pushdown may be unavailable until you re-run `nebprx join`.\n", err)
 			}
 		}
 		// All fatal platform setup succeeded — now commit + trust the approved
@@ -1787,7 +1787,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 			printWholeMachineDone("system extension")
 		} else {
 			fmt.Println()
-			fmt.Println("Installed! Try: clawpatrol run claude")
+			fmt.Println("Installed! Try: nebprx run claude")
 		}
 		return false, nil
 	}
@@ -1842,7 +1842,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 	tailIP := strings.TrimSpace(strings.SplitN(string(myIP), "\n", 2)[0])
 	claimTailnetPeer(cli, gateway, start.DeviceCode, hn, tailIP, filepath.Dir(setup.caPath))
 
-	// Write mode marker files so `clawpatrol run` can detect Tailscale mode.
+	// Write mode marker files so `nebprx run` can detect Tailscale mode.
 	clawDir := filepath.Dir(setup.caPath)
 	if err := os.WriteFile(filepath.Join(clawDir, "mode"), []byte("tailscale\n"), 0o600); err != nil {
 		return false, fmt.Errorf("write mode: %w", err)
@@ -1865,14 +1865,14 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 	// by commitApprovedCA below.
 	if tailnetGWHost != "" {
 		if st2, serr := tailscaleStatus(tscli); serr == nil {
-			// tailnetGWHost may be an FQDN like "clawpatrol-1.tail9a48e.ts.net";
-			// HostName in `tailscale status` is the short name "clawpatrol-1".
+			// tailnetGWHost may be an FQDN like "nebprx-1.tail9a48e.ts.net";
+			// HostName in `tailscale status` is the short name "nebprx-1".
 			shortName := tailnetGWHost
 			if i := strings.IndexByte(shortName, '.'); i > 0 {
 				shortName = shortName[:i]
 			}
 			if peer := findPeerByName(st2, shortName); peer != nil && len(peer.TailscaleIPs) > 0 {
-				// Persist tailnet-direct URL so clawpatrol run uses it for peer
+				// Persist tailnet-direct URL so nebprx run uses it for peer
 				// API calls instead of the public join URL, which may be
 				// Funnel-proxied and not expose peer-API endpoints. Port 8080
 				// is the gateway's InfoListen (plain HTTP on the tailnet).
@@ -2031,15 +2031,15 @@ func runAsRoot(cmd string, args ...string) *exec.Cmd {
 }
 
 // writeUserWGConf drops a copy of the wg-quick conf at
-// ~/.config/clawpatrol/wg.conf (chmod 600) so `clawpatrol run` can
+// ~/.config/nebprx/wg.conf (chmod 600) so `nebprx run` can
 // build per-process tunnels without sudo. Idempotent.
 //
 // Hardcoded XDG path (~/.config) instead of os.UserConfigDir() —
 // the latter returns ~/Library/Application Support on macOS, which
-// breaks the cross-platform "always look at ~/.config/clawpatrol/wg.conf"
-// contract that the macOS Clawpatrol.app's `start` subcommand expects.
+// breaks the cross-platform "always look at ~/.config/nebprx/wg.conf"
+// contract that the macOS Nebprx.app's `start` subcommand expects.
 func writeUserWGConf(conf string) error {
-	dir := filepath.Join(os.Getenv("HOME"), ".config", "clawpatrol")
+	dir := filepath.Join(os.Getenv("HOME"), ".config", "nebprx")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
@@ -2068,7 +2068,7 @@ func wgQuickUp(iface, conf string) error {
 	if runtime.GOOS == "linux" {
 		conf = injectSSHExemptPostUp(conf)
 	}
-	tmp, err := os.CreateTemp("", "clawpatrol-wg-*.conf")
+	tmp, err := os.CreateTemp("", "nebprx-wg-*.conf")
 	if err != nil {
 		return fmt.Errorf("create wg temp conf: %w", err)
 	}
@@ -2098,8 +2098,8 @@ func wgQuickUp(iface, conf string) error {
 //
 // Without this, `AllowedIPs = 0.0.0.0/0` makes wg-quick replace the
 // default route with one through the tunnel — including reply packets
-// for inbound connections. SSH replies route through clawpatrol →
-// wrong source IP → in-flight admin session that ran `clawpatrol join
+// for inbound connections. SSH replies route through nebprx →
+// wrong source IP → in-flight admin session that ran `nebprx join
 // --whole-machine` dies mid-handshake. Same trick unclaw landed in
 // commit 53e0496.
 //
@@ -2118,7 +2118,7 @@ func injectSSHExemptPostUp(conf string) string {
 	//   pref 9: not fwmark 51820 lookup 51820
 	// Pref 10 (what unclaw originally used in commit 53e0496) gets
 	// shadowed by pref 9 — pref 9 matches every non-fwmarked packet
-	// first → table 51820 → clawpatrol iface → SYN-ACK exits the wrong
+	// first → table 51820 → nebprx iface → SYN-ACK exits the wrong
 	// interface, SSH session dies. Observed on Ubuntu 24.04 / Vultr.
 	postUp := fmt.Sprintf("PostUp = ip rule add from %s lookup main priority 5", hostIP)
 	postDown := fmt.Sprintf("PostDown = ip rule del from %s lookup main priority 5", hostIP)
@@ -2164,7 +2164,7 @@ func installTailscale() error {
 		if err := c.Run(); err != nil {
 			return fmt.Errorf("brew install: %w (or download manually from tailscale.com)", err)
 		}
-		fmt.Println("  launch Tailscale.app once, then re-run clawpatrol join")
+		fmt.Println("  launch Tailscale.app once, then re-run nebprx join")
 		return fmt.Errorf("manual app launch required")
 	case "linux":
 		c := exec.Command("sh", "-c", "curl -fsSL https://tailscale.com/install.sh | sh")
@@ -2175,7 +2175,7 @@ func installTailscale() error {
 	return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 }
 
-// `clawpatrol uninstall` — tear down everything `clawpatrol join`
+// `nebprx uninstall` — tear down everything `nebprx join`
 // (and friends) put on this machine. Cross-platform, idempotent.
 // Stops the macOS NETransparentProxy + system extension, brings
 // down the linux wg-quick interface, removes the CA from system
@@ -2183,13 +2183,13 @@ func installTailscale() error {
 // env shim.
 func runUninstall(args []string) {
 	fs := flag.NewFlagSet("uninstall", flag.ExitOnError)
-	keepCA := fs.Bool("keep-ca", false, "keep ~/.clawpatrol + system trust")
-	keepConf := fs.Bool("keep-conf", false, "keep ~/.config/clawpatrol/wg.conf")
+	keepCA := fs.Bool("keep-ca", false, "keep ~/.nebprx + system trust")
+	keepConf := fs.Bool("keep-conf", false, "keep ~/.config/nebprx/wg.conf")
 	yes := fs.Bool("y", false, "skip the confirmation prompt")
 	_ = fs.Parse(args)
 
 	if !*yes {
-		fmt.Print("Uninstall clawpatrol from this machine? [y/N] ")
+		fmt.Print("Uninstall nebprx from this machine? [y/N] ")
 		var resp string
 		_, _ = fmt.Scanln(&resp)
 		if resp != "y" && resp != "Y" {
@@ -2216,45 +2216,45 @@ func runUninstall(args []string) {
 	switch runtime.GOOS {
 	case "darwin":
 		if _, err := os.Stat(macHelperPath); err == nil {
-			step("Clawpatrol stop", bestEffort(macHelperPath, "stop"))
-			step("Clawpatrol wipe", bestEffort(macHelperPath, "wipe"))
+			step("Nebprx stop", bestEffort(macHelperPath, "stop"))
+			step("Nebprx wipe", bestEffort(macHelperPath, "wipe"))
 		}
-		if _, err := os.Stat("/Applications/Clawpatrol.app"); err == nil {
-			step("rm /Applications/Clawpatrol.app",
-				bestEffort("sudo", "rm", "-rf", "/Applications/Clawpatrol.app"))
+		if _, err := os.Stat("/Applications/Nebprx.app"); err == nil {
+			step("rm /Applications/Nebprx.app",
+				bestEffort("sudo", "rm", "-rf", "/Applications/Nebprx.app"))
 		}
 		if !*keepCA {
 			step("untrust CA in System.keychain",
 				bestEffort("sudo", "security", "delete-certificate",
-					"-c", "clawpatrol", "/Library/Keychains/System.keychain"))
+					"-c", "nebprx", "/Library/Keychains/System.keychain"))
 		}
 	case "linux":
-		step("wg-quick down clawpatrol", bestEffort("sudo", "wg-quick", "down", "clawpatrol"))
+		step("wg-quick down nebprx", bestEffort("sudo", "wg-quick", "down", "nebprx"))
 		if !*keepCA {
 			step("rm system CA", bestEffort("sudo", "rm", "-f",
-				"/usr/local/share/ca-certificates/clawpatrol.crt"))
+				"/usr/local/share/ca-certificates/nebprx.crt"))
 			step("update-ca-certificates", bestEffort("sudo", "update-ca-certificates"))
 		}
 	}
 
 	if !*keepCA {
-		dir := defaultClawpatrolDir()
+		dir := defaultNebprxDir()
 		step("rm "+dir, func() error { return os.RemoveAll(dir) })
 	}
 	if !*keepConf {
-		confDir := filepath.Join(os.Getenv("HOME"), ".config", "clawpatrol")
+		confDir := filepath.Join(os.Getenv("HOME"), ".config", "nebprx")
 		step("rm "+confDir, func() error { return os.RemoveAll(confDir) })
 	}
 	step("strip shell-rc env shim", removeShellRCMarker)
 
 	fmt.Println()
-	fmt.Println("done. Reinstall: curl -fsSL https://clawpatrol.dev/install.sh | sh")
+	fmt.Println("done. Reinstall: curl -fsSL https://prx.nebuless.cloud/install.sh | sh")
 }
 
 // removeShellRCMarker strips the line installShellRC appended.
 // Idempotent — silently no-ops when the marker isn't present.
 func removeShellRCMarker() error {
-	const marker = "# clawpatrol: agent env (clawpatrol env)"
+	const marker = "# nebprx: agent env (nebprx env)"
 	home := os.Getenv("HOME")
 	for _, name := range []string{".zshrc", ".bashrc", ".profile"} {
 		p := filepath.Join(home, name)
@@ -2284,7 +2284,7 @@ func removeShellRCMarker() error {
 	return nil
 }
 
-// `clawpatrol status` — what's installed, what's running, what's
+// `nebprx status` — what's installed, what's running, what's
 // reachable. Self-diagnose without log streaming. No flags; one
 // shot of every signal that matters for "why isn't this working".
 func runStatus(args []string) {
@@ -2301,32 +2301,32 @@ func runStatus(args []string) {
 		}
 	}
 
-	caPath := filepath.Join(defaultClawpatrolDir(), "ca.crt")
+	caPath := filepath.Join(defaultNebprxDir(), "ca.crt")
 	_, caErr := os.Stat(caPath)
 	check("CA bundle", caErr == nil, caPath)
 
-	confPath := filepath.Join(os.Getenv("HOME"), ".config", "clawpatrol", "wg.conf")
+	confPath := filepath.Join(os.Getenv("HOME"), ".config", "nebprx", "wg.conf")
 	_, confErr := os.Stat(confPath)
 	check("wg.conf", confErr == nil, confPath)
 
 	switch runtime.GOOS {
 	case "darwin":
 		_, helperErr := os.Stat(macHelperPath)
-		check("Clawpatrol.app", helperErr == nil, "/Applications/Clawpatrol.app")
+		check("Nebprx.app", helperErr == nil, "/Applications/Nebprx.app")
 		// systemextensionsctl list — single line per ext, look for ours.
 		out, _ := exec.Command("systemextensionsctl", "list").Output()
 		extLine := ""
 		for _, line := range strings.Split(string(out), "\n") {
-			if strings.Contains(line, "dev.clawpatrol.app.extension") {
+			if strings.Contains(line, "dev.nebprx.app.extension") {
 				extLine = strings.TrimSpace(line)
 				break
 			}
 		}
 		check("system extension", strings.Contains(extLine, "[activated enabled]"), extLine)
 	case "linux":
-		out, err := exec.Command("ip", "link", "show", "clawpatrol").Output()
+		out, err := exec.Command("ip", "link", "show", "nebprx").Output()
 		up := err == nil && strings.Contains(string(out), "state UNKNOWN")
-		check("wg-quick interface up", up, "ip link show clawpatrol")
+		check("wg-quick interface up", up, "ip link show nebprx")
 	}
 
 	// Gateway reachability: parse Endpoint from wg.conf, hit /info on

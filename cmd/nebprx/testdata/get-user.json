@@ -6,7 +6,7 @@
       "path":   "/user",
       "headers": {
         "Authorization": ["***"],
-        "User-Agent":    ["clawpatrol-test/sample"]
+        "User-Agent":    ["nebprx-test/sample"]
       }
     }
   },

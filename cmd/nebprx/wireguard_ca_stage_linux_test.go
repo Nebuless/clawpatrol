@@ -22,7 +22,7 @@ func TestWireGuardCAStageWholeMachineRejoinCommitsOnlyAfterWGSetup(t *testing.T)
 	if err != nil {
 		t.Fatalf("canonicalize CA-B: %v", err)
 	}
-	const iface = "clawpatrol-stage-test"
+	const iface = "nebprx-stage-test"
 	const conf = "[Interface]\nPrivateKey = test-private\nAddress = 10.0.0.2/32\n\n[Peer]\nPublicKey = test-public\nAllowedIPs = 0.0.0.0/0\nEndpoint = 192.0.2.1:51820\n"
 	setupErr := errors.New("wg setup failed")
 

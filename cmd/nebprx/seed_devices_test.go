@@ -19,7 +19,7 @@ import (
 // scoped the defer to a real return; this test pins that contract.
 func TestSeedAgentsFromDevices_PopulatesRegistry(t *testing.T) {
 	dir := t.TempDir()
-	db, err := OpenDB(filepath.Join(dir, "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(dir, "nebprx.db"))
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestSeedAgentsFromDevices_PopulatesRegistry(t *testing.T) {
 // reports no error.
 func TestSeedAgentsFromDevices_EmptyTable(t *testing.T) {
 	dir := t.TempDir()
-	db, err := OpenDB(filepath.Join(dir, "clawpatrol.db"))
+	db, err := OpenDB(filepath.Join(dir, "nebprx.db"))
 	if err != nil {
 		t.Fatalf("OpenDB: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestSeedAgentsFromDevices_EmptyTable(t *testing.T) {
 // the call so Query fails immediately.
 func TestSeedAgentsFromDevices_QueryError(t *testing.T) {
 	dir := t.TempDir()
-	db, err := sql.Open("sqlite", filepath.Join(dir, "clawpatrol.db"))
+	db, err := sql.Open("sqlite", filepath.Join(dir, "nebprx.db"))
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
 	}

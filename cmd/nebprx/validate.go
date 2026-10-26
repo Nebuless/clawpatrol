@@ -76,7 +76,7 @@ func newVerifyPluginManager(cacheDir string) (*extplugin.Manager, func()) {
 // against the facet registry. Catches plugin authoring bugs that
 // the operator's HCL didn't happen to exercise.
 func validateCmd(args []string) (string, int) {
-	const usage = "usage: clawpatrol validate [--plugin-cache-dir DIR] <config.hcl>"
+	const usage = "usage: nebprx validate [--plugin-cache-dir DIR] <config.hcl>"
 	cacheDir, rest, ok := parseVerifyFlags("validate", args)
 	if !ok || len(rest) != 1 {
 		return usage, 2

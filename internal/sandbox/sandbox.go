@@ -92,9 +92,9 @@ type Availability struct {
 // EnvStage1 and EnvSpec drive the linux re-exec child and must never
 // leak into the plugin's environment (stage-1 strips them).
 const (
-	EnvBackend = "CLAWPATROL_SANDBOX_BACKEND"
-	EnvStage1  = "CLAWPATROL_SANDBOX_STAGE1"
-	EnvSpec    = "CLAWPATROL_SANDBOX_SPEC"
+	EnvBackend = "NEBPRX_SANDBOX_BACKEND"
+	EnvStage1  = "NEBPRX_SANDBOX_STAGE1"
+	EnvSpec    = "NEBPRX_SANDBOX_SPEC"
 
 	// stage1Exec runs the full sandbox setup and execs the plugin;
 	// stage1Probe runs the setup and exits 0 instead of exec'ing.
@@ -102,7 +102,7 @@ const (
 	stage1Probe = "probe"
 
 	// stage1ExitCode is the child's exit code when sandbox setup
-	// fails (accompanied by a "clawpatrol-sandbox:" line on stderr).
+	// fails (accompanied by a "nebprx-sandbox:" line on stderr).
 	stage1ExitCode = 87
 )
 
@@ -129,7 +129,7 @@ func errNotWired() error {
 }
 
 // Probe detects the best available sandbox backend on this host. The
-// result is cached per CLAWPATROL_SANDBOX_BACKEND value. A forced
+// result is cached per NEBPRX_SANDBOX_BACKEND value. A forced
 // backend that fails its own probe is an error (it does not fall
 // through to another backend).
 func Probe() (Availability, error) {
@@ -165,7 +165,7 @@ func Command(spec Spec, mode Mode) (*exec.Cmd, error) {
 
 // BaseEnv is the minimal environment every plugin gets, sandboxed or
 // not. Nothing from the gateway's own environment (secrets,
-// CLAWPATROL_*, cloud credentials) is inherited; go-plugin's
+// NEBPRX_*, cloud credentials) is inherited; go-plugin's
 // ClientConfig.SkipHostEnv must be set by the spawner.
 func BaseEnv(spec Spec) []string {
 	return []string{

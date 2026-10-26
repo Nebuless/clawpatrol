@@ -22,7 +22,7 @@ import (
 // constraint (hashicorp/go-version, the same engine and semantics
 // Terraform uses for provider version constraints).
 
-// githubHost is the only remote host clawpatrol fetches plugins from in
+// githubHost is the only remote host nebprx fetches plugins from in
 // v1. A source qualified with it is a repo reference; anything else is a
 // local path (preserving the pre-distribution behavior).
 const githubHost = "github.com"

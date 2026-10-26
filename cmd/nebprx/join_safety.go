@@ -14,7 +14,7 @@ import (
 //   - URL host resolves to an address assigned to a local interface.
 //
 // reason describes which signal matched; empty when local is false.
-// Used to reject `clawpatrol join --whole-machine` against the
+// Used to reject `nebprx join --whole-machine` against the
 // gateway host itself, where wg-quick's catch-all routing creates a
 // loop that captures the gateway daemon's own outbound traffic.
 func isLocalGateway(gatewayURL string) (local bool, reason string) {

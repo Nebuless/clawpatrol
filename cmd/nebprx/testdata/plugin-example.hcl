@@ -8,13 +8,13 @@
 // credential type (example_magic_token), one tunnel type
 // (example_passthrough), and three endpoint types
 // (example_https, example_smtp, example_echo). Type
-// and facet names are flat — Claw Patrol doesn't auto-prefix
+// and facet names are flat — PRX doesn't auto-prefix
 // anything. Plugin authors prefix their own names by convention,
 // the way Terraform providers do (`aws_iam_role`,
 // `kubernetes_deployment`).
 
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
 
   wireguard {
@@ -26,7 +26,7 @@ plugin "example" {
   source = "./pluginsdk/example/example"
   // No network grant here: the example plugin declares its own
   // network need (NetworkOutbound, for the passthrough tunnel) in its
-  // manifest. The gateway records the approval in clawpatrol.lock.hcl
+  // manifest. The gateway records the approval in nebprx.lock.hcl
   // on first load. The endpoints don't need it — their upstream
   // connections go through the gateway's brokered dial.
 }
@@ -43,7 +43,7 @@ tunnel "example_passthrough" "passthru" {}
 // and rewrites the response body by appending "\nbye!\n". On deny
 // it replies 403 with the rule's reason.
 //
-// Set CLAWPATROL_SECRET_DEMO_TOKEN=hello in the environment, then
+// Set NEBPRX_SECRET_DEMO_TOKEN=hello in the environment, then
 // `curl -k https://demo.invalid/` against a local HTTP upstream
 // (e.g. `python3 -m http.server 8000`) — the upstream sees the
 // X-Magic header and curl prints the body with "bye!" appended.

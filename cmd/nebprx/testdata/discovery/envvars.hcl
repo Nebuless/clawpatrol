@@ -6,7 +6,7 @@
 # Environment variables section (the bearer endpoint above it pushes
 # none, proving only env-pushdown plugins appear).
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

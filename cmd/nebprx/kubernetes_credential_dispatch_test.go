@@ -29,7 +29,7 @@ func (a kubernetesApprovalCapture) Approve(_ context.Context, req runtime.Approv
 func TestMITMKubernetesSelectsBearerPlaceholderCredential(t *testing.T) {
 	const policyHCL = `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gateway.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

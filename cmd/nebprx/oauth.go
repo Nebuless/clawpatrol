@@ -1401,7 +1401,7 @@ func (w *webMux) dashboardRedirectURI(r *http.Request, path string) string {
 // given redirect URI. Returns the issued client_id.
 func registerOAuthClient(ctx context.Context, registerURL, redirectURI string, scopes []string) (string, error) {
 	bodyMap := map[string]any{
-		"client_name":                "clawpatrol",
+		"client_name":                "nebprx",
 		"redirect_uris":              []string{redirectURI},
 		"grant_types":                []string{"authorization_code", "refresh_token"},
 		"response_types":             []string{"code"},
@@ -1633,7 +1633,7 @@ func (w *webMux) startOpenAIDeviceFlow(rw http.ResponseWriter, r *http.Request, 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "clawpatrol/1.0")
+	req.Header.Set("User-Agent", "nebprx/1.0")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		http.Error(rw, "openai deviceauth: "+err.Error(), http.StatusBadGateway)
@@ -1717,7 +1717,7 @@ func (w *webMux) pollOpenAIDeviceFlow(rw http.ResponseWriter, r *http.Request, s
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "clawpatrol/1.0")
+	req.Header.Set("User-Agent", "nebprx/1.0")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		http.Error(rw, "openai poll: "+err.Error(), http.StatusBadGateway)

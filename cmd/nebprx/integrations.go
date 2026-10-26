@@ -1,7 +1,7 @@
 package main
 
 // Built-in OAuth defaults for popular providers (claude / codex /
-// github), the `clawpatrol env` shell-shim, and the litellm
+// github), the `nebprx env` shell-shim, and the litellm
 // context-window cache used to label agent sessions with their
 // model's max input window.
 
@@ -47,7 +47,7 @@ func resolveTemplate(s string) string {
 
 // pushdownEnvVar carries one env var contributed by the credential
 // plugins' EnvPushdownProvider impls plus the CA-bundle vars. Used
-// by both `clawpatrol env` (prints export lines) and `clawpatrol run`
+// by both `nebprx env` (prints export lines) and `nebprx run`
 // (sets them on the wrapped child process via os.Setenv).
 type pushdownEnvVar struct {
 	Name        string
@@ -72,7 +72,7 @@ var envPushdownGatewayFetcher = fetchEnvPushdownFromGateway
 // itself); runEnv then skips straight to the direct HTTP fetcher.
 //
 // Reason this exists: in tsnet-only deployments the CLI process
-// invoking `clawpatrol env` has no tailnet route to the gateway's
+// invoking `nebprx env` has no tailnet route to the gateway's
 // 100.x address — that route lives inside the daemon's tsnet.Server.
 // Without a daemon hop the direct fetch silently times out.
 var envPushdownDaemonFetcher func() ([]pushdownEnvVar, error)
@@ -86,7 +86,7 @@ var envPushdownDaemonFetcher func() ([]pushdownEnvVar, error)
 // endpoint — the gateway is the only source of truth for which
 // plugins the operator has actually configured. Returns CA vars
 // only with an error when the gateway URL hasn't been persisted
-// (no `clawpatrol join` yet) or the gateway is unreachable;
+// (no `nebprx join` yet) or the gateway is unreachable;
 // callers surface the error so the operator knows their agents
 // won't get the placeholder tokens.
 func envPushdownVars(caPath string) ([]pushdownEnvVar, error) {
@@ -98,26 +98,26 @@ func envPushdownVars(caPath string) ([]pushdownEnvVar, error) {
 	// daemon that doesn't understand the ENV command (replies EOF).
 	if envPushdownDaemonFetcher != nil {
 		if vars, err := envPushdownDaemonFetcher(); err == nil {
-			return append(out, dropClawpatrolCAVars(vars)...), nil
+			return append(out, dropNebprxCAVars(vars)...), nil
 		}
 	}
 	vars, err := envPushdownGatewayFetcher(filepath.Dir(caPath))
 	if err != nil {
 		return out, err
 	}
-	return append(out, dropClawpatrolCAVars(vars)...), nil
+	return append(out, dropNebprxCAVars(vars)...), nil
 }
 
-// dropClawpatrolCAVars removes any clawpatrol-owned CA var from a
+// dropNebprxCAVars removes any nebprx-owned CA var from a
 // gateway/plugin-sourced list. Those names (SSL_CERT_FILE, NODE_EXTRA_CA_CERTS,
 // …) point at client-local files the gateway can't know, and are force-set by
 // caPathPushdownVars. Without this filter a plugin-provided entry — appended
 // after the local ones — would win at the consumer (last os.Setenv / last
 // export line) and redirect the wrapped agent's trust away from our bundle.
-func dropClawpatrolCAVars(vars []pushdownEnvVar) []pushdownEnvVar {
+func dropNebprxCAVars(vars []pushdownEnvVar) []pushdownEnvVar {
 	out := vars[:0:0]
 	for _, ev := range vars {
-		if clawpatrolCAVarNames[ev.Name] {
+		if nebprxCAVarNames[ev.Name] {
 			continue
 		}
 		out = append(out, ev)
@@ -138,12 +138,12 @@ func dropClawpatrolCAVars(vars []pushdownEnvVar) []pushdownEnvVar {
 // ensureCABundle. NODE_EXTRA_CA_CERTS is additive (Node keeps its
 // built-in roots), so it stays on ca.crt alone.
 //
-// All of these are clawpatrol-owned (see clawpatrolCAVarNames): the wrapped
+// All of these are nebprx-owned (see nebprxCAVarNames): the wrapped
 // agent MUST trust the MITM CA, so applyEnvPushdownVars force-sets them even
 // when the operator already had e.g. SSL_CERT_FILE pointing elsewhere.
 //
 // Exposed within the package so the Linux daemon-routed path
-// (`clawpatrol run` → daemon control socket) can combine these
+// (`nebprx run` → daemon control socket) can combine these
 // with the gateway-fetched vars the daemon ships back, instead
 // of re-implementing the list.
 func caPathPushdownVars(caPath string) []pushdownEnvVar {
@@ -165,14 +165,14 @@ func caPathPushdownVars(caPath string) []pushdownEnvVar {
 	return out
 }
 
-// clawpatrolCAVarNames are the CA-bundle env vars clawpatrol owns. They are
+// nebprxCAVarNames are the CA-bundle env vars nebprx owns. They are
 // replace-style (SSL_CERT_FILE et al. name the ONE file a client trusts, not
 // an addition to it), so the only way the wrapped agent can trust the MITM CA
 // is for us to point them at our combined bundle — even if the operator had
 // already set them. applyEnvPushdownVars therefore force-sets exactly these,
 // while leaving every other pushdown var (gateway tokens, etc.) under the
-// operator's control. Full opt-out is CLAWPATROL_NO_ENV=1.
-var clawpatrolCAVarNames = map[string]bool{
+// operator's control. Full opt-out is NEBPRX_NO_ENV=1.
+var nebprxCAVarNames = map[string]bool{
 	"SSL_CERT_FILE":       true,
 	"REQUESTS_CA_BUNDLE":  true,
 	"CURL_CA_BUNDLE":      true,
@@ -183,7 +183,7 @@ var clawpatrolCAVarNames = map[string]bool{
 	"NODE_EXTRA_CA_CERTS": true,
 }
 
-// gatewayDialOverride lets callers (e.g. clawpatrol run in tsnet mode)
+// gatewayDialOverride lets callers (e.g. nebprx run in tsnet mode)
 // swap in a tsnet.Server-backed DialContext so HTTP calls to tailnet IPs
 // route through the in-process tsnet stack instead of the host network
 // (which has no tailnet route).
@@ -213,7 +213,7 @@ func gatewayClient(caDir string) *http.Client {
 
 // fetchEnvPushdownFromGateway hits the gateway's /api/env-pushdown
 // endpoint and returns its declared push-down vars. Authenticated
-// with the per-peer bearer `clawpatrol join` persisted at
+// with the per-peer bearer `nebprx join` persisted at
 // <caDir>/api-token. Errors when the gateway URL or token isn't
 // persisted, the network call fails, or the server returned
 // non-200.
@@ -227,11 +227,11 @@ func fetchEnvPushdownFromGateway(caDir string) ([]pushdownEnvVar, error) {
 		gw = readGatewayURL(caDir)
 	}
 	if gw == "" {
-		return nil, fmt.Errorf("gateway URL not persisted (run `clawpatrol join` first)")
+		return nil, fmt.Errorf("gateway URL not persisted (run `nebprx join` first)")
 	}
 	token := readPeerAPIToken(caDir)
 	if token == "" {
-		return nil, fmt.Errorf("peer api token not persisted (run `clawpatrol join` first)")
+		return nil, fmt.Errorf("peer api token not persisted (run `nebprx join` first)")
 	}
 	url := strings.TrimRight(gw, "/") + "/api/env-pushdown"
 	cli := gatewayClient(caDir)
@@ -290,7 +290,7 @@ func parseEnvPushdownJSON(raw []byte) ([]pushdownEnvVar, error) {
 	return out, nil
 }
 
-// readGatewayURL returns the dashboard URL `clawpatrol join`
+// readGatewayURL returns the dashboard URL `nebprx join`
 // persisted next to the CA bundle. Empty when the file is missing
 // or unreadable.
 func readGatewayURL(caDir string) string {
@@ -314,7 +314,7 @@ func readTailnetURL(caDir string) string {
 }
 
 // readPeerAPIToken returns the per-peer bearer minted at onboard
-// time, persisted at <caDir>/api-token by `clawpatrol join`.
+// time, persisted at <caDir>/api-token by `nebprx join`.
 // Empty when the file is missing.
 func readPeerAPIToken(caDir string) string {
 	b, err := os.ReadFile(filepath.Join(caDir, "api-token"))
@@ -324,24 +324,24 @@ func readPeerAPIToken(caDir string) string {
 	return strings.TrimSpace(string(b))
 }
 
-// runEnv is the `clawpatrol env` subcommand: prints export lines for
+// runEnv is the `nebprx env` subcommand: prints export lines for
 // the agent CLIs, pointing them at the CA bundle and stuffing
 // placeholder tokens into the slots they require. The gateway
 // overwrites the auth slot at MITM time, so the placeholder bytes
 // never reach the upstream.
 func runEnv(args []string) {
 	fs := flag.NewFlagSet("env", flag.ExitOnError)
-	caDir := fs.String("ca-dir", defaultClawpatrolDir(), "directory containing ca.crt")
+	caDir := fs.String("ca-dir", defaultNebprxDir(), "directory containing ca.crt")
 	_ = fs.Parse(args)
 
 	caPath := filepath.Join(*caDir, "ca.crt")
 	if _, err := os.Stat(caPath); err != nil {
-		fmt.Fprintf(os.Stderr, "clawpatrol: ca not found at %s — run `clawpatrol join <gateway-url>` first\n", caPath)
+		fmt.Fprintf(os.Stderr, "nebprx: ca not found at %s — run `nebprx join <gateway-url>` first\n", caPath)
 		os.Exit(2)
 	}
 	vars, err := envPushdownVars(caPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "clawpatrol: %v\n", err)
+		fmt.Fprintf(os.Stderr, "nebprx: %v\n", err)
 	}
 	for _, ev := range vars {
 		if ev.Description != "" {
@@ -359,27 +359,27 @@ func runEnv(args []string) {
 }
 
 // applyEnvPushdownVars sets env vars from an already-fetched list, honoring
-// CLAWPATROL_NO_ENV. Used by `clawpatrol run`, which receives the vars from the
+// NEBPRX_NO_ENV. Used by `nebprx run`, which receives the vars from the
 // daemon over its control socket instead of dialing the gateway directly.
 //
-// The clawpatrol-owned CA vars (clawpatrolCAVarNames) are force-set even when
+// The nebprx-owned CA vars (nebprxCAVarNames) are force-set even when
 // the operator already had them: they are replace-style, so an operator's
 // pre-existing SSL_CERT_FILE would otherwise leave the wrapped agent trusting
 // only that file and NOT the MITM CA, breaking every defined endpoint. Every
 // other pushdown var (gateway tokens, etc.) keeps the operator's value if set.
 func applyEnvPushdownVars(vars []pushdownEnvVar) {
-	if os.Getenv("CLAWPATROL_NO_ENV") == "1" {
+	if os.Getenv("NEBPRX_NO_ENV") == "1" {
 		return
 	}
 	for _, ev := range vars {
-		if !clawpatrolCAVarNames[ev.Name] && os.Getenv(ev.Name) != "" {
+		if !nebprxCAVarNames[ev.Name] && os.Getenv(ev.Name) != "" {
 			continue
 		}
 		_ = os.Setenv(ev.Name, ev.Value)
 	}
 }
 
-// installClaudeCodeOAuthShim is the `clawpatrol run claude` workaround
+// installClaudeCodeOAuthShim is the `nebprx run claude` workaround
 // for Claude Code's local auth-mode gate.
 //
 // Claude Code refuses `/remote-control` whenever the session looks
@@ -408,19 +408,19 @@ func applyEnvPushdownVars(vars []pushdownEnvVar) {
 //
 // This rewrite of the worker's environment and config dir is OFF by
 // default (R&D decision, 2026-06-03): silently materializing credentials
-// and pointing CLAUDE_CONFIG_DIR at a clawpatrol-managed dir would shadow
+// and pointing CLAUDE_CONFIG_DIR at a nebprx-managed dir would shadow
 // the worker's existing ~/.claude (skills, memory, MCP servers, project
-// state) and edit files clawpatrol doesn't own. Instead, when the shim
+// state) and edit files nebprx doesn't own. Instead, when the shim
 // *would* apply we print how to turn it on and otherwise leave the env
 // untouched; the operator opts in explicitly with
-// CLAWPATROL_CLAUDE_OAUTH_SHIM=1.
+// NEBPRX_CLAUDE_OAUTH_SHIM=1.
 //
 // No-op (env left unchanged) when:
 //   - the wrapped command is not `claude` — raw Anthropic SDK clients
 //     (Python, Node, …) still want ANTHROPIC_AUTH_TOKEN unchanged.
 //   - ANTHROPIC_AUTH_TOKEN is unset — the OAuth subscription plugin
 //     isn't bound to this profile, so there's nothing to shim.
-//   - the operator hasn't opted in via CLAWPATROL_CLAUDE_OAUTH_SHIM=1 —
+//   - the operator hasn't opted in via NEBPRX_CLAUDE_OAUTH_SHIM=1 —
 //     a one-time notice is printed pointing at the opt-in.
 //
 // Once opted in, it is also a no-op (beyond dropping the bearer) when the
@@ -438,26 +438,26 @@ func installClaudeCodeOAuthShim(cmd []string) {
 	// Opt-in only. Writing credentials + repointing CLAUDE_CONFIG_DIR can
 	// shadow the worker's ~/.claude and touch files we don't own, so we
 	// never do it silently — tell the operator how to enable it instead.
-	if os.Getenv("CLAWPATROL_CLAUDE_OAUTH_SHIM") != "1" {
+	if os.Getenv("NEBPRX_CLAUDE_OAUTH_SHIM") != "1" {
 		warnClaudeCodeRemoteControlDisabled()
 		return
 	}
 	// Honor an operator-set CLAUDE_CONFIG_DIR so Claude Code keeps its
 	// settings/MCP/project state living there; otherwise carve out a
-	// clawpatrol-managed dir that leaves the worker's ~/.claude untouched.
+	// nebprx-managed dir that leaves the worker's ~/.claude untouched.
 	dir := os.Getenv("CLAUDE_CONFIG_DIR")
 	managed := dir == ""
 	if managed {
-		dir = filepath.Join(defaultClawpatrolDir(), "claude-config")
+		dir = filepath.Join(defaultNebprxDir(), "claude-config")
 	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		fmt.Fprintf(os.Stderr, "[clawpatrol] claude oauth shim: mkdir %s: %v\n", dir, err)
+		fmt.Fprintf(os.Stderr, "[nebprx] claude oauth shim: mkdir %s: %v\n", dir, err)
 		return
 	}
 	credPath := filepath.Join(dir, ".credentials.json")
 	// Don't clobber a real /login that already lives in an operator-set
 	// config dir — dropping ANTHROPIC_AUTH_TOKEN below lets it win on its
-	// own. (We always (re)write our own managed dir: it's clawpatrol's.)
+	// own. (We always (re)write our own managed dir: it's nebprx's.)
 	if !managed {
 		if _, err := os.Stat(credPath); err == nil {
 			_ = os.Unsetenv("ANTHROPIC_AUTH_TOKEN")
@@ -465,7 +465,7 @@ func installClaudeCodeOAuthShim(cmd []string) {
 		}
 	}
 	if err := writeClaudeCodeCredentials(credPath, bearer); err != nil {
-		fmt.Fprintf(os.Stderr, "[clawpatrol] claude oauth shim: write credentials: %v\n", err)
+		fmt.Fprintf(os.Stderr, "[nebprx] claude oauth shim: write credentials: %v\n", err)
 		return
 	}
 	// Redirect Claude Code's credential read onto our synthesized file
@@ -484,13 +484,13 @@ func installClaudeCodeOAuthShim(cmd []string) {
 // makes them work. Printed instead of silently rewriting the worker's
 // environment and config dir (R&D decision, 2026-06-03).
 func warnClaudeCodeRemoteControlDisabled() {
-	fmt.Fprintf(os.Stderr, `[clawpatrol] Claude Code /remote-control and other claude.ai
+	fmt.Fprintf(os.Stderr, `[nebprx] Claude Code /remote-control and other claude.ai
 subscription-only features are disabled in this session: ANTHROPIC_AUTH_TOKEN
 is set, so Claude Code treats this as API-key auth and gates them off locally.
 
 To enable them, opt into the OAuth shim:
 
-    CLAWPATROL_CLAUDE_OAUTH_SHIM=1 clawpatrol run claude ...
+    NEBPRX_CLAUDE_OAUTH_SHIM=1 nebprx run claude ...
 
 The shim writes a synthesized .credentials.json and points CLAUDE_CONFIG_DIR at
 it for the child. Because that shadows your existing ~/.claude (skills, memory,
@@ -510,7 +510,7 @@ func writeClaudeCodeCredentials(path, bearer string) error {
 	body, err := json.MarshalIndent(map[string]any{
 		"claudeAiOauth": map[string]any{
 			"accessToken":  bearer,
-			"refreshToken": "sk-ant-ort01-clawpatrol-placeholder-do-not-use",
+			"refreshToken": "sk-ant-ort01-nebprx-placeholder-do-not-use",
 			// 2286-11-20T17:46:39.999Z — well past any plausible worker
 			// lifetime. Claude Code refreshes only when it considers the
 			// token expired.

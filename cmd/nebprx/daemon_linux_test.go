@@ -76,7 +76,7 @@ func TestDaemonProtocolRoundTrip(t *testing.T) {
 
 	wantTunAddr := netip.MustParseAddr("100.64.0.7")
 	envVarsIn := []pushdownEnvVar{
-		{Name: "SSL_CERT_FILE", Value: "/home/u/.clawpatrol/ca.crt"},
+		{Name: "SSL_CERT_FILE", Value: "/home/u/.nebprx/ca.crt"},
 		{Name: "GH_TOKEN", Value: "ghp_placeholder", Description: "github"},
 	}
 	envJSON, err := json.Marshal(envVarsIn)

@@ -2,7 +2,7 @@
 
 package main
 
-// Shared helpers for tsnet-backed `clawpatrol run` — currently consumed
+// Shared helpers for tsnet-backed `nebprx run` — currently consumed
 // by the Linux daemon transport. The historical macOS SOCKS5 client
 // used the same helpers and may again; keep them isolated behind a
 // build tag rather than splitting per-call sites.
@@ -108,10 +108,10 @@ func waitTsnetUp(s *tsnet.Server) (netip.Addr, error) {
 // (later daemon boots) see the token already pointing at a real IP
 // and hit the gateway's no-op branch.
 func registerTsnetPeer(client *http.Client, gwURL, token, tsIP string) error {
-	// Prefer the operator-supplied --hostname from `clawpatrol join`
+	// Prefer the operator-supplied --hostname from `nebprx join`
 	// (persisted to <ca-dir>/hostname). Fall back to os.Hostname() for
 	// older joins that didn't write the file.
-	hn := strings.TrimSpace(readFileSilent(filepath.Join(defaultClawpatrolDir(), "hostname")))
+	hn := strings.TrimSpace(readFileSilent(filepath.Join(defaultNebprxDir(), "hostname")))
 	if hn == "" {
 		hn, _ = os.Hostname()
 	}

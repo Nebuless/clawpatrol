@@ -418,13 +418,13 @@ func TestJoinTLSVerifiedPolicy(t *testing.T) {
 		want bool
 	}{
 		// Funnel URL: Tailscale terminates :443 with a Let's Encrypt cert.
-		{"https://clawpatrol-gateway.tail9a48e.ts.net", true},
-		{"https://clawpatrol-gateway.tail9a48e.ts.net/ca.crt", true},
+		{"https://nebprx-gateway.tail9a48e.ts.net", true},
+		{"https://nebprx-gateway.tail9a48e.ts.net/ca.crt", true},
 		// A gateway behind an operator-supplied public domain.
-		{"https://clawpatrol-gateway.example.com", true},
-		{"HTTPS://Clawpatrol-Gateway.Example.Com", true},
+		{"https://nebprx-gateway.example.com", true},
+		{"HTTPS://Nebprx-Gateway.Example.Com", true},
 		// No TLS to verify.
-		{"http://clawpatrol-gateway.tail9a48e.ts.net:8080", false},
+		{"http://nebprx-gateway.tail9a48e.ts.net:8080", false},
 		{"http://100.79.206.14:8080", false},
 		// IP literals: a tsnet listener holds no certificate for an address.
 		{"https://100.79.206.14", false},
@@ -435,7 +435,7 @@ func TestJoinTLSVerifiedPolicy(t *testing.T) {
 		// A fully qualified name naming the same host, root dot and all.
 		{"https://localhost.:8443", false},
 		{"https://gw.localhost.:8443", false},
-		{"https://clawpatrol-gateway.example.com.", true},
+		{"https://nebprx-gateway.example.com.", true},
 		{"https://LOCALHOST:8443", false},
 		{"https://gw.localhost:8443", false},
 		// A URL that cannot be classified keeps verification on: the waiver
@@ -475,9 +475,9 @@ func TestJoinHTTPClientVerifiesNamedHTTPSGateway(t *testing.T) {
 		}
 	}
 
-	named := newJoinHTTPClient("https://clawpatrol-gateway.example.com", 10*time.Second)
+	named := newJoinHTTPClient("https://nebprx-gateway.example.com", 10*time.Second)
 	dialToTestServer(named)
-	if resp, err := named.Get("https://clawpatrol-gateway.example.com/ca.crt"); err == nil {
+	if resp, err := named.Get("https://nebprx-gateway.example.com/ca.crt"); err == nil {
 		_ = resp.Body.Close()
 		t.Error("a named https gateway must have its certificate verified")
 	} else {
@@ -582,10 +582,10 @@ func TestJoinTransportAuthenticatedRequiresPositiveClassification(t *testing.T) 
 		url  string
 		want bool
 	}{
-		{"https://clawpatrol-gateway.tail9a48e.ts.net", true},
-		{"https://clawpatrol-gateway.example.com.", true},
+		{"https://nebprx-gateway.tail9a48e.ts.net", true},
+		{"https://nebprx-gateway.example.com.", true},
 		// No TLS, or TLS nothing public can vouch for.
-		{"http://clawpatrol-gateway.tail9a48e.ts.net:8080", false},
+		{"http://nebprx-gateway.tail9a48e.ts.net:8080", false},
 		{"https://100.79.206.14", false},
 		{"https://127.0.0.1:8443", false},
 		{"https://localhost:8443", false},

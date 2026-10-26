@@ -224,7 +224,7 @@ func TestClassifyStatErr(t *testing.T) {
 func TestGatherDNSLockdownInputsKeepResolv(t *testing.T) {
 	// The escape hatch must short-circuit discovery entirely, so it
 	// still works on hosts where the probes themselves would fail.
-	t.Setenv("CLAWPATROL_RUN_KEEP_RESOLV", "1")
+	t.Setenv("NEBPRX_RUN_KEEP_RESOLV", "1")
 	in, err := gatherDNSLockdownInputs()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

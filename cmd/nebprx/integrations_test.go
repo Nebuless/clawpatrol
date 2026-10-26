@@ -169,7 +169,7 @@ func TestEnvPushdownVarsServerDriven(t *testing.T) {
 func TestEnvPushdownVarsErrorReturnsCAOnly(t *testing.T) {
 	// Pin the gateway fetcher to the direct-HTTP path — on darwin the
 	// init() in run_tsnet_darwin.go rewires this to the NE session
-	// socket, which would dial /tmp/clawpatrol.sock and return whatever
+	// socket, which would dial /tmp/nebprx.sock and return whatever
 	// the host's running NE happens to have to say, instead of the
 	// gateway-URL-missing error this test exercises.
 	prev := envPushdownGatewayFetcher
@@ -236,9 +236,9 @@ func hasScope(scopes []string, want string) bool {
 	return false
 }
 
-// TestInstallClaudeCodeOAuthShim covers the `clawpatrol run claude`
+// TestInstallClaudeCodeOAuthShim covers the `nebprx run claude`
 // workaround when the operator has opted in with
-// CLAWPATROL_CLAUDE_OAUTH_SHIM=1: with ANTHROPIC_AUTH_TOKEN in the env,
+// NEBPRX_CLAUDE_OAUTH_SHIM=1: with ANTHROPIC_AUTH_TOKEN in the env,
 // the wrapped command `claude`, and no operator CLAUDE_CONFIG_DIR, the
 // shim must (1) carve out a managed CLAUDE_CONFIG_DIR and point the env
 // var at it, (2) write a synthesized credentials.json with
@@ -248,9 +248,9 @@ func hasScope(scopes []string, want string) bool {
 func TestInstallClaudeCodeOAuthShim(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
-	t.Setenv("ANTHROPIC_AUTH_TOKEN", "sk-ant-oat01-clawpatrol-placeholder-do-not-use")
+	t.Setenv("ANTHROPIC_AUTH_TOKEN", "sk-ant-oat01-nebprx-placeholder-do-not-use")
 	t.Setenv("CLAUDE_CONFIG_DIR", "")
-	t.Setenv("CLAWPATROL_CLAUDE_OAUTH_SHIM", "1")
+	t.Setenv("NEBPRX_CLAUDE_OAUTH_SHIM", "1")
 
 	installClaudeCodeOAuthShim([]string{"/usr/local/bin/claude", "--help"})
 
@@ -298,9 +298,9 @@ func TestInstallClaudeCodeOAuthShim_OperatorConfigDir(t *testing.T) {
 	home := t.TempDir()
 	cfg := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("ANTHROPIC_AUTH_TOKEN", "sk-ant-oat01-clawpatrol-placeholder-do-not-use")
+	t.Setenv("ANTHROPIC_AUTH_TOKEN", "sk-ant-oat01-nebprx-placeholder-do-not-use")
 	t.Setenv("CLAUDE_CONFIG_DIR", cfg)
-	t.Setenv("CLAWPATROL_CLAUDE_OAUTH_SHIM", "1")
+	t.Setenv("NEBPRX_CLAUDE_OAUTH_SHIM", "1")
 
 	installClaudeCodeOAuthShim([]string{"claude"})
 
@@ -324,9 +324,9 @@ func TestInstallClaudeCodeOAuthShim_PreservesRealLogin(t *testing.T) {
 	home := t.TempDir()
 	cfg := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("ANTHROPIC_AUTH_TOKEN", "sk-ant-oat01-clawpatrol-placeholder-do-not-use")
+	t.Setenv("ANTHROPIC_AUTH_TOKEN", "sk-ant-oat01-nebprx-placeholder-do-not-use")
 	t.Setenv("CLAUDE_CONFIG_DIR", cfg)
-	t.Setenv("CLAWPATROL_CLAUDE_OAUTH_SHIM", "1")
+	t.Setenv("NEBPRX_CLAUDE_OAUTH_SHIM", "1")
 
 	credPath := filepath.Join(cfg, ".credentials.json")
 	realLogin := []byte(`{"claudeAiOauth":{"accessToken":"real-login-token"}}`)
@@ -363,7 +363,7 @@ func TestInstallClaudeCodeOAuthShim_NoOpPaths(t *testing.T) {
 			// is the R&D-decided behavior (don't silently overwrite).
 			name: "not_opted_in",
 			setup: func(t *testing.T) {
-				t.Setenv("CLAWPATROL_CLAUDE_OAUTH_SHIM", "")
+				t.Setenv("NEBPRX_CLAUDE_OAUTH_SHIM", "")
 				t.Setenv("ANTHROPIC_AUTH_TOKEN", "keep")
 			},
 			cmd:     []string{"claude"},
@@ -372,7 +372,7 @@ func TestInstallClaudeCodeOAuthShim_NoOpPaths(t *testing.T) {
 		{
 			name: "empty_argv",
 			setup: func(t *testing.T) {
-				t.Setenv("CLAWPATROL_CLAUDE_OAUTH_SHIM", "1")
+				t.Setenv("NEBPRX_CLAUDE_OAUTH_SHIM", "1")
 				t.Setenv("ANTHROPIC_AUTH_TOKEN", "keep")
 			},
 			cmd:     nil,
@@ -381,7 +381,7 @@ func TestInstallClaudeCodeOAuthShim_NoOpPaths(t *testing.T) {
 		{
 			name: "non_claude_binary",
 			setup: func(t *testing.T) {
-				t.Setenv("CLAWPATROL_CLAUDE_OAUTH_SHIM", "1")
+				t.Setenv("NEBPRX_CLAUDE_OAUTH_SHIM", "1")
 				t.Setenv("ANTHROPIC_AUTH_TOKEN", "keep")
 			},
 			cmd:     []string{"/usr/bin/python3", "script.py"},
@@ -390,7 +390,7 @@ func TestInstallClaudeCodeOAuthShim_NoOpPaths(t *testing.T) {
 		{
 			name: "no_anthropic_token",
 			setup: func(t *testing.T) {
-				t.Setenv("CLAWPATROL_CLAUDE_OAUTH_SHIM", "1")
+				t.Setenv("NEBPRX_CLAUDE_OAUTH_SHIM", "1")
 				t.Setenv("ANTHROPIC_AUTH_TOKEN", "")
 			},
 			cmd:     []string{"claude"},

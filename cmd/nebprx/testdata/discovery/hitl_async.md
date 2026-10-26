@@ -1,6 +1,6 @@
-# Claw Patrol access manifest — profile: ops
+# PRX access manifest — profile: ops
 
-You are connected through the Claw Patrol gateway. It intercepts your
+You are connected through the PRX gateway. It intercepts your
 connections transparently: dial the hosts below as you normally would and
 the gateway injects credentials and enforces policy. A credential
 `placeholder` is a literal string you send where the secret would go — the
@@ -10,19 +10,19 @@ device profile; it lists only what this profile grants.
 TLS is intercepted only for the hosts this profile grants — the
 endpoints listed below. For those, the gateway terminates TLS and acts
 as a transparent man-in-the-middle: the certificate you see is minted on
-the fly by Claw Patrol's own certificate authority, not the host's real
+the fly by PRX's own certificate authority, not the host's real
 public certificate. The hostname matches but the issuer is the gateway
-CA. You normally don't have to do anything to trust it: Claw Patrol
+CA. You normally don't have to do anything to trust it: PRX
 already installed its CA on this device when you joined — both in the
 system trust store and via environment-variable pushdown
 (SSL_CERT_FILE, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE, CURL_CA_BUNDLE,
-and similar) that `clawpatrol run` sets for the processes it wraps. So
+and similar) that `nebprx run` sets for the processes it wraps. So
 most clients validate these connections out of the box, and a
 certificate-authority mismatch against the public web PKI is expected
 for these hosts, not an attack. If a client ignores both the system
 store and those env vars, fetch the CA from
-https://clawpatrol.internal/ca.crt, verify its fingerprint against
-https://clawpatrol.internal/info, and point that
+https://nebprx.internal/ca.crt, verify its fingerprint against
+https://nebprx.internal/info, and point that
 client at it explicitly.
 
 Every other host is passed through untouched: the gateway does not
@@ -35,7 +35,7 @@ Some endpoints have rules that gate a matching request behind human approval (hu
 
 The gateway parks the request synchronously: it holds your connection open until a human decides and then answers on that same connection — the real upstream response once the request is approved, or a denial if it is rejected. You do not have to do anything special or re-send anything; just let the request run instead of aborting it.
 
-To see everything currently waiting on a human for your device, GET https://clawpatrol.internal/pending. It lists each parked action — its method, endpoint, and redacted target — so you can tell what is held without keeping the original connection in view.
+To see everything currently waiting on a human for your device, GET https://nebprx.internal/pending. It lists each parked action — its method, endpoint, and redacted target — so you can tell what is held without keeping the original connection in view.
 
 Endpoints below that may park a request for human approval: admin, deploy, release.
 
@@ -54,7 +54,7 @@ The 202 also carries a Retry-After header (suggested 5 seconds) — wait that lo
 
 Poll status_url with GET until the state resolves. The states:
 - sync_waiting / pending_approval: still waiting on a human; keep polling (honoring Retry-After). No upstream call has happened. pending_approval includes an approval_expires_at — the operation stays pollable until then; only after that does it become expired, so keep polling a pending operation rather than giving up early.
-- approved_waiting_for_retry: a human approved it, but the gateway has NOT called upstream yet. To execute it, RE-SEND the exact same original request with the header Clawpatrol-HITL-Operation set to the operation_id, before retry_expires_at. The retry is what performs the upstream call.
+- approved_waiting_for_retry: a human approved it, but the gateway has NOT called upstream yet. To execute it, RE-SEND the exact same original request with the header Nebprx-HITL-Operation set to the operation_id, before retry_expires_at. The retry is what performs the upstream call.
 - denied: a human rejected it; do not retry. Stop.
 - expired: the approval window or the post-approval retry window elapsed with no (or no acted-on) decision; do not retry. Stop. expired is distinct from pending_approval — pending means keep polling, expired means it is over.
 

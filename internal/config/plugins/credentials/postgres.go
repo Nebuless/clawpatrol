@@ -13,7 +13,7 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// PostgresCredential is part of the clawpatrol plugin API.
+// PostgresCredential is part of the PRX plugin API.
 //
 // Database, when set, is the discriminator the dispatcher uses to
 // pick this credential when several postgres_credential blocks bind
@@ -57,7 +57,7 @@ func (p *PostgresCredential) PostgresAuth(sec runtime.Secret) (string, string) {
 	return p.User, string(sec.Bytes)
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*PostgresCredential) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Postgres password"}}
 }

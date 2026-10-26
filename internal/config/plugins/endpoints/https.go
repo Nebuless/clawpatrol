@@ -15,14 +15,14 @@ import (
 	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// HTTPSEndpoint is part of the clawpatrol plugin API.
+// HTTPSEndpoint is part of the PRX plugin API.
 type HTTPSEndpoint struct {
 	// Hosts is the set of HTTPS hostnames or host:port pairs this
 	// endpoint intercepts.
 	Hosts []string `hcl:"hosts"`
 }
 
-// EndpointHosts is part of the clawpatrol plugin API.
+// EndpointHosts is part of the PRX plugin API.
 func (e *HTTPSEndpoint) EndpointHosts() []string { return e.Hosts }
 
 // HTTPSEndpointRuntime detects placeholders in an HTTP request's
@@ -33,7 +33,7 @@ func (e *HTTPSEndpoint) EndpointHosts() []string { return e.Hosts }
 // the auth scheme beyond safe Basic decoding.
 type HTTPSEndpointRuntime struct{}
 
-// DetectPlaceholder is part of the clawpatrol plugin API.
+// DetectPlaceholder is part of the PRX plugin API.
 func (HTTPSEndpointRuntime) DetectPlaceholder(req *runtime.Request, candidates []string) string {
 	if req == nil || req.Headers == nil {
 		return ""

@@ -513,7 +513,7 @@ func halfCloseWrite(c net.Conn) {
 // marker the built-in HTTP sampler emits (cmd/nebprx/web.go's
 // bodyTruncatedMarker), so the dashboard's BODY_TRUNCATED_MARKER handling
 // renders a plugin response body's "truncated" badge with no extra wiring.
-const bodyTruncatedMarker = "\n[clawpatrol:body-truncated]"
+const bodyTruncatedMarker = "\n[nebprx:body-truncated]"
 
 // bodySampler caps a plugin-streamed response body to the gateway's
 // body-storage limit and hashes the bytes it captured, mirroring the
@@ -1410,7 +1410,7 @@ func tunnelBodyOf(host runtime.TunnelHost) (*dynamicTunnelBody, bool) {
 
 // tunnelBodies is the registration-time-populated table the adapter
 // consults at runtime. Keys are tunnel instance names (globally
-// unique in clawpatrol's flat namespace).
+// unique in nebprx's flat namespace).
 var tunnelBodies = struct {
 	mu sync.Mutex
 	m  map[string]*dynamicTunnelBody

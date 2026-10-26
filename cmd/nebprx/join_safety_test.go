@@ -21,7 +21,7 @@ func TestIsLocalGatewayLoopbackLiterals(t *testing.T) {
 }
 
 func TestIsLocalGatewaySchemelessLocalhost(t *testing.T) {
-	// `clawpatrol join localhost:9080` (no scheme) — url.Parse lands
+	// `nebprx join localhost:9080` (no scheme) — url.Parse lands
 	// "localhost:9080" in u.Scheme + u.Opaque, but we still extract
 	// "localhost" via the Host fallback.
 	local, reason := isLocalGateway("localhost:9080")

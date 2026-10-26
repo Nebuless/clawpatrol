@@ -52,11 +52,11 @@ const emptyPayloadHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca49599
 // fall back to it for non-S3 bodies too large to buffer for hashing.
 const unsignedPayload = "UNSIGNED-PAYLOAD"
 
-// AWSCredential is part of the clawpatrol plugin API.
+// AWSCredential is part of the PRX plugin API.
 //
 // Schema is intentionally empty: access key id and secret access key
 // (and optional session token) live in the secret store as named
-// slots, filled via the dashboard or CLAWPATROL_SECRET_<NAME>_<SLOT>
+// slots, filled via the dashboard or NEBPRX_SECRET_<NAME>_<SLOT>
 // env vars. Cluster + region come from the kubernetes endpoint at
 // request time.
 type AWSCredential struct{}
@@ -68,7 +68,7 @@ type awsEKSParams interface {
 	AWSEKSAuthParams() (cluster, region string)
 }
 
-// SignHTTPRequest is part of the clawpatrol plugin API.
+// SignHTTPRequest is part of the PRX plugin API.
 func (c *AWSCredential) SignHTTPRequest(ctx context.Context, req *http.Request, sec runtime.Secret, endpoint any) error {
 	params, ok := endpoint.(awsEKSParams)
 	if !ok {
@@ -253,7 +253,7 @@ func awsCredentialMaterial(sec runtime.Secret) (akid, secret, token string, err 
 	token = sec.Extras["session_token"]
 	if akid == "" || secret == "" {
 		return "", "", "", fmt.Errorf("aws_credential: missing access_key_id / secret_access_key " +
-			"(set CLAWPATROL_SECRET_<NAME>_ACCESS_KEY_ID and _SECRET_ACCESS_KEY, or fill the slots in the dashboard)")
+			"(set NEBPRX_SECRET_<NAME>_ACCESS_KEY_ID and _SECRET_ACCESS_KEY, or fill the slots in the dashboard)")
 	}
 	return akid, secret, token, nil
 }
@@ -295,7 +295,7 @@ func mintEKSBearerToken(ctx context.Context, akid, secret, sessionToken, region,
 func eksPresignMiddleware(cluster string) func(*smithymiddleware.Stack) error {
 	return func(stack *smithymiddleware.Stack) error {
 		return stack.Build.Add(smithymiddleware.BuildMiddlewareFunc(
-			"clawpatrolEKSPresign",
+			"nebprxEKSPresign",
 			func(ctx context.Context, in smithymiddleware.BuildInput, next smithymiddleware.BuildHandler) (smithymiddleware.BuildOutput, smithymiddleware.Metadata, error) {
 				r, ok := in.Request.(*smithyhttp.Request)
 				if !ok {
@@ -313,7 +313,7 @@ func eksPresignMiddleware(cluster string) func(*smithymiddleware.Stack) error {
 	}
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*AWSCredential) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{
 		{Name: "access_key_id", Label: "AWS access key ID",
@@ -325,11 +325,11 @@ func (*AWSCredential) SecretSlots() []config.SecretSlot {
 	}
 }
 
-// EnvVars is part of the clawpatrol plugin API.
+// EnvVars is part of the PRX plugin API.
 //
 // Mirrors the Anthropic OAuth credential's pushdown (see
 // anthropic_oauth.go): aws-cli and the AWS SDKs read credentials out of
-// the process environment, so `clawpatrol env` exports placeholders that
+// the process environment, so `nebprx env` exports placeholders that
 // satisfy local SigV4 signing. The gateway re-signs the proxied request
 // with the operator's real stored creds at MITM time (reSignProxiedRequest),
 // so these placeholder bytes never authenticate anything upstream.

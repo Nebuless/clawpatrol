@@ -49,8 +49,8 @@ func claimForTest(t *testing.T, w *webMux, ip string, beforeClaim func()) map[st
 }
 
 // A healthy claim mints the per-peer bearer. In Tailscale mode this is
-// the only place it's minted, so `clawpatrol join` has nothing to
-// persist as ~/.clawpatrol/api-token without it.
+// the only place it's minted, so `nebprx join` has nothing to
+// persist as ~/.nebprx/api-token without it.
 func TestOnboardClaimMintsAPIToken(t *testing.T) {
 	w := newOnboardAuthTestWebMux(t)
 	w.g.agents = NewAgentRegistry()

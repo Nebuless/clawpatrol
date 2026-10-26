@@ -201,7 +201,7 @@ func TestCSRFAllowsSameOriginByIPWithoutSecFetchSite(t *testing.T) {
 	}
 }
 
-// The `clawpatrol` CLI posts to operator-gated endpoints with no
+// The `nebprx` CLI posts to operator-gated endpoints with no
 // browser headers at all — `join --login` self-approval is the live
 // case. Every browser sets Origin on a non-GET request, so nothing a
 // page can drive lands in this bucket, and rejecting it would turn
@@ -403,7 +403,7 @@ func TestOnboardApproveRejectsNonJSONBody(t *testing.T) {
 	}
 }
 
-// apiPluginApprove writes clawpatrol.lock.hcl and reloads the
+// apiPluginApprove writes nebprx.lock.hcl and reloads the
 // gateway, so it must not answer anything but POST.
 func TestPluginApproveRejectsNonPOST(t *testing.T) {
 	w := newCSRFTestWebMux(t)
@@ -439,7 +439,7 @@ func TestActionByIDRejectsNonGET(t *testing.T) {
 // own Host, is what keeps those deployments working: `public_url` is
 // the operator's declaration of that external hostname.
 func TestCSRFAllowsProxiedRequestWithRewrittenHost(t *testing.T) {
-	for _, backendHost := range []string{"clawpatrol:8080", "127.0.0.1:8080", "10.0.0.7:8080"} {
+	for _, backendHost := range []string{"nebprx:8080", "127.0.0.1:8080", "10.0.0.7:8080"} {
 		t.Run(backendHost, func(t *testing.T) {
 			w := newCSRFTestWebMux(t)
 			req := csrfTestRequest(http.MethodPost, "/api/config/apply", `{}`)
@@ -461,7 +461,7 @@ func TestCSRFAllowsProxiedRequestWithRewrittenHost(t *testing.T) {
 func TestCSRFAllowsProxiedRequestWithoutSecFetchSite(t *testing.T) {
 	w := newCSRFTestWebMux(t)
 	req := csrfTestRequest(http.MethodPost, "/api/config/apply", `{}`)
-	req.Host = "clawpatrol:8080"
+	req.Host = "nebprx:8080"
 	req.Header.Set("Origin", "https://"+csrfTestHost)
 	rr := serveCSRF(w, req)
 	csrfNotDenied(t, rr)
@@ -589,7 +589,7 @@ func TestCSRFPublicURLPortIsPartOfTheMatch(t *testing.T) {
 func TestCSRFRejectsOppositeSchemeOnDeclaredOrigin(t *testing.T) {
 	w := newCSRFTestWebMux(t)
 	req := csrfTestRequest(http.MethodPost, "/api/credentials/set", `{"id":"x"}`)
-	req.Host = "clawpatrol:8080"
+	req.Host = "nebprx:8080"
 	req.Header.Set("Origin", "http://"+csrfTestHost)
 	csrfDenied(t, serveCSRF(w, req))
 }

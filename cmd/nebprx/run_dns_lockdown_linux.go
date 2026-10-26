@@ -2,7 +2,7 @@
 
 package main
 
-// DNS lockdown for the `clawpatrol run` child namespace.
+// DNS lockdown for the `nebprx run` child namespace.
 //
 // Tunnel-backed endpoints (kubernetes_port_forward, local_command,
 // postgres) are reachable ONLY via DNS-VIP interception: the compiler
@@ -47,7 +47,7 @@ package main
 // both gateway transports intercept UDP/53 to any destination (WG
 // promiscuous forwarder; tsnet GetUDPHandlerForFlow catch-all).
 //
-// CLAWPATROL_RUN_KEEP_RESOLV=1 is the single escape hatch: it skips
+// NEBPRX_RUN_KEEP_RESOLV=1 is the single escape hatch: it skips
 // every layer above, restoring host DNS behavior (and with it the
 // unreachability of tunnel-backed endpoints).
 //
@@ -104,7 +104,7 @@ type dnsLockdown struct {
 // dnsLockdownInputs is everything computeDNSLockdown needs from the
 // environment, gathered up front so the planner stays pure.
 type dnsLockdownInputs struct {
-	KeepResolv          bool     // CLAWPATROL_RUN_KEEP_RESOLV=1
+	KeepResolv          bool     // NEBPRX_RUN_KEEP_RESOLV=1
 	ResolvBody          string   // childResolvConf()
 	NsswitchRaw         string   // /etc/nsswitch.conf contents ("" on error)
 	NsswitchErr         error    // nil | fs.ErrNotExist (musl) | other (fatal)
@@ -157,7 +157,7 @@ func computeDNSLockdown(in dnsLockdownInputs) (dnsLockdown, error) {
 	var plan dnsLockdown
 	plan.Overrides = append(plan.Overrides, etcOverride{
 		Target:  "/etc/resolv.conf",
-		Pattern: "clawpatrol-resolv-*",
+		Pattern: "nebprx-resolv-*",
 		Body:    in.ResolvBody,
 	})
 	if in.NsswitchErr != nil {
@@ -167,14 +167,14 @@ func computeDNSLockdown(in dnsLockdownInputs) (dnsLockdown, error) {
 	} else if body, changed := rewriteHostsLines(in.NsswitchRaw); changed {
 		plan.Overrides = append(plan.Overrides, etcOverride{
 			Target:  "/etc/nsswitch.conf",
-			Pattern: "clawpatrol-nsswitch-*",
+			Pattern: "nebprx-nsswitch-*",
 			Body:    body,
 		})
 	}
 	if in.HostsExists {
 		plan.Overrides = append(plan.Overrides, etcOverride{
 			Target:  "/etc/hosts",
-			Pattern: "clawpatrol-hosts-*",
+			Pattern: "nebprx-hosts-*",
 			Body:    minimalHostsFile(in.Hostname),
 		})
 	}
@@ -217,7 +217,7 @@ func statPresence(path string) (bool, error) {
 // Discovery is fail-closed: an unexpected stat failure aborts rather
 // than silently dropping a mask from the plan.
 func gatherDNSLockdownInputs() (dnsLockdownInputs, error) {
-	if os.Getenv("CLAWPATROL_RUN_KEEP_RESOLV") == "1" {
+	if os.Getenv("NEBPRX_RUN_KEEP_RESOLV") == "1" {
 		// The escape hatch must win even on hosts where discovery
 		// itself fails (an unreadable /run, …) — skip every probe.
 		return dnsLockdownInputs{KeepResolv: true}, nil
@@ -268,7 +268,7 @@ func applyDNSLockdown(plan dnsLockdown) error {
 		}
 	}
 	for _, m := range plan.Masks {
-		if err := bindOverEtc(m, "clawpatrol-mask-*", ""); err != nil {
+		if err := bindOverEtc(m, "nebprx-mask-*", ""); err != nil {
 			return err
 		}
 	}

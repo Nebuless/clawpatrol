@@ -9,7 +9,7 @@ import (
 )
 
 // TestWholeMachineEnvVars (round-5 #1): the whole-machine direct path must
-// inject the local combined-bundle CA vars itself and must strip clawpatrol-
+// inject the local combined-bundle CA vars itself and must strip nebprx-
 // owned CA names from the gateway list, so a plugin-provided SSL_CERT_FILE
 // can't override the local bundle and the MITM CA is still trusted.
 func TestWholeMachineEnvVars(t *testing.T) {

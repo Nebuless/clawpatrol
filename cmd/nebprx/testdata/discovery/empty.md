@@ -1,6 +1,6 @@
-# Claw Patrol access manifest — profile: empty
+# PRX access manifest — profile: empty
 
-You are connected through the Claw Patrol gateway. It intercepts your
+You are connected through the PRX gateway. It intercepts your
 connections transparently: dial the hosts below as you normally would and
 the gateway injects credentials and enforces policy. A credential
 `placeholder` is a literal string you send where the secret would go — the
@@ -10,19 +10,19 @@ device profile; it lists only what this profile grants.
 TLS is intercepted only for the hosts this profile grants — the
 endpoints listed below. For those, the gateway terminates TLS and acts
 as a transparent man-in-the-middle: the certificate you see is minted on
-the fly by Claw Patrol's own certificate authority, not the host's real
+the fly by PRX's own certificate authority, not the host's real
 public certificate. The hostname matches but the issuer is the gateway
-CA. You normally don't have to do anything to trust it: Claw Patrol
+CA. You normally don't have to do anything to trust it: PRX
 already installed its CA on this device when you joined — both in the
 system trust store and via environment-variable pushdown
 (SSL_CERT_FILE, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE, CURL_CA_BUNDLE,
-and similar) that `clawpatrol run` sets for the processes it wraps. So
+and similar) that `nebprx run` sets for the processes it wraps. So
 most clients validate these connections out of the box, and a
 certificate-authority mismatch against the public web PKI is expected
 for these hosts, not an attack. If a client ignores both the system
 store and those env vars, fetch the CA from
-https://clawpatrol.internal/ca.crt, verify its fingerprint against
-https://clawpatrol.internal/info, and point that
+https://nebprx.internal/ca.crt, verify its fingerprint against
+https://nebprx.internal/info, and point that
 client at it explicitly.
 
 Every other host is passed through untouched: the gateway does not
@@ -36,7 +36,7 @@ endpoints and no credentials. That's why there's nothing actionable
 below. This is a configuration state, not an error — the gateway is
 reachable, your device just hasn't been granted anything yet.
 
-To get value from Claw Patrol, this profile needs endpoints and the
+To get value from PRX, this profile needs endpoints and the
 credentials to reach them bound to it. An operator does that in the
 dashboard by either assigning this device a profile that already grants
 what you need, or adding endpoints and credentials to this one.
@@ -45,7 +45,7 @@ Ask the person who runs this gateway to open the dashboard at https://gw.example
 and update this device's profile.
 
 Once the profile is configured, re-fetch this manifest (GET
-https://clawpatrol.internal/manifest) and the endpoints and credentials
+https://nebprx.internal/manifest) and the endpoints and credentials
 will appear below.
 
 ## Endpoints (0)

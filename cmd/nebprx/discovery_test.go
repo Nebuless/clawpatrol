@@ -16,7 +16,7 @@ import (
 //	ops → github (https), prod-pg (postgres, tunneled)
 //	ro  → internal (https), metrics (clickhouse_native)
 const discoveryFixture = `gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -278,7 +278,7 @@ func TestDiscoveryClickhouseDetail(t *testing.T) {
 // while `plain` reaches only a bearer endpoint that pushes none. So the
 // env-var listing and its profile scoping are both observable.
 const envPushdownFixture = `gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -359,7 +359,7 @@ func TestDiscoveryRendersBothFormats(t *testing.T) {
 
 	// JSON via ?format=json.
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "https://clawpatrol.internal/?format=json", nil)
+	req := httptest.NewRequest("GET", "https://nebprx.internal/?format=json", nil)
 	writeDiscoveryResponse(rec, req, policy, "ops")
 	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 		t.Errorf("json content-type = %q", ct)
@@ -374,7 +374,7 @@ func TestDiscoveryRendersBothFormats(t *testing.T) {
 
 	// Markdown default (no query, no Accept).
 	rec2 := httptest.NewRecorder()
-	req2 := httptest.NewRequest("GET", "https://clawpatrol.internal/", nil)
+	req2 := httptest.NewRequest("GET", "https://nebprx.internal/", nil)
 	writeDiscoveryResponse(rec2, req2, policy, "ops")
 	if ct := rec2.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/markdown") {
 		t.Errorf("markdown content-type = %q", ct)
@@ -441,7 +441,7 @@ func TestDiscoveryEmptyProfileGuidance(t *testing.T) {
 // printing a dangling "open the dashboard at " line.
 func TestDiscoveryEmptyProfileNoPublicURL(t *testing.T) {
 	const noURL = `gateway {
-  state_dir = "/opt/clawpatrol"
+  state_dir = "/opt/nebprx"
   wireguard {
     subnet_cidr = "10.55.0.0/24"
     endpoint    = "127.0.0.1:51820"
@@ -531,7 +531,7 @@ func TestDiscoveryHITLFlagging(t *testing.T) {
 	if !strings.Contains(md, "## Human-in-the-loop approval") {
 		t.Errorf("markdown missing HITL section:\n%s", md)
 	}
-	if !strings.Contains(md, "clawpatrol.internal/pending") {
+	if !strings.Contains(md, "nebprx.internal/pending") {
 		t.Errorf("markdown missing internal pending URL:\n%s", md)
 	}
 	if c := strings.Count(md, "- Human-in-the-loop: a matching request may be PARKED"); c != 2 {
@@ -600,7 +600,7 @@ func TestDiscoveryAsyncHITL(t *testing.T) {
 	if a.StatusPathTemplate != "/api/hitl/operations/{operation_id}/status" {
 		t.Errorf("status path template = %q", a.StatusPathTemplate)
 	}
-	if a.RetryHeader != "Clawpatrol-HITL-Operation" {
+	if a.RetryHeader != "Nebprx-HITL-Operation" {
 		t.Errorf("retry header = %q", a.RetryHeader)
 	}
 	if a.PollIntervalSeconds != 5 {
@@ -648,14 +648,14 @@ func TestDiscoveryAsyncHITLAbsentWithoutOptIn(t *testing.T) {
 
 func TestIsInternalHost(t *testing.T) {
 	cases := map[string]bool{
-		"clawpatrol.internal":      true,
-		"ClawPatrol.Internal":      true,
-		"clawpatrol.internal.":     true,
-		"clawpatrol.internal:443":  true,
-		"clawpatrol":               false,
-		"api.github.com":           false,
-		"":                         false,
-		"clawpatrol.internal.evil": false,
+		"nebprx.internal":      true,
+		"Nebprx.Internal":      true,
+		"nebprx.internal.":     true,
+		"nebprx.internal:443":  true,
+		"nebprx":               false,
+		"api.github.com":       false,
+		"":                     false,
+		"nebprx.internal.evil": false,
 	}
 	for host, want := range cases {
 		if got := isInternalHost(host); got != want {

@@ -27,7 +27,7 @@ func TestBaseEnv(t *testing.T) {
 		t.Errorf("BaseEnv = %q, want %q", env, want)
 	}
 	for _, kv := range env {
-		if strings.Contains(kv, "CLAWPATROL_SECRET") {
+		if strings.Contains(kv, "NEBPRX_SECRET") {
 			t.Errorf("BaseEnv leaks secrets: %q", kv)
 		}
 	}
@@ -49,7 +49,7 @@ func TestCommandRequiresStage1Wiring(t *testing.T) {
 }
 
 func TestCommandOffUsesScrubbedEnv(t *testing.T) {
-	t.Setenv("CLAWPATROL_SECRET_FOO", "leak-canary")
+	t.Setenv("NEBPRX_SECRET_FOO", "leak-canary")
 	spec := Spec{
 		BinaryPath: "/bin/true",
 		SocketDir:  "/tmp/cp-x",

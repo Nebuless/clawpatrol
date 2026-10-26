@@ -2,7 +2,7 @@
 
 package main
 
-// Per-session gVisor stack helpers. One stack per `clawpatrol run`
+// Per-session gVisor stack helpers. One stack per `nebprx run`
 // session, bound to the daemon's transport-supplied local address
 // (tsnet 100.x.x.x or WG /32 — the stack doesn't care which). All
 // outbound TCP and UDP through the child's TUN flows out via

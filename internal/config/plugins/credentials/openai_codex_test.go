@@ -41,7 +41,7 @@ func TestCodexInjectOverridesAgentAssertion(t *testing.T) {
 	}
 	// What codex (Agent Identity mode) would have sent on the wire.
 	req.Header.Set("Authorization", "AgentAssertion eyJhZ2VudF9ydW50aW1lX2lkIjoiY2xhd3BhdHJvbC1jb2RleCIsInNpZ25hdHVyZSI6Im9wYXF1ZSJ9")
-	req.Header.Set("Chatgpt-Account-Id", "clawpatrol")
+	req.Header.Set("Chatgpt-Account-Id", "nebprx")
 
 	if err := plugin.InjectHTTP(req.Context(), req, runtime.Secret{Bytes: []byte(bearer)}); err != nil {
 		t.Fatalf("inject: %v", err)
