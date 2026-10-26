@@ -44,7 +44,7 @@ function AgentTypewriter() {
       return;
     }
     const target = AGENTS[i];
-    let t: number;
+    let t: ReturnType<typeof setTimeout>;
     if (phase === "typing") {
       if (text.length < target.length) {
         t = setTimeout(

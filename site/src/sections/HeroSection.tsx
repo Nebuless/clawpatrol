@@ -29,7 +29,7 @@ export function HeroSection() {
             request PRX inspects lands in an audit log you can export.
           </p>
           <div class="flex flex-wrap items-center gap-6 justify-center md:justify-start">
-            <Button href="#book-a-pilot" size="lg">
+            <Button href="/pilot/" size="lg">
               Book a pilot
             </Button>
             <a href="/demo/" class="prx-link-cta">

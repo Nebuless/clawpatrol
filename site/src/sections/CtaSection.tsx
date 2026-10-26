@@ -32,7 +32,7 @@ export function CtaSection() {
         <InstallTerminal variant="expanded" />
       </div>
       <Button
-        href="mailto:pilot@nebuless.com"
+        href="/pilot/"
         size="lg"
       >
         Book a pilot

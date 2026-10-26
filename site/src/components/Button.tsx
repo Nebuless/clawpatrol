@@ -11,10 +11,10 @@ type CommonProps = {
 };
 
 type AnchorProps = CommonProps &
-  Omit<JSX.HTMLAttributes<HTMLAnchorElement>, "size"> & { href: string };
+  Omit<JSX.IntrinsicElements["a"], "size"> & { href: string };
 
 type ButtonElProps = CommonProps &
-  Omit<JSX.HTMLAttributes<HTMLButtonElement>, "size"> & { href?: undefined };
+  Omit<JSX.IntrinsicElements["button"], "size"> & { href?: undefined };
 
 type ButtonProps = AnchorProps | ButtonElProps;
 
