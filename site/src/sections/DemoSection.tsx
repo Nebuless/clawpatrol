@@ -64,7 +64,7 @@ export function DemoSection() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Open the dashboard
+          Open the demo
           <svg
             viewBox="0 0 24 24"
             fill="none"
