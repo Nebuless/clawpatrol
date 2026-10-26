@@ -206,6 +206,9 @@ func TestRouteAuthRequirementsDocumentOnboardingBoundary(t *testing.T) {
 		// visit would chase the logo through the gate and render a
 		// broken-image icon.
 		{path: "/prx-icon.svg", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},
+		{path: "/favicon-32.png", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},
+		{path: "/favicon-16.png", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},
+		{path: "/apple-touch-icon.png", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},
 		{path: "/claw-patrol-logo.svg", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},
 		{path: "/claw-patrol-icon.svg", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},
 		{path: "/fonts/funnel-sans/FunnelSans-Variable--latin_basic.woff2", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},

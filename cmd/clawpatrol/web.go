@@ -171,7 +171,8 @@ func (w *webMux) authRequirementForPath(path string) authRequirement {
 // Anything else under / stays gated.
 func isLoginPageAsset(path string) bool {
 	switch path {
-	case "/prx-icon.svg", "/claw-patrol-icon.svg", "/claw-patrol-logo.svg":
+	case "/prx-icon.svg", "/favicon-32.png", "/favicon-16.png", "/apple-touch-icon.png",
+		"/claw-patrol-icon.svg", "/claw-patrol-logo.svg":
 		return true
 	}
 	return strings.HasPrefix(path, "/fonts/")

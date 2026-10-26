@@ -51,3 +51,21 @@ changes, regenerate.
 
 Scope: keep it minimal and synthetic — public hostnames, no real
 IPs, no production credentials.
+
+## Brand assets
+
+Brand sources live in `shared/branding/` (see its README), with colors
+in `shared/tokens.css`, treatments in `shared/brand.css`, and self-hosted
+fonts in `shared/fonts/`. `site/public/` and `dashboard/public/` reference
+the shared assets through symlinks.
+
+Use `prx-icon.svg` on light surfaces, `prx-icon-light.svg` on dark
+surfaces, and `prx-icon-mono.svg` for one-color/template uses. Use
+`prx-lockup.svg` / `prx-lockup-light.svg` for outlined lockups,
+`prx-app-icon.svg` and its PNG exports for app tiles, the favicon and
+apple-touch exports for browser icons, and `og-image.png` for link previews.
+
+Product prose says "PRX" or "PRX by Nebuless". The `clawpatrol` command,
+install URL, `CLAWPATROL_*` environment variables, Go module path and
+protocol identifiers stay unchanged. Legacy `claw-patrol-*` assets
+are kept only for compatibility.

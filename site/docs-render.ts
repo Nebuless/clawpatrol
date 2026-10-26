@@ -51,7 +51,7 @@ const hclLang: LanguageFn = (h: HLJSApi) => ({
 hljs.registerLanguage("hcl", hclLang);
 
 export const SITE_ORIGIN = "https://clawpatrol.dev";
-export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/clawpatrol.png`;
+export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/og-image.png`;
 
 const LANDING_DESCRIPTION =
   "PRX is an open-source security proxy for AI agents. " +
@@ -141,6 +141,9 @@ function renderMetaTags(m: PageMeta): string {
   return `
   <meta name="description" content="${desc}" />
   <link rel="canonical" href="${m.url}" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="icon" type="image/svg+xml" href="/prx-icon.svg" />
   <meta property="og:title" content="${title}" />
   <meta property="og:description" content="${desc}" />
@@ -412,7 +415,9 @@ export function prerenderLandingHtml(viteIndexHtml: string): string {
     },
   });
 
-  let out = viteIndexHtml;
+  let out = viteIndexHtml
+    .replace(/\s*<meta (?:property="og:image"|name="twitter:image") content="[^"]*" \/>/g, "")
+    .replace(/\s*<link rel="(?:icon|apple-touch-icon)"[^>]*>/g, "");
   // Inject metadata immediately before </head>. Vite already wrote
   // the title and font preload tags, so we only add what's missing.
   out = out.replace("</head>", `${meta}\n</head>`);
