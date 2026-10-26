@@ -20,10 +20,10 @@ REPO="denoland/clawpatrol"
 VERSION="${CLAWPATROL_VERSION:-latest}"
 PREFIX="${CLAWPATROL_PREFIX:-$HOME/.local/bin}"
 
-# Anonymous install telemetry. Pings clawpatrol.dev with os/arch/
+# Anonymous install telemetry. Pings prx.nebuless.cloud with os/arch/
 # version and a generated per-run id so we can count installs and
 # debug failures. Opt out with CLAWPATROL_NO_TELEMETRY=1.
-TELEMETRY_URL="https://clawpatrol.dev/api/telemetry/v1/install"
+TELEMETRY_URL="https://prx.nebuless.cloud/api/telemetry/v1/install"
 INSTALL_ID=""
 
 telemetry() {

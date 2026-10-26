@@ -44,7 +44,7 @@ test("rejects oversized telemetry payloads from Content-Length before reading th
       controller.error(new Error("body should not be read"));
     },
   });
-  const req = new Request("https://clawpatrol.dev/api/telemetry/v1/check", {
+  const req = new Request("https://prx.nebuless.cloud/api/telemetry/v1/check", {
     method: "POST",
     headers: { "Content-Length": "4097" },
     body,
@@ -64,7 +64,7 @@ test("check ping with version=dev is dropped without touching the DB", async () 
     return Response.json({ tag_name: "v1.0.0", html_url: "https://x" });
   };
   const res = await worker.fetch(
-    new Request("https://clawpatrol.dev/api/telemetry/v1/check", {
+    new Request("https://prx.nebuless.cloud/api/telemetry/v1/check", {
       method: "POST",
       body: JSON.stringify({
         instance_id: "01HZDEV",
@@ -93,7 +93,7 @@ test("install ping inserts a row and 204s", async () => {
     reason: "",
   });
   const res = await worker.fetch(
-    new Request("https://clawpatrol.dev/api/telemetry/v1/install", {
+    new Request("https://prx.nebuless.cloud/api/telemetry/v1/install", {
       method: "POST",
       body,
     }),
@@ -113,7 +113,7 @@ test("install ping inserts a row and 204s", async () => {
 test("install ping rejects unknown event names", async () => {
   const { env: testEnv, calls } = env();
   const res = await worker.fetch(
-    new Request("https://clawpatrol.dev/api/telemetry/v1/install", {
+    new Request("https://prx.nebuless.cloud/api/telemetry/v1/install", {
       method: "POST",
       body: JSON.stringify({ install_id: "x", event: "bogus" }),
     }),
@@ -141,7 +141,7 @@ test("rejects payloads over the byte limit, not just the JavaScript string lengt
   assert.ok(new TextEncoder().encode(text).byteLength > 4096);
 
   const res = await worker.fetch(
-    new Request("https://clawpatrol.dev/api/telemetry/v1/check", {
+    new Request("https://prx.nebuless.cloud/api/telemetry/v1/check", {
       method: "POST",
       body: text,
     }),

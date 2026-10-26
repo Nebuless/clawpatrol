@@ -22,7 +22,7 @@ import (
 
 // Update-checker / telemetry. Contract: doc/telemetry.md.
 //
-// One goroutine, started from runGateway. Pings clawpatrol.dev once
+// One goroutine, started from runGateway. Pings prx.nebuless.cloud once
 // after a 30 s grace period and every 6 h thereafter. The grace
 // period stops short-lived `--help` / config-validation runs from
 // counting as installs.
@@ -37,7 +37,7 @@ import (
 // logged at most once per failure type and otherwise swallowed.
 
 const (
-	telemetryEndpoint = "https://clawpatrol.dev/api/telemetry/v1/check"
+	telemetryEndpoint = "https://prx.nebuless.cloud/api/telemetry/v1/check"
 	telemetryInterval = 6 * time.Hour
 	telemetryGrace    = 30 * time.Second
 	telemetryTimeout  = 5 * time.Second
