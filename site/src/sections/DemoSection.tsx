@@ -2,19 +2,12 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { Button } from "../components/Button";
 import { SectionLabel } from "../components/SectionLabel";
 
-// Public dashboard walkthrough at demo.clawpatrol.dev — a simulated
-// fleet with canned traffic operators can click through without
-// installing anything. This section sends people straight there
-// instead of trying to reproduce the UI inline.
+// The dashboard SPA is built into /demo/ and reads bundled fixtures.
 
 const DEMO_URL = "/demo/";
 
-// Defer the iframe's actual src until the user is about to see it.
-// The demo site auto-plays canned traffic the moment it boots, so
-// loading eagerly would mean the "video" has been running for a
-// while by the time the visitor scrolls down. The rootMargin gives
-// the demo a head start so it has time to bootstrap during the
-// final stretch of scroll.
+// Load the dashboard near the viewport so its activity stream starts
+// as visitors reach this section. The margin allows time to bootstrap.
 function LazyDemoIframe() {
   const ref = useRef<HTMLIFrameElement | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -39,7 +32,7 @@ function LazyDemoIframe() {
     <iframe
       ref={ref}
       src={loaded ? DEMO_URL : undefined}
-      title="PRX demo dashboard"
+      title="PRX dashboard"
       class="h-144 w-full border-3 border-t-24 border-navy squircle-lg shadow-[4px_6px_0_0_var(--color-canvas-300)] bg-canvas-muted"
       width="100%"
     />
@@ -55,7 +48,7 @@ export function DemoSection() {
           Click around the operator dashboard.
         </h3>
         <p class="text-center max-w-2xl mx-auto mb-12 mt-4 text-text-muted">
-          A replay of a live PRX gateway. Open any request to see exactly
+          Open any request to see exactly
           what the agent sent and what PRX decided.
         </p>
       </div>

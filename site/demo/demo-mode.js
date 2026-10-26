@@ -32,25 +32,25 @@
     // 3 s: force-push blocked by rule
     {
       _ms: 3000,
-      id: 'demo-deny-push',
+      id: 'act_aq_deny_push',
       mode: 'mitm',
       agent_ip: '100.99.99.1',
       host: 'github.com',
       method: 'POST',
-      path: '/example-cu/member-portal.git/git-receive-pack',
+      path: '/alderquay-cu/member-portal.git/git-receive-pack',
       status: 403,
       ms: 82,
       action: 'denied',
       rule: 'github:block-force-push',
       reason: 'force push to protected branch',
       family: 'http',
-      facets: { method: 'POST', path: '/example-cu/member-portal.git/git-receive-pack' },
+      facets: { method: 'POST', path: '/alderquay-cu/member-portal.git/git-receive-pack' },
       endpoint: 'github-api',
     },
     // 9 s: LLM judge denial with plain-English reason
     {
       _ms: 9000,
-      id: 'demo-deny-llm',
+      id: 'act_aq_deny_llm',
       mode: 'mitm',
       agent_ip: '100.76.162.118',
       host: 'api.anthropic.com',
@@ -71,7 +71,7 @@
     // 16 s: postgres HITL
     {
       _ms: 16000,
-      id: 'demo-hitl-002',
+      id: 'act_aq_approval_002',
       phase: 'start',
       mode: 'pg',
       agent_ip: '100.99.99.1',
@@ -87,7 +87,7 @@
     // 21 s: kubectl HITL (staggered)
     {
       _ms: 21000,
-      id: 'demo-hitl-003',
+      id: 'act_aq_approval_003',
       phase: 'start',
       mode: 'mitm',
       agent_ip: '100.76.162.118',
@@ -103,7 +103,7 @@
     // 28 s: both resolve
     {
       _ms: 28000,
-      id: 'demo-hitl-002',
+      id: 'act_aq_approval_002',
       phase: 'end',
       mode: 'pg',
       agent_ip: '100.99.99.1',
@@ -116,14 +116,14 @@
       rule: 'postgres:no-secret-reads',
       approver: 'team-approvals',
       approver_type: 'human_approver',
-      approver_by: 'alice@example.com',
+      approver_by: 'maya.chen@alderquay.internal',
       family: 'sql',
       facets: { verb: 'SELECT', tables: ['env_vars'] },
       endpoint: 'users-db',
     },
     {
       _ms: 28000,
-      id: 'demo-hitl-003',
+      id: 'act_aq_approval_003',
       phase: 'end',
       mode: 'mitm',
       agent_ip: '100.76.162.118',
@@ -136,7 +136,7 @@
       rule: 'k8s:destructive-ops',
       approver: 'team-approvals',
       approver_type: 'human_approver',
-      approver_by: 'alice@example.com',
+      approver_by: 'maya.chen@alderquay.internal',
       family: 'k8s',
       facets: { verb: 'DELETE', resource: 'pods', name: 'deployd-hfk2v' },
       endpoint: 'k8s-dev-ord',
@@ -144,7 +144,7 @@
   ];
 
   // Index scripted events by id so the detail page can fetch them.
-  // Later entries (same id) win — so demo-hitl-001 resolves to the
+  // Later entries (same id) win — so act_aq_approval_002 resolves to the
   // approved event when the user clicks after it's resolved.
   const SCRIPTED_BY_ID = {};
   for (const { _ms, ...rest } of SCRIPTED_EVENTS) {
@@ -164,7 +164,7 @@
     const items = [];
     if (elapsed >= HITL_START_MS) {
       items.push({
-        id: 'demo-hitl-002',
+        id: 'act_aq_approval_002',
         agent_ip: '100.99.99.1',
         host: 'users-db',
         method: 'SELECT',
@@ -173,7 +173,7 @@
         approval_effect: 'execute_upstream',
         body_sample: 'SELECT * FROM env_vars',
         reason: 'query reads from secrets table · postgres:no-secret-reads',
-        ua: 'demo-client',
+        ua: 'engineering-client',
         endpoint: 'users-db',
         family: 'sql',
         created_at: ts,
@@ -182,7 +182,7 @@
     }
     if (elapsed >= HITL_KUBECTL_MS) {
       items.push({
-        id: 'demo-hitl-003',
+        id: 'act_aq_approval_003',
         agent_ip: '100.76.162.118',
         host: 'k8s-dev-ord',
         method: 'DELETE',
@@ -191,7 +191,7 @@
         approval_effect: 'execute_upstream',
         body_sample: 'kubectl delete pod deployd-hfk2v -n default',
         reason: 'destructive op requires approval · k8s:destructive-ops',
-        ua: 'demo-client',
+        ua: 'engineering-client',
         endpoint: 'k8s-dev-ord',
         family: 'k8s',
         created_at: ts,
@@ -242,7 +242,7 @@
 
     // Refuse mutating verbs on /api/.
     if (url.startsWith('/api/') && method !== 'GET' && method !== 'HEAD') {
-      return Promise.resolve(new Response(JSON.stringify({ error: 'demo: read-only' }), {
+      return Promise.resolve(new Response(JSON.stringify({ error: 'Read-only access' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },
       }));
@@ -465,12 +465,4 @@
   FakeEventSource.CLOSED = 2;
   window.EventSource = FakeEventSource;
 
-  // Tiny corner badge so visitors know it's a demo.
-  document.addEventListener('DOMContentLoaded', () => {
-    const badge = document.createElement('div');
-    badge.style.cssText =
-      'position:fixed;bottom:8px;right:10px;z-index:99999;background:rgba(42,52,47,0.85);color:#fbf7ee;font:500 10px ui-monospace,monospace;padding:3px 8px;border-radius:3px;letter-spacing:0.04em;pointer-events:none';
-    badge.textContent = 'demo';
-    document.body.appendChild(badge);
-  });
 })();

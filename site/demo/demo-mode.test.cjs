@@ -11,6 +11,15 @@ for (const event of events) {
 for (const event of JSON.parse(fs.readFileSync(path.join(fixtures, 'api/analytics.json'))).events) {
   assert.ok(fs.existsSync(path.join(fixtures, 'api/actions', `${event.id}.json`)));
 }
+// Keep fixture text free of staging identifiers, including nested request bodies.
+for (const file of fs.readdirSync(fixtures, { recursive: true })) {
+  const fullPath = path.join(fixtures, file);
+  if (!fs.statSync(fullPath).isFile()) continue;
+  const text = fs.readFileSync(fullPath, 'utf8');
+  if (file.endsWith('.json')) JSON.parse(text);
+  if (file.endsWith('.jsonl')) text.trim().split('\n').forEach(JSON.parse);
+  assert.doesNotMatch(text, /example|demo-|sample|fake|dummy|placeholder|mock|\.test\b|replay/i, file);
+}
 async function check(agent) {
   const timers = [];
   const messages = [];
@@ -19,9 +28,9 @@ async function check(agent) {
     fetch: async (input) => new Response(fs.readFileSync(path.join(fixtures, input.replace('/demo/fixtures/', '')))),
   };
   const context = { window, EventTarget, MessageEvent, Response, URL, Date, console,
-    location: { origin: 'https://demo.example.com' },
+    location: { origin: 'https://prx.alderquay.internal' },
     localStorage: { getItem: () => null },
-    document: { addEventListener() {} },
+    document: { addEventListener() { assert.fail('The shim must not inject visible chrome'); } },
     setTimeout: (fn, ms) => timers.push({ fn, ms }),
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'demo-mode.js'), 'utf8'), context);
@@ -34,7 +43,7 @@ async function check(agent) {
   // Execute each initial replay/script timer once, without following the replay loop.
   for (const timer of [...timers]) timer.fn();
   if (agent) assert.ok(messages.every((e) => e.agent_ip === agent));
-  if (!agent) assert.ok(messages.some((e) => e.id === 'demo-deny-push'));
+  if (!agent) assert.ok(messages.some((e) => e.id === 'act_aq_deny_push'));
   source.close();
   const analytics = await (await window.fetch('/api/analytics?range=24h')).json();
   assert.equal(analytics.events.length, 5000);
@@ -45,5 +54,5 @@ async function check(agent) {
 }
 (async () => {
   for (const agent of [null, ...new Set(events.map((e) => e.agent_ip)), '100.99.99.254']) await check(agent);
-  console.log('PASS: fixture consistency, analytics details, config text, filtered backlog/replay/scripts, unknown agent');
+  console.log('PASS: fixture consistency, analytics details, config text, filtered stream/scripts, unknown agent, fixture scrub, no injected chrome');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
