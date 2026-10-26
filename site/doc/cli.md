@@ -84,7 +84,11 @@ nebprx run -- <command> [args...]
 `run` reads the WG conf that `nebprx join` wrote to the standard
 location; there is no flag to point it elsewhere. On Linux the wrapped
 command runs in an unprivileged user namespace with a private WG
-tunnel. macOS client capture is handled by PRX on macOS.
+tunnel. On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+routes host traffic through a WireGuard gateway using `wg-quick` (requires
+`wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+routing is not supported on macOS.
 
 Linux only, and only on the no-`sudo` path described below:
 `--no-auto-expose` (before the `--`) disables the loopback relay that

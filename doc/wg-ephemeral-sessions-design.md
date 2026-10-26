@@ -23,9 +23,7 @@ implementation.
   the bottom half. Out-of-band: bump the default subnet width.
 - Teardown: explicit DELETE on graceful exit (signal handler). Plus a
   slow gateway-side sweep for orphaned peers with no recent handshake.
-- Linux first. macOS NE stays on the device-static keypair this
-  iteration — its single-tunnel-per-extension shape makes per-session
-  identity a separate refactor.
+- Linux only. macOS uses whole-machine WireGuard routing, not per-session capture.
 - Backwards compat: clients that haven't upgraded keep using the
   device keypair via the existing `wg.conf`. Gateway already accepts
   this path; we are adding, not replacing.
@@ -75,7 +73,11 @@ implementation.
 uses the same static keypair and shows up on the gateway as the same
 WG peer / `/32`.
 
-macOS client capture is handled by PRX on macOS.
+On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+routes host traffic through a WireGuard gateway using `wg-quick` (requires
+`wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+routing is not supported on macOS.
 
 **Auth between CLI and gateway.** Two surfaces:
 
@@ -148,12 +150,6 @@ per-session keypairs. End-to-end trail:
 - **Persistence across gateway restart:** on boot, `main.ts:159–161`
   calls `getWireGuardSessions()` and re-installs each session as a
   peer.
-- **macOS:** the same gateway-minted keypair is shipped into the NE
-  via XPC (`runMacOS()` at `cli.ts:225` invokes
-  `tunnelActivate(...)` from `src/xpc.ts:17`). The NE does not have
-  per-PID cryptographic identity; the CLI starts a fresh tunnel in
-  the NE per `run`. unclaw's NE supports concurrent tunnels in a
-  way PRX's currently does not.
 - **Dashboard:** sessions render as rows nested under their parent
   device. `dashboard/src/components/DevicesPage.tsx:222–237` filters
   sessions by `deviceId` and emits a table row per session
@@ -239,7 +235,11 @@ assume a single subnet; multi-subnet is more change than we need.
 
 ### Q5. macOS
 
-macOS client capture is handled by PRX on macOS.
+On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+routes host traffic through a WireGuard gateway using `wg-quick` (requires
+`wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+routing is not supported on macOS.
 
 ### Q6. Dashboard rendering
 
@@ -313,7 +313,7 @@ the WG layer doesn't care.
 
 - `--whole-machine` mode — intentionally uses the device's static
   identity; ephemeral keys make no sense there.
-- macOS NE per-session WG identity (separate bead).
+
 - The dashboard React change for nested session rows (separate
   bead, depends on this).
 - Replacing the device's main keypair concept; devices still own a

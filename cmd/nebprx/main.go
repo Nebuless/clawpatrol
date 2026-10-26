@@ -4020,7 +4020,7 @@ func runGateway(args []string) {
 		// Auto-derive public_url from the tsnet cert domain so that
 		// join responses, HITL status links, and OAuth redirect URIs use
 		// the correct internet-reachable URL when funnel = true. Cert
-		// provisioning can lag Funnel listener start by a few seconds,
+		// issuance can lag Funnel listener start by a few seconds,
 		// so retry async.
 		go func() {
 			deadline := time.Now().Add(60 * time.Second)

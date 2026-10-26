@@ -3,9 +3,7 @@
 package main
 
 // wgTransport: daemonTransport implementation backed by an in-process
-// wireguard-go device + gVisor netstack. Same pattern as
-// macos/netstack/wgnetstack.go (client-side WG netstack for the NE),
-// adapted to the Linux daemon's lifecycle.
+// wireguard-go device + gVisor netstack.
 //
 // One wireguard-go device per daemon — the persistent peer minted at
 // `nebprx join` time, keyed by the wg.conf at
@@ -42,12 +40,11 @@ import (
 
 const (
 	// wgClientMTU mirrors the per-process wireguard-go MTU used by
-	// the macOS NE and the gateway side. Path-MTU + ICMP frag-needed
+	// the gateway side. Path-MTU + ICMP frag-needed
 	// in wireguard-go shaves this down further when needed.
 	wgClientMTU = 1420
 	// wgClientKeepalive forces wireguard-go to send periodic keepalives
-	// so the first user flow doesn't race the initial handshake. See
-	// macos/netstack/wgnetstack.go for the same rationale.
+	// so the first user flow doesn't race the initial handshake.
 	wgClientKeepalive = 10
 )
 
@@ -346,7 +343,7 @@ func newWGClientTun(addr, addr6 netip.Addr, mtu int) (*wgClientTun, error) {
 	}
 	t.ep.AddNotify(&wgClientEpNotify{t: t})
 
-	// TCP tuning — mirror the gateway/macos netstack values so behavior
+	// TCP tuning — mirror the gateway netstack values so behavior
 	// matches across both sides of the tunnel.
 	sackOpt := tcpip.TCPSACKEnabled(true)
 	t.stack.SetTransportProtocolOption(tcp.ProtocolNumber, &sackOpt)

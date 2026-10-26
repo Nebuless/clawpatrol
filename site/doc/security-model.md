@@ -529,7 +529,11 @@ inject credentials and apply policy — it is **not** a
 containment wall, and intercepting every packet the agent emits is not
 part of the guarantee. Per-process `nebprx run` confines the
 wrapped process as well as the platform allows. Linux uses a kernel
-network namespace. macOS client capture is handled by PRX on macOS.
+network namespace. On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+routes host traffic through a WireGuard gateway using `wg-quick` (requires
+`wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+routing is not supported on macOS.
 Interception is not airtight: processes may escape platform capture,
 and a Linux namespace can be left with enough privilege (passwordless
 `sudo`). Whole-machine mode routes at the host level.

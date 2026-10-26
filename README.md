@@ -49,8 +49,11 @@ nebprx run claude           # wrap one agent's process tree
 ```
 
 `nebprx run` routes the wrapped command's traffic through the gateway.
-macOS client capture is handled by PRX on macOS. `nebprx join` brings up a WireGuard
-tunnel that routes the whole host. `nebprx gateway` is the
+On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+routes host traffic through a WireGuard gateway using `wg-quick` (requires
+`wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+routing is not supported on macOS. `nebprx gateway` is the
 proxy: a single binary that loads your HCL config and accepts
 clients tunneling in via WireGuard or Tailscale.
 

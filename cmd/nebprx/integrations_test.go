@@ -167,11 +167,7 @@ func TestEnvPushdownVarsServerDriven(t *testing.T) {
 // (so TLS verification keeps working) but surface the error so the
 // caller can warn the operator.
 func TestEnvPushdownVarsErrorReturnsCAOnly(t *testing.T) {
-	// Pin the gateway fetcher to the direct-HTTP path — on darwin the
-	// init() in run_tsnet_darwin.go rewires this to the NE session
-	// socket, which would dial /tmp/nebprx.sock and return whatever
-	// the host's running NE happens to have to say, instead of the
-	// gateway-URL-missing error this test exercises.
+	// Pin the direct HTTP fetcher to exercise the missing gateway URL.
 	prev := envPushdownGatewayFetcher
 	prevDaemon := envPushdownDaemonFetcher
 	envPushdownGatewayFetcher = fetchEnvPushdownFromGateway

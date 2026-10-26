@@ -89,7 +89,11 @@ wrap with `nebprx run` go through the gateway. Pass
 `--whole-machine` if you want every packet on the host to route
 through it.
 
-macOS client capture is handled by PRX on macOS.
+On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+routes host traffic through a WireGuard gateway using `wg-quick` (requires
+`wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+routing is not supported on macOS.
 
 > **Don't run `nebprx join --whole-machine` on the gateway
 > host itself** — the gateway shouldn't route its own traffic

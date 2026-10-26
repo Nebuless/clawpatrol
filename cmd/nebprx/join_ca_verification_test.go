@@ -61,9 +61,7 @@ func sandboxJoinHostState(t *testing.T) {
 // stopAfterCAGate makes caDir read-only, so a device flow that gets past the CA
 // gate aborts at its next mandatory write — the mode marker — instead of
 // running real platform setup. That setup is not what these cases are about and
-// is not safe to run from a test: on Linux it writes a daemon auth-key, and on
-// macOS it hands the poll-delivered auth key to the installed helper app, which
-// reconfigures the live tunnel.
+// is not safe to run from a test: on Linux it writes a daemon auth-key.
 // Root ignores the mode bits (CAP_DAC_OVERRIDE), so the flow would run that
 // setup for real; a test that relies on this stopping the flow is skipped
 // there rather than left to fail misleadingly.

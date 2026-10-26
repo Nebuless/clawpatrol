@@ -216,8 +216,7 @@ func runJoin(args []string) {
 	}
 	// Whole-machine Tailscale (Linux only): route all host traffic via
 	// the gateway by setting it as exit-node on the system tailscaled.
-	// Skipped for per-process tsnet mode and for macOS (where the NE
-	// extension owns routing — never system tailscale).
+	// Whole-machine Tailscale routing is Linux-only.
 	if *wholeMachine && runtime.GOOS == "linux" {
 		// Use the actual registered tsnet node name as the exit-node
 		// target, not the --name default. onboardViaDeviceFlow's
@@ -427,7 +426,7 @@ func preJoinFetchCA(gateway, caDir, pinnedFP string, cli *http.Client) (joinSetu
 // through `nebprx run`, so the shell-rc shim is dead weight
 // — and worse, the `nebprx env` it eval's on every new
 // terminal would dial the gateway's tailnet IP, which the
-// parent shell can't reach (only the NE can).
+// parent shell cannot reach without system routing.
 // wholeMachineMarkerName is a sentinel file written under the
 // nebprx dir by a --whole-machine join. `nebprx run` checks for
 // it: in whole-machine mode the host already routes all traffic through
@@ -1241,7 +1240,7 @@ func printChecklist(items []string) {
 // But the credential env (placeholders + SSL_CERT_FILE) only landed in
 // the shell rc, which the current shell hasn't sourced yet, so point
 // the operator at `nebprx env` / a fresh shell. via names the
-// routing mechanism (interface, "system extension", "exit-node").
+// routing mechanism (interface or exit-node).
 func printWholeMachineDone(via string) {
 	fmt.Println()
 	fmt.Printf("Installed! All host traffic now routes through the gateway (%s).\n", via)
@@ -1545,6 +1544,9 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 	// the new CA trusted while routing/credentials still belong to the old
 	// gateway. tsnetJoin marks the tailscale paths.
 	tsnetJoin := !strings.HasPrefix(loginServer, "wireguard://")
+	if tsnetJoin && runtime.GOOS == "darwin" {
+		return false, fmt.Errorf("Tailscale client routing is not supported on macOS; use a WireGuard gateway with --whole-machine")
+	}
 	var canonicalCA []byte
 	if tsnetJoin {
 		cc, verr := canonicalMITMCAPEM([]byte(caPEM))
@@ -1634,10 +1636,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 				_ = cr.Body.Close()
 			}
 		}
-		// Always persist a user-readable copy at ~/.config/nebprx/
-		// wg.conf so the per-host `nebprx` daemon (Linux) and the
-		// macOS NE extension can spin up a userspace WG tunnel without
-		// reading root-owned /etc/wireguard/<iface>.conf.
+		// Persist the user-readable config for the Linux daemon.
 		var persistErr error
 		if err := writeUserWGConf(authKey); err != nil {
 			persistErr = err
@@ -1648,14 +1647,8 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 		// stale state from a previous tailscale-mode join.
 		_ = os.WriteFile(filepath.Join(filepath.Dir(setup.caPath), "mode"),
 			[]byte("wireguard\n"), 0o600)
-		// macOS: kick off the NE bootstrap right after the wg.conf is
-		// in place. Surfaces the one-time sysext approval prompt now
-		// (better than waiting until first `nebprx run`).
-		var macErr error
-		if runtime.GOOS == "darwin" {
-			macErr = macHelperInstall(wholeMachine)
-		}
-		if wholeMachine && runtime.GOOS != "darwin" {
+
+		if wholeMachine {
 			if err := completeWholeMachineRouting(func() error {
 				return wgQuickUpFn(iface, authKey)
 			}); err != nil {
@@ -1670,17 +1663,17 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 		printChecklist(items)
 		if !wholeMachine {
 			fmt.Println()
-			fmt.Println("Installed! Try: nebprx run claude")
-		} else if runtime.GOOS == "darwin" {
-			printWholeMachineDone("system extension")
+			if runtime.GOOS == "darwin" {
+				fmt.Println("Joined. To route host traffic, re-run: nebprx join --whole-machine " + gateway)
+			} else {
+				fmt.Println("Installed! Try: nebprx run claude")
+			}
+
 		} else {
 			printWholeMachineDone(iface)
 		}
 		if persistErr != nil {
 			fmt.Fprintf(os.Stderr, "⚠ persist user wg conf: %v\n", persistErr)
-		}
-		if macErr != nil {
-			fmt.Fprintf(os.Stderr, "⚠ macos NE bootstrap: %v\n", macErr)
 		}
 		return true, nil
 	}
@@ -1691,14 +1684,8 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 	// tailnet at `nebprx run` time using the auth_key persisted
 	// below. No system Tailscale touched.
 	//
-	// macOS NEVER uses system Tailscale — the NETransparentProxyProvider
-	// (Nebprx.app system extension) handles all routing. --whole-
-	// machine on darwin is honored at NE-config time, not here.
-	//
-	// On Linux, --whole-machine falls through to the system-Tailscale
-	// branch below (install tailscale + `tailscale up` + exit-node) for
-	// hosts that want all traffic routed through the gateway.
-	if !wholeMachine || runtime.GOOS == "darwin" {
+	// Whole-machine Tailscale uses the Linux system daemon.
+	if !wholeMachine {
 		clawDir := filepath.Dir(setup.caPath)
 		// The approved CA is validated up front and committed + trusted at the
 		// end of this path via commitApprovedCA (after fatal setup) — nothing to
@@ -1727,25 +1714,8 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 			// RegisterFallbackTCPHandler (no PROXY-header smuggling).
 			_ = os.WriteFile(filepath.Join(clawDir, "tailnet-gateway-ip"), []byte(gatewayIP+"\n"), 0o600)
 		}
-		// tsnet auth-key persistence — platform split.
-		//
-		// macOS: hand the key directly to the NE extension via
-		// NETransparentProxyManager's providerConfiguration (system-
-		// owned VPN preferences storage). The user-side CLI never
-		// holds the bearer on disk.
-		//
-		// Linux: write to the daemon's persistent state directory
-		// (separate from ~/.nebprx, which holds agent-visible
-		// files like ca.crt). The nebprx daemon is the sole
-		// reader.
-		if runtime.GOOS == "darwin" {
-			c := exec.Command(macHelperPath, "start-tsnet",
-				authKey, tailnetControlURL, tailnetGWHost, gatewayIP, apiToken, hn)
-			c.Stdout, c.Stderr = os.Stdout, os.Stderr
-			if err := c.Run(); err != nil {
-				return false, fmt.Errorf("macHelper start-tsnet: %w", err)
-			}
-		} else {
+		// Persist the Linux daemon credential.
+		{
 			stateDir := daemonStateDir()
 			if err := os.MkdirAll(stateDir, 0o700); err != nil {
 				return false, fmt.Errorf("daemon state dir: %w", err)
@@ -1780,15 +1750,8 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 		items := setupSummaryItems(*setup)
 		items = append(items, "✓ joined gateway")
 		printChecklist(items)
-		if wholeMachine {
-			// Reached here only on darwin — Linux whole-machine falls
-			// through to the system-tailscale path below. The NE routes
-			// all host traffic, so the command runs directly.
-			printWholeMachineDone("system extension")
-		} else {
-			fmt.Println()
-			fmt.Println("Installed! Try: nebprx run claude")
-		}
+		fmt.Println()
+		fmt.Println("Installed! Try: nebprx run claude")
 		return false, nil
 	}
 
@@ -2035,9 +1998,8 @@ func runAsRoot(cmd string, args ...string) *exec.Cmd {
 // build per-process tunnels without sudo. Idempotent.
 //
 // Hardcoded XDG path (~/.config) instead of os.UserConfigDir() —
-// the latter returns ~/Library/Application Support on macOS, which
-// breaks the cross-platform "always look at ~/.config/nebprx/wg.conf"
-// contract that the macOS Nebprx.app's `start` subcommand expects.
+// the latter returns ~/Library/Application Support on macOS. Keep the
+// cross-platform ~/.config/nebprx/wg.conf location consistent.
 func writeUserWGConf(conf string) error {
 	dir := filepath.Join(os.Getenv("HOME"), ".config", "nebprx")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -2061,7 +2023,7 @@ func wgQuickUp(iface, conf string) error {
 				return fmt.Errorf("install wireguard-tools: %w", err)
 			}
 		} else {
-			return fmt.Errorf("wg-quick not found — install wireguard-tools / WireGuard.app")
+			return fmt.Errorf("wg-quick not found — install wireguard-tools and wireguard-go")
 		}
 	}
 	dst := filepath.Join("/etc/wireguard", iface+".conf")
@@ -2081,6 +2043,9 @@ func wgQuickUp(iface, conf string) error {
 	}
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close wg temp conf: %w", err)
+	}
+	if err := runAsRoot("mkdir", "-p", filepath.Dir(dst)).Run(); err != nil {
+		return fmt.Errorf("create wireguard config dir: %w", err)
 	}
 	if err := runAsRoot("install", "-m", "0600", tmp.Name(), dst).Run(); err != nil {
 		return fmt.Errorf("install conf: %w", err)
@@ -2177,8 +2142,7 @@ func installTailscale() error {
 
 // `nebprx uninstall` — tear down everything `nebprx join`
 // (and friends) put on this machine. Cross-platform, idempotent.
-// Stops the macOS NETransparentProxy + system extension, brings
-// down the linux wg-quick interface, removes the CA from system
+// Brings down the wg-quick interface, removes the CA from system
 // trust, drops the per-user state dirs, and strips the shell-rc
 // env shim.
 func runUninstall(args []string) {
@@ -2215,14 +2179,7 @@ func runUninstall(args []string) {
 
 	switch runtime.GOOS {
 	case "darwin":
-		if _, err := os.Stat(macHelperPath); err == nil {
-			step("Nebprx stop", bestEffort(macHelperPath, "stop"))
-			step("Nebprx wipe", bestEffort(macHelperPath, "wipe"))
-		}
-		if _, err := os.Stat("/Applications/Nebprx.app"); err == nil {
-			step("rm /Applications/Nebprx.app",
-				bestEffort("sudo", "rm", "-rf", "/Applications/Nebprx.app"))
-		}
+		step("wg-quick down nebprx", bestEffort("sudo", "wg-quick", "down", "nebprx"))
 		if !*keepCA {
 			step("untrust CA in System.keychain",
 				bestEffort("sudo", "security", "delete-certificate",
@@ -2311,18 +2268,8 @@ func runStatus(args []string) {
 
 	switch runtime.GOOS {
 	case "darwin":
-		_, helperErr := os.Stat(macHelperPath)
-		check("Nebprx.app", helperErr == nil, "/Applications/Nebprx.app")
-		// systemextensionsctl list — single line per ext, look for ours.
-		out, _ := exec.Command("systemextensionsctl", "list").Output()
-		extLine := ""
-		for _, line := range strings.Split(string(out), "\n") {
-			if strings.Contains(line, "dev.nebprx.app.extension") {
-				extLine = strings.TrimSpace(line)
-				break
-			}
-		}
-		check("system extension", strings.Contains(extLine, "[activated enabled]"), extLine)
+		out, err := exec.Command("wg", "show", "interfaces").Output()
+		check("WireGuard interface up", err == nil && strings.TrimSpace(string(out)) != "", strings.TrimSpace(string(out)))
 	case "linux":
 		out, err := exec.Command("ip", "link", "show", "nebprx").Output()
 		up := err == nil && strings.Contains(string(out), "state UNKNOWN")

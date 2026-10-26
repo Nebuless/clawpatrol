@@ -13,7 +13,11 @@ build time.
 - Docker with Compose (optional, for end-to-end testing against an
   in-container agent)
 
-macOS client capture is handled by PRX on macOS.
+On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+routes host traffic through a WireGuard gateway using `wg-quick` (requires
+`wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+routing is not supported on macOS.
 
 ## Build
 

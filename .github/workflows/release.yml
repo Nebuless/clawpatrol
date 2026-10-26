@@ -62,32 +62,8 @@ jobs:
           path: out/nebprx-${{ matrix.os }}-${{ matrix.arch }}
           retention-days: 7
 
-  macos-app:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - name: build + sign + notarize Clawpatrol.app
-        env:
-          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_PROVISIONING_PROFILE_APP: ${{ secrets.APPLE_PROVISIONING_PROFILE_APP }}
-          APPLE_PROVISIONING_PROFILE_EXT: ${{ secrets.APPLE_PROVISIONING_PROFILE_EXT }}
-        run: .github/scripts/build-macos-app.sh
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: macos-app
-          path: macos/Clawpatrol.app.tar.gz
-          retention-days: 7
-
   publish:
-    needs: [build, macos-app]
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -109,8 +85,7 @@ jobs:
       - name: create checksums
         run: |
           cd artifacts
-          (sha256sum nebprx-* Clawpatrol.app.tar.gz 2>/dev/null > SHA256SUMS \
-            || sha256sum nebprx-* > SHA256SUMS)
+          sha256sum nebprx-* > SHA256SUMS
 
       - name: create release
         env:
@@ -123,6 +98,3 @@ jobs:
             --generate-notes \
             artifacts/nebprx-* \
             artifacts/SHA256SUMS
-          if [ -f artifacts/Clawpatrol.app.tar.gz ]; then
-            gh release upload "${TAG}" artifacts/Clawpatrol.app.tar.gz
-          fi

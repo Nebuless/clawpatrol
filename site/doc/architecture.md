@@ -20,7 +20,11 @@ Five actors take part in a PRX deployment:
   whichever flows the agent kicks off through them.
 - **Device.** The machine the agent runs on. The device hosts a
   PRX client that captures outbound flows and feeds them into the
-  transport. macOS client capture is handled by PRX on macOS.
+  transport. On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+  routes host traffic through a WireGuard gateway using `wg-quick` (requires
+  `wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+  without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+  routing is not supported on macOS.
 - **Transport.** A WireGuard or Tailscale connection between the
   device and the gateway, configured by the `gateway { wireguard
   { ... } }` or `gateway { tailscale { ... } }` block (see
@@ -150,7 +154,6 @@ response.
 
 **`nebprx run -- <cmd>` (Linux).** Each invocation is its own
 ephemeral tailnet node in a new user + net + mnt namespace.
-macOS client capture is handled by PRX on macOS.
 
 The persisted tsnet auth key is hidden from agent processes:
 - **Linux** — parent reads `~/.nebprx/tsnet-auth-key` from the
@@ -162,8 +165,6 @@ Tailscale (`tailscale up --authkey=...`), sets the gateway as the
 exit node, and routes the whole host through. The auth key for
 this path is minted with `ephemeral=false` so the node persists.
 Reference: `setup.go:runLogin`.
-
-macOS client capture is handled by PRX on macOS.
 
 ### WireGuard mode
 
@@ -178,8 +179,6 @@ peer in a fresh netns. Reference: `run_linux.go`.
 **`nebprx join --whole-machine` (Linux).** Kernel WireGuard via
 `wg-quick up`. Default route flips to the WG tunnel. Reference:
 `setup.go:wgQuickUp`, `wireguard.go`.
-
-macOS client capture is handled by PRX on macOS.
 
 ## Network traffic processing
 

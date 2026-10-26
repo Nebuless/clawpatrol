@@ -138,28 +138,5 @@ esac
 "$PREFIX/nebprx" version 2>/dev/null || true
 echo
 
-# macOS: install Clawpatrol.app for `nebprx run`
-# The .app holds the system extension that intercepts per-process
-# flows. Without it `nebprx run` errors. Pulled from the same
-# release as the Go binary, expanded to /Applications. Skip silently
-# if the artifact isn't present (older releases or unsigned dev runs).
-if [ "$OS" = "darwin" ]; then
-  APP_URL="${BASE}/Clawpatrol.app.tar.gz"
-  APP_TMP=$(mktemp -d)
-  if curl -fsSL -o "$APP_TMP/app.tgz" "$APP_URL" 2>/dev/null; then
-    say "installing Clawpatrol.app to /Applications"
-    rm -rf /Applications/Clawpatrol.app 2>/dev/null \
-      || sudo rm -rf /Applications/Clawpatrol.app 2>/dev/null \
-      || fail "couldn't remove old /Applications/Clawpatrol.app (need sudo?)"
-    if ! tar -xzf "$APP_TMP/app.tgz" -C /Applications 2>/dev/null; then
-      sudo tar -xzf "$APP_TMP/app.tgz" -C /Applications \
-        || fail "extract Clawpatrol.app failed"
-    fi
-  else
-    say "Clawpatrol.app not in this release; skipping (run \`nebprx run\` won't work on macOS until you install the .app)"
-  fi
-  rm -rf "$APP_TMP"
-fi
-
 telemetry completed
 echo "next: nebprx join <gateway-url>"

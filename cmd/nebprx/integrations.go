@@ -58,11 +58,7 @@ type pushdownEnvVar struct {
 
 // envPushdownGatewayFetcher resolves the gateway's declared
 // push-down vars. Defaults to dialing /api/env-pushdown directly
-// (works on Linux per-process tsnet, where the parent CLI hosts
-// the tsnet.Server itself via gatewayDialOverride). Platform-
-// specific run modes that have no tailnet route from the parent
-// process — macOS NE most notably — override this with a fetcher
-// that asks the network extension to make the call instead.
+// The host must have a route to the gateway.
 var envPushdownGatewayFetcher = fetchEnvPushdownFromGateway
 
 // envPushdownDaemonFetcher is the Linux-only "ask the local
@@ -261,8 +257,7 @@ func fetchEnvPushdownFromGateway(caDir string) ([]pushdownEnvVar, error) {
 
 // parseEnvPushdownJSON decodes the wire format returned by
 // /api/env-pushdown into the CLI's internal pushdownEnvVar shape.
-// Shared between the direct HTTP fetcher and the macOS variant
-// that hops through the NE's session socket.
+
 func parseEnvPushdownJSON(raw []byte) ([]pushdownEnvVar, error) {
 	var body struct {
 		Vars []struct {
