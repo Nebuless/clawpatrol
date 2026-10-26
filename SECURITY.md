@@ -17,7 +17,7 @@ release notes unless you prefer otherwise.
 
 ## What is in scope
 
-The guarantee Claw Patrol makes is narrow and is described in the
+The guarantee PRX makes is narrow and is described in the
 [security model](https://clawpatrol.dev/docs/security-model): real
 secrets live only in the gateway, and the only way to make a
 credentialed request is through the gateway, where policy is
@@ -34,7 +34,7 @@ enforced. Reports that break that guarantee are in scope. Examples:
 
 ## What is out of scope
 
-The security model lists what Claw Patrol does not defend against.
+The security model lists what PRX does not defend against.
 In particular, `clawpatrol run` is not a sandbox: a wrapped process
 has the full local access of its OS user, and per-process traffic
 interception is best-effort. Reports that a wrapped process can read

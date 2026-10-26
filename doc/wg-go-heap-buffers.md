@@ -29,7 +29,7 @@ wireguard-go ships hard-coded platform overrides for constrained environments:
 | Android | `4096` | constrained RAM |
 | iOS | `1024` | Network Extension API memory limit |
 
-Clawpatrol uses the default build (`golang.zx2c4.com/wireguard`), so it
+PRX uses the default build (`golang.zx2c4.com/wireguard`), so it
 inherits the unbounded behaviour.
 
 ## Impact on clawpatrol today

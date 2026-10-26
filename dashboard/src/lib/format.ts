@@ -119,10 +119,10 @@ export function statusClass(
 export function statusColorClass(status: string | undefined): string {
   switch (statusClass(status)) {
     case "5xx":
-      return "text-danger-500";
     case "error":
+      return "text-danger-500";
     case "4xx":
-      return "text-rust-500";
+      return "text-butter-700";
     case "3xx":
       return "text-butter-600";
     case "2xx":

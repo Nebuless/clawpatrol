@@ -271,7 +271,7 @@ function DownloadActionButton({ ev }: { ev: EventRecord }) {
             setBusy(false);
           }
         }}
-        title="Download as a Claw Patrol test fixture"
+        title="Download as a PRX test fixture"
       >
         {busy ? "Downloading…" : "Download action"}
       </Button>
@@ -366,8 +366,8 @@ function RulePreviewModal({ ev, onClose }: { ev: EventRecord; onClose: () => voi
         ) : (
           <p className="text-sm text-text-muted">
             {passthrough
-              ? "This request was passed through without MITM inspection because no endpoint matched it. Claw Patrol generated HCL that creates an endpoint for the observed host, claims it from existing profiles via a passthrough credential, and denies future matching requests before they pass through."
-              : "Claw Patrol generated a narrow deny rule from this inspected action. Edit the condition if you want to broaden it."}
+              ? "This request was passed through without MITM inspection because no endpoint matched it. PRX generated HCL that creates an endpoint for the observed host, claims it from existing profiles via a passthrough credential, and denies future matching requests before they pass through."
+              : "PRX generated a narrow deny rule from this inspected action. Edit the condition if you want to broaden it."}
           </p>
         )}
         {!applied && busy ? (

@@ -85,7 +85,7 @@ export function DevicePage({
   async function remove() {
     if (
       !confirm(
-        `Remove ${dev.hostname || dev.ip} from Claw Patrol?\n\nThis clears the device's tracking + owner mapping. Tailscale node stays — remove from admin console if you want a hard kick.`,
+        `Remove ${dev.hostname || dev.ip} from PRX?\n\nThis clears the device's tracking + owner mapping. Tailscale node stays — remove from admin console if you want a hard kick.`,
       )
     )
       return;
@@ -287,7 +287,7 @@ function ConfirmProfileChange({
           from <span className="font-mono">{current || "—"}</span> to{" "}
           <span className="font-mono">{next}</span>.
         </p>
-        <p className="text-xs text-text-muted border-l-2 border-rust-400 pl-3">
+        <p className="text-xs text-text-muted border-l-2 border-butter-400 pl-3">
           The profile dictates which credentials this device can use and which rules apply to its
           traffic. Switching profiles can immediately grant new access or revoke existing access.
         </p>
@@ -429,7 +429,7 @@ function ProfilePicker({
           )}
         </div>
       )}
-      {err && <div className="text-2xs text-rust-700 mt-1">{err}</div>}
+      {err && <div className="text-2xs text-danger-700 mt-1">{err}</div>}
     </div>
   );
 }

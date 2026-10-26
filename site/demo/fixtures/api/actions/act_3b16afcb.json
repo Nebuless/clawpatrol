@@ -1,0 +1,1 @@
+{"ts":"2026-05-21T03:31:29.18678Z","id":"act_3b16afcb","mode":"mitm","agent_ip":"100.99.99.2","host":"api.anthropic.com","method":"POST","path":"/v1/messages","status":200,"in":6504,"out":10833,"ms":680,"action":"allow","family":"https","facets":{"method":"POST","path":"/v1/messages"},"endpoint":"anthropic","rule":"anthropic-allow"}

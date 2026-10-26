@@ -1,4 +1,4 @@
-// Vertical flow: agents on top, the Claw Patrol proxy in the middle,
+// Vertical flow: agents on top, the PRX proxy in the middle,
 // destinations on the bottom. Requests flow downward through the
 // stack of policy switches inside the proxy.
 export function FlowDiagram() {
@@ -6,13 +6,13 @@ export function FlowDiagram() {
     <div
       class="flex flex-col items-stretch w-full md:max-w-[24rem] select-none"
       role="img"
-      aria-label="Your agents send requests through Claw Patrol down to the tools and systems they act on"
+      aria-label="Your agents send requests through PRX down to the tools and systems they act on"
     >
       <AgentsNode />
 
       <Riser />
 
-      <CenterNode label="Claw Patrol" />
+      <CenterNode label="PRX" />
 
       <Riser />
 
@@ -132,18 +132,20 @@ function SwitchTag({ label }: { label: string }) {
 
 function CenterNode({ label }: { label: string }) {
   // Light surface keyed to the header’s bg-navy-100 so the proxy node
-  // reads as the same brand surface; full Claw Patrol logo (icon +
+  // reads as the same brand surface; full PRX logo (icon +
   // wordmark) is the same public asset the header uses.
   return (
     <div
       class=" w-full border border-navy text-text
       px-5 py-5 pt-14 relative text-center mt-6 bg-linear-to-b from-canvas to-navy-50 "
     >
-      <img
-        src="/claw-patrol-logo.svg"
-        alt={label}
-        class="h-auto w-64 mx-auto px-4 absolute -top-6.5 left-[calc(50%-8.5rem)] bg-canvas"
-      />
+      <span
+        aria-label={label}
+        class="prx-wordmark mx-auto px-4 absolute -top-5 left-[calc(50%-5.5rem)] bg-canvas"
+      >
+        <img src="/prx-icon.svg" alt="" />
+        <span class="prx-wm-name">PRX</span>
+      </span>
       <SwitchTag label="Rules - action allowed?" />
       <Riser />
       <SwitchTag label="Approvers - action requires approval?" />

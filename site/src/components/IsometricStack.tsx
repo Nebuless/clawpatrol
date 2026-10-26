@@ -1,4 +1,4 @@
-// Nine isometric tiles: the central Claw Patrol tile, with four
+// Nine isometric tiles: the central PRX tile, with four
 // small "AI agent" tiles raised directly above its four quadrants,
 // and four small "tooling" tiles lowered below them. Each small
 // tile is exactly 1/4 the linear size of the big tile, sitting at
@@ -97,10 +97,10 @@ const TILES: Tile[] = [
     D: SMALL_D,
     ...CANVAS_FILL,
   },
-  // Middle — Claw Patrol (the big tile)
+  // Middle — PRX (the big tile)
   {
-    alt: "Claw Patrol",
-    iconSrc: "/claw-patrol-icon.svg",
+    alt: "PRX",
+    iconSrc: "/prx-icon.svg",
     cx: 0,
     cy: 0,
     W: BIG_W,
@@ -155,7 +155,7 @@ const TILES: Tile[] = [
 // bottom cluster, then CP, then top cluster.
 const SORTED = [...TILES].sort((a, b) => b.cy - a.cy);
 const BOTTOM_CLUSTER = SORTED.filter((t) => t.cy > 0);
-const CP_TILE = SORTED.find((t) => t.alt === "Claw Patrol")!;
+const CP_TILE = SORTED.find((t) => t.alt === "PRX")!;
 const TOP_CLUSTER = SORTED.filter((t) => t.cy < 0);
 
 // One-shot enter animation: each tile fades + slides up to its
@@ -206,7 +206,7 @@ export function IsometricStack({ class: cls = "" }: { class?: string }) {
     <div class={`iso-stack-wrap block -my-24 ${cls}`}>
       <svg
         role="img"
-        aria-label="Cluster of isometric panels: four AI agents above Claw Patrol, four downstream tools below it"
+        aria-label="Cluster of isometric panels: four AI agents above PRX, four downstream tools below it"
         viewBox={`${xMin} ${yMin} ${TOTAL_W} ${TOTAL_H}`}
         class="iso-stack-svg block h-full w-auto md:h-auto w-full"
       >

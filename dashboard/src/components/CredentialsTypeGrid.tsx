@@ -314,7 +314,7 @@ function TypeCard({
         <span className="font-semibold text-text">{g.connected}</span>
         <span className="text-text-subtle">/{g.total}</span>
         <span className="ml-1">connected</span>
-        {g.pending > 0 && <span className="ml-2 text-rust-700">{g.pending} pending</span>}
+        {g.pending > 0 && <span className="ml-2 text-butter-700">{g.pending} pending</span>}
       </div>
     </button>
   );

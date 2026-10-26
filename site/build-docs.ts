@@ -69,7 +69,7 @@ writeFileSync(join(distDir, "robots.txt"), robots);
 
 // llmstxt.org format: index of pages an LLM can fetch. We point at the
 // raw .md variants so models get clean prose without the page chrome.
-const llmsTxt = `# Claw Patrol
+const llmsTxt = `# PRX
 
 > Open-source security proxy for AI agents. Sits between your agent
 > and the network, injects credentials the agent never sees, and
@@ -89,7 +89,7 @@ ${
 `;
 writeFileSync(join(distDir, "llms.txt"), llmsTxt);
 
-const llmsFull = `# Claw Patrol — Full Documentation
+const llmsFull = `# PRX — Full Documentation
 
 > Concatenated source of every doc page. The canonical HTML versions
 > live under ${SITE_ORIGIN}/docs/.

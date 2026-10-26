@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "../../shared/fonts.css";
 @import "../../shared/tokens.css";
+@import "../../shared/brand.css";
 
 /* Squircle corner utilities — mirrors site/src/index.css. Use the
    modern `corner-shape: squircle` property where supported; fall back

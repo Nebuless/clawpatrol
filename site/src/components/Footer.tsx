@@ -13,7 +13,7 @@ export function Footer() {
           <p>
             Open-source under the{" "}
             <a
-              href="https://github.com/denoland/clawpatrol/blob/main/LICENSE"
+              href="https://github.com/Nebuless/clawpatrol/blob/main/LICENSE.md"
               class="underline underline-offset-4
                 hover:text-rust"
             >
@@ -22,15 +22,7 @@ export function Footer() {
             .
           </p>
           <p class="max-w-sm ">
-            Made by the folks at{" "}
-            <a
-              href="https://deno.com"
-              class="underline underline-offset-4
-                hover:text-rust"
-            >
-              Deno
-            </a>
-            .
+            PRX is a Nebuless product.
           </p>
         </div>
         <nav aria-label="Footer" class="flex flex-wrap gap-x-6 gap-y-2">
@@ -42,14 +34,14 @@ export function Footer() {
             Docs
           </a>
           <a
-            href="https://github.com/denoland/clawpatrol"
+            href="https://github.com/Nebuless/clawpatrol"
             class="underline underline-offset-4
               hover:text-rust"
           >
-            GitHub
+            Source
           </a>
           <a
-            href="https://github.com/denoland/clawpatrol/blob/main/LICENSE"
+            href="https://github.com/Nebuless/clawpatrol/blob/main/LICENSE.md"
             class="underline underline-offset-4
               hover:text-rust"
           >

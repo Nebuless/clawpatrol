@@ -1,6 +1,6 @@
 # Local development setup
 
-Claw Patrol is a single statically-linked Go binary. The dashboard
+PRX is a single statically-linked Go binary. The dashboard
 SPA is built separately with Vite and embedded into the binary at
 build time.
 
@@ -29,12 +29,12 @@ to build the `Clawpatrol.app` system extension:
   - App ID `com.clawpatrol.app.extension` — needs Network
     Extensions, App Groups (same group).
 
-  Name them "Claw Patrol App Dev" and "Claw Patrol Extension Dev"
+  Name them "Clawpatrol App Dev" and "Clawpatrol Extension Dev"
   (these names are referenced in `macos/project.yml`). After
   creating them, install via Xcode: Settings → Apple Accounts → your
   team → Download Manual Profiles.
 
-See [`macos/README.md`](https://github.com/denoland/clawpatrol/blob/main/macos/README.md)
+See [`macos/README.md`](https://github.com/Nebuless/clawpatrol/blob/main/macos/README.md)
 for the full system-extension build walkthrough.
 
 ## Build

@@ -33,7 +33,7 @@ function TestOutput() {
             {ok("tests/clickhouse-read.json")}
           </span>
           <span class="text-text-subtle">
-            {ok("tests/deno-com-require-approval.json")}
+            {ok("tests/github-require-approval.json")}
           </span>
           <span class="text-text-subtle">
             {ok("tests/api-resource-read.json")}

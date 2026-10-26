@@ -1,11 +1,11 @@
 # Getting Started
 
-This guide takes you from zero to a working Claw Patrol gateway
+This guide takes you from zero to a working PRX gateway
 with one device wired in. The example config works as-is; once
 you want to tune anything, read
 [Configure the gateway](/docs/configure-gateway/) next.
 
-Claw Patrol has two pieces: a **gateway** that runs on a server
+PRX has two pieces: a **gateway** that runs on a server
 you control, and one or more **devices** — the machines where
 your agents run — that join the gateway and route agent
 traffic through it.
@@ -27,7 +27,7 @@ Linux on amd64/arm64 are supported.
 
 On the server, pick a data directory (anywhere — `/opt/clawpatrol`,
 `/srv/clawpatrol`, your home), drop a copy of
-[`gateway.example.hcl`](https://github.com/denoland/clawpatrol/blob/main/examples/gateway.example.hcl)
+[`gateway.example.hcl`](https://github.com/Nebuless/clawpatrol/blob/main/examples/gateway.example.hcl)
 into it, open UDP 51820 on the host firewall, and start the
 gateway:
 
@@ -89,7 +89,7 @@ wrap with `clawpatrol run` go through the gateway. Pass
 `--whole-machine` if you want every packet on the host to route
 through it.
 
-On macOS, the first join prompts you to approve the Claw Patrol
+On macOS, the first join prompts you to approve the PRX
 Network Extension in **System Settings → Privacy & Security**.
 
 > **Don't run `clawpatrol join --whole-machine` on the gateway
@@ -128,4 +128,4 @@ with [Configure the gateway](/docs/configure-gateway/).
 - [CLI](/docs/cli/) — full command reference
 - [Config reference](/docs/config-reference/) — HCL grammar
 - [Rules](/docs/rules/) — gating writes behind a human or LLM
-- [Security model](/docs/security-model/) — what Claw Patrol does and doesn't protect against
+- [Security model](/docs/security-model/) — what PRX does and doesn't protect against

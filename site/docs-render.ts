@@ -54,7 +54,7 @@ export const SITE_ORIGIN = "https://clawpatrol.dev";
 export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/clawpatrol.png`;
 
 const LANDING_DESCRIPTION =
-  "Claw Patrol is an open-source security proxy for AI agents. " +
+  "PRX is an open-source security proxy for AI agents. " +
   "It sits between your agent and the network, injects credentials " +
   "the agent never sees, and enforces HCL approval rules — with " +
   "humans or LLM judges in the loop for risky actions.";
@@ -141,13 +141,13 @@ function renderMetaTags(m: PageMeta): string {
   return `
   <meta name="description" content="${desc}" />
   <link rel="canonical" href="${m.url}" />
-  <link rel="icon" type="image/svg+xml" href="/claw-patrol-icon.svg" />
+  <link rel="icon" type="image/svg+xml" href="/prx-icon.svg" />
   <meta property="og:title" content="${title}" />
   <meta property="og:description" content="${desc}" />
   <meta property="og:url" content="${m.url}" />
   <meta property="og:type" content="${type}" />
   <meta property="og:image" content="${img}" />
-  <meta property="og:site_name" content="Claw Patrol" />
+  <meta property="og:site_name" content="PRX" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${title}" />
   <meta name="twitter:description" content="${desc}" />
@@ -282,7 +282,7 @@ export function loadDocs(docsDir: string): Doc[] {
     const html = marked.parse(body, { async: false }) as string;
     const description =
       meta.description ??
-      extractDescription(body, `${title} — Claw Patrol documentation.`);
+      extractDescription(body, `${title} — PRX documentation.`);
     return { slug, title, html, raw, description };
   });
 }
@@ -319,7 +319,7 @@ export function renderDocPage(doc: Doc, docs: Doc[], extraHead = ""): string {
   const url = `${SITE_ORIGIN}/docs/${doc.slug}/`;
   const mdUrl = `${SITE_ORIGIN}/docs/${doc.slug}.md`;
   const meta = renderMetaTags({
-    title: `${doc.title} — Claw Patrol Docs`,
+    title: `${doc.title} — PRX Docs`,
     description: doc.description,
     url,
     type: "article",
@@ -333,7 +333,7 @@ export function renderDocPage(doc: Doc, docs: Doc[], extraHead = ""): string {
       mainEntityOfPage: url,
       isPartOf: {
         "@type": "WebSite",
-        name: "Claw Patrol",
+        name: "PRX",
         url: SITE_ORIGIN,
       },
     },
@@ -345,7 +345,7 @@ export function renderDocPage(doc: Doc, docs: Doc[], extraHead = ""): string {
   <meta charset="UTF-8" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(doc.title)} — Claw Patrol Docs</title>
+  <title>${escapeHtml(doc.title)} — PRX Docs</title>
   ${meta}
   ${extraHead}
 </head>
@@ -393,7 +393,7 @@ export function prerenderLandingHtml(viteIndexHtml: string): string {
     jsonLd: {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      name: "Claw Patrol",
+      name: "PRX",
       description: LANDING_DESCRIPTION,
       url: SITE_ORIGIN,
       applicationCategory: "DeveloperApplication",

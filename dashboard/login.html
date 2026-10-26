@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Log in — Claw Patrol</title>
-    <link rel="icon" type="image/svg+xml" href="/claw-patrol-icon.svg" />
+    <title>Log in — PRX</title>
+    <link rel="icon" type="image/svg+xml" href="/prx-icon.svg" />
     <style>
       /* ── Minimal subset of the dashboard's design tokens ─────────
          Only the values used on this page; mirrors dashboard/src/index.css.
-         IBM Plex Sans (body) + Funnel Display (heading) loaded here —
+         IBM Plex Sans (body) + Hanken Grotesk (heading) loaded here —
          keeps the login bundle small. Files are served from the
          shared/fonts symlink under the dashboard's public/ root. */
       @font-face {
@@ -19,27 +19,27 @@
         src: url("/fonts/ibm-plex-sans/IBMPlexSans-Variable--latin_basic.woff2") format("woff2");
       }
       @font-face {
-        font-family: "Funnel Display";
+        font-family: "Hanken Grotesk";
         font-style: normal;
-        font-weight: 300 800;
+        font-weight: 300 700;
         font-display: swap;
-        src: url("/fonts/funnel-display/FunnelDisplay-Variable--latin_basic.woff2") format("woff2");
+        src: url("/fonts/hanken-grotesk/HankenGrotesk-Variable--latin_basic.woff2") format("woff2");
       }
 
       :root {
-        --color-canvas: #fbf8f1;
+        --color-canvas: #f8f8fc;
         --color-canvas-light: #ffffff;
-        --color-navy: #1f2a44;
-        --color-navy-100: #d6dde9;
-        --color-navy-900: #0a0f1c;
-        --color-rust: #d8531c;
-        --color-rust-300: #f29e5a;
-        --color-text: #2c2e35;
-        --color-text-muted: #62656d;
-        --color-text-subtle: #82838c;
-        --color-danger: #a83232;
+        --color-navy: #2b2650;
+        --color-navy-100: #e2e0f0;
+        --color-navy-900: #0e0c1e;
+        --color-rust: #6538d8;
+        --color-rust-700: #5329b5;
+        --color-text: #1b1930;
+        --color-text-muted: #55526c;
+        --color-text-subtle: #706c88;
+        --color-danger: #c0343f;
         --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
-        --font-display: "Funnel Display", system-ui, sans-serif;
+        --font-display: "Hanken Grotesk", system-ui, sans-serif;
       }
 
       *,
@@ -68,13 +68,36 @@
       }
 
       .logo {
-        height: 48px;
-        width: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--color-text);
+      }
+      .logo img {
+        width: 36px;
+        height: 36px;
+      }
+      .logo .name {
+        font: 650 30px/1 var(--font-display);
+        letter-spacing: -0.02em;
+      }
+      .logo .by {
+        font:
+          500 10.5px/1.4 "IBM Plex Mono",
+          ui-monospace,
+          monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--color-text-subtle);
+        padding-left: 10px;
+        border-left: 1px solid var(--color-navy-100);
       }
 
       form {
         background: var(--color-canvas-light);
-        border: 2px solid var(--color-navy);
+        border: 1px solid var(--color-navy-100);
+        border-radius: 14px;
+        box-shadow: 0 24px 48px -32px rgba(14, 12, 30, 0.35);
         padding: 24px;
         width: 100%;
         max-width: 360px;
@@ -83,7 +106,8 @@
       h1 {
         font-family: var(--font-display);
         font-size: 32px;
-        font-weight: 400;
+        font-weight: 600;
+        letter-spacing: -0.025em;
         margin: 0 0 16px;
         color: var(--color-text);
         line-height: 1.1;
@@ -103,7 +127,8 @@
         width: 100%;
         box-sizing: border-box;
         padding: 8px 10px;
-        border: 2px solid var(--color-navy);
+        border: 1px solid var(--color-navy-100);
+        border-radius: 8px;
         background: var(--color-canvas-light);
         color: var(--color-text);
         font: 14px/1.5 var(--font-sans);
@@ -120,18 +145,17 @@
         width: 100%;
         padding: 8px 16px;
         background: var(--color-rust);
-        color: var(--color-navy-900);
-        border: 2px solid var(--color-navy);
+        color: #fff;
+        border: 0;
+        border-radius: 10px;
         font: 14px/1.5 var(--font-sans);
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
         cursor: pointer;
         transition: background-color 0.15s ease;
       }
 
       button:hover {
-        background: var(--color-rust-300);
+        background: var(--color-rust-700);
       }
 
       button:focus-visible {
@@ -154,13 +178,17 @@
   </head>
 
   <body>
-    <img src="/claw-patrol-logo.svg" alt="Claw Patrol" class="logo" />
+    <span class="logo" role="img" aria-label="PRX by Nebuless">
+      <img src="/prx-icon.svg" alt="" />
+      <span class="name">PRX</span>
+      <span class="by">Nebuless</span>
+    </span>
     <form method="POST" action="/__login?next={{.Next}}">
       {{if .FirstRun}}
       <h1>Set dashboard password</h1>
       <p class="hint">
-        Claw Patrol has no operator yet. Pick a password — it will be required to reach the
-        dashboard and the management API from now on.
+        PRX has no operator yet. Pick a password — it will be required to reach the dashboard and
+        the management API from now on.
       </p>
       {{if .Error}}
       <p class="err">{{.Error}}</p>

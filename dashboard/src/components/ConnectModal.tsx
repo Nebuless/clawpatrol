@@ -278,7 +278,7 @@ export function ConnectModal({
         ) : state.kind === "startError" ? (
           <div className="space-y-3">
             <div className="text-xs text-text-muted">Could not open the browser.</div>
-            <div className="text-xs text-rust-700 break-all">{state.message}</div>
+            <div className="text-xs text-danger-700 break-all">{state.message}</div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={onClose}>
                 cancel
@@ -304,7 +304,7 @@ export function ConnectModal({
               {state.start.user_code}
             </div>
             <div className="text-xs text-text-subtle text-center">waiting for approval…</div>
-            {state.error && <div className="text-xs text-rust-700 break-all">{state.error}</div>}
+            {state.error && <div className="text-xs text-danger-700 break-all">{state.error}</div>}
             <div className="flex justify-end">
               <Button variant="outline" onClick={onClose}>
                 cancel
@@ -353,7 +353,7 @@ export function ConnectModal({
                 <div
                   id="oauth-code-error"
                   role="alert"
-                  className="text-xs text-rust-700 mt-2 break-all"
+                  className="text-xs text-danger-700 mt-2 break-all"
                 >
                   {state.error}
                 </div>

@@ -24,16 +24,11 @@ export function Header({
     <header className="border-b-1.5 border-b-canvas-muted">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-3 flex items-center gap-4">
         <a href="#/" aria-label="Home" className="shrink-0">
-          <img
-            src={import.meta.env.BASE_URL + "claw-patrol-logo.svg"}
-            alt="Claw Patrol"
-            className="h-8 w-auto hidden xs:block"
-          />
-          <img
-            src={import.meta.env.BASE_URL + "claw-patrol-icon.svg"}
-            alt="Claw Patrol"
-            className="h-8 w-auto xs:hidden"
-          />
+          <span className="prx-wordmark">
+            <img src={import.meta.env.BASE_URL + "prx-icon.svg"} alt="" />
+            <span className="prx-wm-name">PRX</span>
+            <span className="prx-wm-by hidden xs:inline">Nebuless</span>
+          </span>
         </a>
         <nav className="ml-auto flex items-center gap-1">
           <NavLink href="#/devices" label="Devices" active={devicesActive}>

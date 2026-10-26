@@ -1,6 +1,6 @@
 # Introduction
 
-Claw Patrol is a firewall for AI agents. It sits between your
+PRX is a firewall for AI agents. It sits between your
 agents and the internet, decides what each request is allowed to
 do, and stamps real credentials onto the wire so the agent never
 holds them.
@@ -14,12 +14,12 @@ credentials end up. One prompt injection — or one model that
 hallucinates a `DELETE` — and your secrets exfiltrate or your
 production gets touched.
 
-## What Claw Patrol gives you
+## What PRX gives you
 
 - **Allow / deny rules** on every outbound request, written in CEL
   against typed variables for the protocol.
 
-- **Protocol-aware, not just HTTP.** Claw Patrol terminates the
+- **Protocol-aware, not just HTTP.** PRX terminates the
   full wire protocol for the systems agents actually touch, so
   rules see what the agent is doing — not just where it’s
   pointed:
@@ -42,7 +42,7 @@ production gets touched.
 - **Human-in-the-loop approvals** for risky actions — defer
   `kubectl apply -f production` to a Slack approval before the
   request leaves. If the reviewer denies or the approval times out,
-  Claw Patrol does not call the upstream service.
+  PRX does not call the upstream service.
 
 - **[Secret injection](/docs/credentials/)** at the wire. The agent
   process holds a token-shaped placeholder
@@ -56,7 +56,7 @@ production gets touched.
 
 ## How it fits
 
-Claw Patrol has two pieces:
+PRX has two pieces:
 
 - A **gateway** — a single Go binary running on a host you control.
   It holds the policy, the credentials, the audit log, and the
@@ -92,5 +92,5 @@ disable with `CLAWPATROL_TELEMETRY=0` or `DO_NOT_TRACK=1`.
 - [Architecture](/docs/architecture/) — how interception works.
 - [Rules](/docs/rules/) — gating writes behind
   a human or an LLM judge.
-- [Security model](/docs/security-model/) — what Claw Patrol does
+- [Security model](/docs/security-model/) — what PRX does
   and doesn’t protect against.

@@ -302,7 +302,7 @@ owner.
 ## Security notes
 
 A few footguns worth knowing about before you point an agent at a
-production Claw Patrol gateway:
+production PRX gateway:
 
 - **Don't run agents on the gateway host.** `clawpatrol run` is
   for client devices — the gateway's `state_dir` holds every
@@ -346,4 +346,4 @@ Set `CLAWPATROL_REF` to install a non-`main` ref.
 - [Config reference](/docs/config-reference/) — every HCL field, in detail
 - [Rules](/docs/rules/) — gating writes behind a human or LLM
 - [Architecture](/docs/architecture/) — how interception works
-- [Security model](/docs/security-model/) — what Claw Patrol does and doesn't protect against
+- [Security model](/docs/security-model/) — what PRX does and doesn't protect against

@@ -7,7 +7,7 @@ import { SectionLabel } from "../components/SectionLabel";
 // installing anything. This section sends people straight there
 // instead of trying to reproduce the UI inline.
 
-const DEMO_URL = "https://demo.clawpatrol.dev/";
+const DEMO_URL = "/demo/";
 
 // Defer the iframe's actual src until the user is about to see it.
 // The demo site auto-plays canned traffic the moment it boots, so
@@ -39,7 +39,7 @@ function LazyDemoIframe() {
     <iframe
       ref={ref}
       src={loaded ? DEMO_URL : undefined}
-      title="Claw Patrol demo dashboard"
+      title="PRX demo dashboard"
       class="h-144 w-full border-3 border-t-24 border-navy squircle-lg shadow-[4px_6px_0_0_var(--color-canvas-300)] bg-canvas-muted"
       width="100%"
     />
@@ -52,14 +52,11 @@ export function DemoSection() {
       <div class="max-w-5xl mx-auto px-6 sm:px-8">
         <SectionLabel>Take a tour</SectionLabel>
         <h3 class="text-3xl sm:text-4xl lg:text-5xl font-display text-center text-balance">
-          Click around the admin dashboard.
+          Click around the operator dashboard.
         </h3>
         <p class="text-center max-w-2xl mx-auto mb-12 mt-4 text-text-muted">
-          A walkthrough of the operator UI at{" "}
-          <a href={DEMO_URL} class="text-rust font-semibold hover:underline">
-            demo.clawpatrol.dev
-          </a>
-          . Drill into any request to see what the gateway captured.
+          A replay of a live PRX gateway. Open any request to see exactly
+          what the agent sent and what PRX decided.
         </p>
       </div>
 

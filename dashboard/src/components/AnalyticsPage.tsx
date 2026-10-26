@@ -297,14 +297,14 @@ const deviceColor = (s: string) => PALETTE[(stableIndex(s, PALETTE.length) + 5) 
 // HTTP status families, mapped to the brand semantic tokens. Hex
 // literals because Observable Plot serializes these directly into
 // SVG fill attributes and can't resolve `var(--color-…)`. Keep in
-// sync with --color-success / --color-butter / --color-rust /
-// --color-danger / --color-text-subtle in index.css.
+// sync with --color-success / --color-butter /
+// --color-danger / --color-text-subtle in shared/tokens.css.
 const STATUS_COLORS = {
-  "2xx": "#4a6f30", // success-600
-  "3xx": "#a47208", // butter-700
-  "4xx": "#b6420f", // rust-600
-  "5xx": "#8d2424", // danger-600
-  "—": "#82838c", // text-subtle
+  "2xx": "#187043", // success-600
+  "3xx": "#965c09", // butter-700
+  "4xx": "#965c09", // butter-700
+  "5xx": "#a1262f", // danger-600
+  "—": "#706c88", // text-subtle
 } as const;
 
 // --- chart ---

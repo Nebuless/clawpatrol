@@ -1,7 +1,7 @@
 # Credentials
 
 Agents call upstream APIs that want secrets — a GitHub PAT, an
-Anthropic key, a Postgres password. One of the things Claw Patrol
+Anthropic key, a Postgres password. One of the things PRX
 does, alongside the [rule engine](/docs/rules/) and the
 [approver flow](/docs/glossary/#approver), is hold those secrets
 on the gateway side and inject them at the wire so the agent

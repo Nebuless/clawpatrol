@@ -1,6 +1,6 @@
 # Plugins
 
-Most of the protocols Claw Patrol gates — HTTPS, Postgres, ClickHouse,
+Most of the protocols PRX gates — HTTPS, Postgres, ClickHouse,
 SSH, Kubernetes — ship as **built-in** plugins compiled into the
 gateway binary. When you need to gate something the binary doesn’t
 know about, you can ship an **external** plugin: a separate Go
@@ -543,7 +543,7 @@ just like built-in ones, in either role (parent or child); see
 
 Plugins are ordinary Go programs. The author SDK lives at
 `github.com/denoland/clawpatrol/pluginsdk`; the canonical example
-is `pluginsdk/example/` in the Claw Patrol repo.
+is `pluginsdk/example/` in the PRX repo.
 
 ```go
 package main
@@ -993,7 +993,7 @@ ok: gateway.hcl — 7 endpoints across 3 profile(s)
 
 ## See also
 
-- [`pluginsdk/example/`](https://github.com/denoland/clawpatrol/tree/main/pluginsdk/example)
+- [`pluginsdk/example/`](https://github.com/Nebuless/clawpatrol/tree/main/pluginsdk/example)
   — fully exercised plugin: `example_magic_token` credential,
   `example_passthrough` tunnel (a no-op tunnel — opens the upstream
   through the gateway's brokered dial), `example_socks` tunnel
@@ -1005,9 +1005,9 @@ ok: gateway.hcl — 7 endpoints across 3 profile(s)
   endpoint + matching `example_smtp` facet (optional + stream
   fields), `example_echo` endpoint + matching `example_echo`
   facet (plain TCP).
-- [`pluginsdk/`](https://github.com/denoland/clawpatrol/tree/main/pluginsdk)
+- [`pluginsdk/`](https://github.com/Nebuless/clawpatrol/tree/main/pluginsdk)
   — the author SDK package.
-- [`config/extplugin/proto/plugin.proto`](https://github.com/denoland/clawpatrol/tree/main/config/extplugin/proto)
+- [`config/extplugin/proto/plugin.proto`](https://github.com/Nebuless/clawpatrol/tree/main/config/extplugin/proto)
   — gRPC service definitions if you want to bypass the SDK.
 - [Rules](rules) — how rule conditions and
   approve chains are evaluated against a request.

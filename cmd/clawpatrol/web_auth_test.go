@@ -205,6 +205,7 @@ func TestRouteAuthRequirementsDocumentOnboardingBoundary(t *testing.T) {
 		// the static resources it references; otherwise a logged-out
 		// visit would chase the logo through the gate and render a
 		// broken-image icon.
+		{path: "/prx-icon.svg", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},
 		{path: "/claw-patrol-logo.svg", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},
 		{path: "/claw-patrol-icon.svg", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},
 		{path: "/fonts/funnel-sans/FunnelSans-Variable--latin_basic.woff2", want: authPublic, wantDashboardPublic: true, wantTailnetPublic: true},

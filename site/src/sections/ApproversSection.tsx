@@ -97,7 +97,7 @@ function HumanDiagram() {
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-baseline gap-1.5 leading-none">
-            <span class="font-bold text-text text-[13px]">Claw Patrol</span>
+            <span class="font-bold text-text text-[13px]">PRX</span>
             <span class="text-text-subtle text-[10px]">APP</span>
             <span class="text-text-subtle text-[10px]">1:42 PM</span>
           </div>
@@ -127,7 +127,7 @@ function HumanDiagram() {
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-baseline gap-1.5 leading-none">
-            <span class="font-bold text-text text-[13px]">Claw Patrol</span>
+            <span class="font-bold text-text text-[13px]">PRX</span>
             <span class="text-text-subtle text-[10px]">APP</span>
             <span class="text-text-subtle text-[10px]">1:42 PM</span>
           </div>

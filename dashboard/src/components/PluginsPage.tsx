@@ -148,7 +148,7 @@ function PluginCard({ p }: { p: Plugin }) {
       </div>
 
       {p.sandboxWarning && (
-        <div className="px-4 py-2 bg-butter-100 border-b border-butter-300 text-xs text-rust-700">
+        <div className="px-4 py-2 bg-butter-100 border-b border-butter-300 text-xs text-butter-700">
           Reduced sandbox: {p.sandboxWarning}
         </div>
       )}
@@ -283,7 +283,7 @@ function Badge({
 }) {
   const tones: Record<string, string> = {
     calm: "bg-navy-100 text-navy",
-    warn: "bg-butter-100 text-rust-700",
+    warn: "bg-butter-100 text-butter-700",
     danger: "bg-danger-500 text-canvas",
   };
   return (

@@ -40,13 +40,13 @@ the same shape as `credential = <name>`:
 ```hcl
 tunnel "local_command" "csql-staging" {
   command = ["cloud-sql-proxy", "--auto-iam-authn",
-    "denosr-staging:us-east4:main-pg14?port=5433"]
+    "example-staging:us-east4:main-pg14?port=5433"]
   listen      = "127.0.0.1:5433"
   ready_probe = "tcp"
 }
 
 endpoint "postgres" "pg-staging" {
-  host   = "main-pg14.denosr-staging.internal:5432"
+  host   = "main-pg14.example-staging.internal:5432"
   tunnel = local_command.csql-staging
 }
 ```
@@ -92,7 +92,7 @@ tunnel "local_command" "csql-staging" {
   command = [
     "/usr/local/bin/cloud-sql-proxy", "--auto-iam-authn",
     "--credentials-file", "/opt/clawpatrol/secrets/avocet.json",
-    "denosr-staging:us-east4:main-pg14?port=5433",
+    "example-staging:us-east4:main-pg14?port=5433",
   ]
   listen        = "127.0.0.1:5433"
   ready_probe   = "tcp"
@@ -191,16 +191,16 @@ published on the tailnet that the gateway can't reach from its
 host netns.
 
 ```hcl
-credential "tailscale_auth" "deno-tailnet" {}
+credential "tailscale_auth" "example-tailnet" {}
 
-tunnel "tailscale" "deno-tailnet-tunnel" {
-  credential = tailscale_auth.deno-tailnet
+tunnel "tailscale" "example-tailnet-tunnel" {
+  credential = tailscale_auth.example-tailnet
 }
 
 endpoint "clickhouse_native" "clickhouse-o11y" {
   hosts  = ["clickhouse-o11y.tail9a48e.ts.net"]
   tls    = true
-  tunnel = tailscale.deno-tailnet-tunnel
+  tunnel = tailscale.example-tailnet-tunnel
 }
 ```
 

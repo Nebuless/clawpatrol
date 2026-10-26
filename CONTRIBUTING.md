@@ -1,11 +1,11 @@
-# Contributing to Claw Patrol
+# Contributing to PRX
 
 Thanks for taking the time. This page says what kind of changes we
 take, how to get them reviewed quickly, and what the checks expect.
 
 ## What we are focused on
 
-Claw Patrol is a wire-level policy gateway for agents: real secrets
+PRX is a wire-level policy gateway for agents: real secrets
 stay in the gateway, every credentialed request goes through it, and
 rules decide what is allowed. Current priorities, in order:
 

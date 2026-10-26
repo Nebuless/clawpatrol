@@ -3,6 +3,7 @@
 @import "tailwindcss";
 @import "../../shared/fonts.css";
 @import "../../shared/tokens.css";
+@import "../../shared/brand.css";
 
 @keyframes crt-refresh {
   from {

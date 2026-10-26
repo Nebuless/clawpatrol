@@ -2061,29 +2061,29 @@ const oauthCallbackHTML = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>OAuth callback — clawpatrol</title>
+<title>OAuth callback — PRX</title>
 <style>
   body { font-family: system-ui, sans-serif; margin: 0; min-height: 100vh;
          display: flex; align-items: center; justify-content: center;
-         background: #f7f5f0; color: #1a1a1a; }
+         background: #f8f8fc; color: #1b1930; }
   .box { max-width: 480px; padding: 2rem; background: white;
-         border: 2px solid #1a1a1a; border-radius: 6px;
-         box-shadow: 4px 4px 0 #1a1a1a; }
+         border: 1px solid #e3e2ee; border-radius: 14px;
+         box-shadow: 0 24px 48px -32px rgba(14, 12, 30, .35); }
   h1 { font-size: 1rem; text-transform: uppercase; letter-spacing: .1em;
        margin: 0 0 1rem; }
   .status { font-size: .85rem; margin-bottom: 1rem; line-height: 1.5; }
   .code { font-family: ui-monospace, monospace; font-size: .8rem;
-          word-break: break-all; padding: .75rem; background: #f0ebe0;
-          border: 1px solid #1a1a1a; border-radius: 3px; user-select: all; }
-  .err { color: #a8482e; }
-  .ok { color: #2b6630; }
+          word-break: break-all; padding: .75rem; background: #efeff6;
+          border: 1px solid #e3e2ee; border-radius: 8px; user-select: all; }
+  .err { color: #c0343f; }
+  .ok { color: #1f8a52; }
   button { font-family: inherit; font-size: .8rem; padding: .4rem .8rem;
-           background: #1a1a1a; color: white; border: none; cursor: pointer;
-           border-radius: 3px; margin-top: .75rem; }
-  button:hover { background: #333; }
+           background: #6538d8; color: white; border: none; cursor: pointer;
+           border-radius: 10px; margin-top: .75rem; font-weight: 600; }
+  button:hover { background: #5329b5; }
   details { margin-top: 1rem; font-size: .8rem; }
-  details summary { cursor: pointer; color: #666; }
-  details p { margin: .5rem 0 0; line-height: 1.5; color: #444; }
+  details summary { cursor: pointer; color: #706c88; }
+  details p { margin: .5rem 0 0; line-height: 1.5; color: #55526c; }
 </style>
 </head>
 <body>

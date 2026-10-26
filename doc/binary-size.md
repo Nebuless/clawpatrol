@@ -1,6 +1,6 @@
 # Binary size
 
-Clawpatrol is a single statically-linked Go binary that bundles a
+PRX is a single statically-linked Go binary that bundles a
 gateway, a policy engine, a Tailscale node, a WireGuard server, a
 userspace TCP/IP stack, a CEL evaluator, a SQLite database, and a
 SPA. The build is large by design; this doc records the baseline so

@@ -212,7 +212,7 @@ function UpdateNotice({ update }: { update: UpdateBanner | null }) {
   return (
     <div className="bg-butter-100 border-b border-butter-300 px-4 sm:px-4 py-2 text-xs text-text flex items-center justify-between gap-3">
       <div className="flex-1">
-        <span className="font-semibold">Claw Patrol {update.latest}</span>
+        <span className="font-semibold">PRX {update.latest}</span>
         {" available — "}
         <a
           href={update.url}
@@ -222,7 +222,7 @@ function UpdateNotice({ update }: { update: UpdateBanner | null }) {
         >
           release notes
         </a>
-        {update.advisory && <span className="ml-2 text-rust-700">({update.advisory})</span>}
+        {update.advisory && <span className="ml-2 text-butter-700">({update.advisory})</span>}
       </div>
       <button
         onClick={() => {
