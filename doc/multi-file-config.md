@@ -77,7 +77,7 @@ inside the directory are followed.
   merged *into* matching blocks already defined elsewhere, rather
   than being rejected as duplicates. We do not replicate this. The
   surprise factor (a value in a "main" file silently shadowed by
-  one in a sibling) outweighs the convenience for clawpatrol's
+  one in a sibling) outweighs the convenience for PRX's
   audience, which is small enough that splitting by **disjoint
   entities** (one file per kind, or per service) is the natural
   shape. If override semantics become necessary later, the place
@@ -90,13 +90,13 @@ inside the directory are followed.
   who want to nest configs should `include` them explicitly — and
   we don't have an `include` directive yet either. Out of scope.
 - **Per-environment selection.** Terraform has `*.tfvars` and
-  variable scoping per workspace; clawpatrol doesn't have
+  variable scoping per workspace; PRX doesn't have
   variables at the config layer at all, so this doesn't apply.
 
 ## Why this mental model
 
 Terraform's directory model is well-understood by the audience
-clawpatrol targets (devops/platform engineers). Adopting the
+PRX targets (devops/platform engineers). Adopting the
 familiar shape — even with a smaller feature set — means the
 "how do I split a 500-line config into manageable files?"
 question has a one-line answer: drop them in a directory next to

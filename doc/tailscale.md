@@ -1,4 +1,4 @@
-# clawpatrol — Tailscale mode
+# PRX — Tailscale mode
 
 Tailscale as the primary control plane. The gateway joins your existing
 tailnet as an exit-node via an embedded **tsnet.Server**; devices onboard
@@ -304,7 +304,7 @@ Notes:
   mode — with a static `authkey` or the interactive credential login the
   node's tags come from the key itself or your tailnet's autoApprovers
   ACL, and the tunnel's `tags` field is ignored.
-- clawpatrol appends `?ephemeral=false&preauthorized=true` to the secret
+- PRX appends `?ephemeral=false&preauthorized=true` to the secret
   so the node persists across restarts and joins without manual
   approval. Supplying your own `?...` query string replaces **both**
   defaults — tsnet falls back to `ephemeral=true`, `preauthorized=false`

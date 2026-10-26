@@ -67,7 +67,7 @@ diagnostic.
 ## Installing a plugin from GitHub
 
 `source` can be a local path (above) or a GitHub repository. With a
-repository, clawpatrol resolves a semver constraint against the repo's
+repository, PRX resolves a semver constraint against the repo's
 release tags, downloads the build for this host's OS/arch, verifies it,
 caches it, and pins the resolved version in the lockfile — the same
 model Terraform uses for providers:
@@ -126,7 +126,7 @@ fails closed and tells you to run `install` / `update`.
 
 ### How a plugin must package its releases
 
-So clawpatrol can find and verify the right binary, a plugin's GitHub
+So PRX can find and verify the right binary, a plugin's GitHub
 release must contain, per platform, an archive named with the Go
 `GOOS`/`GOARCH` tokens, plus a checksums file:
 
@@ -136,7 +136,7 @@ release must contain, per platform, an archive named with the Go
 <repo>_<version>_manifest.json        # static manifest (optional)
 ```
 
-Only the trailing `_<os>_<arch>.tar.gz` is load-bearing — clawpatrol
+Only the trailing `_<os>_<arch>.tar.gz` is load-bearing — PRX
 selects the archive by that suffix and reads its checksum from
 `SHA256SUMS` — so the prefix is convention, not a hard requirement.
 
@@ -146,7 +146,7 @@ Publishing it as a release asset — listed in `SHA256SUMS` and covered by
 the attestation — lets `clawpatrol plugins info` show a plugin's
 metadata and **required privileges before downloading the binary**.
 
-Add a build-provenance attestation with one workflow step so clawpatrol
+Add a build-provenance attestation with one workflow step so PRX
 can verify the binary (and the manifest) was built by your repo (see the
 trust model below):
 
@@ -192,12 +192,12 @@ Three layers gate a downloaded binary, from least to most powerful:
    permission-escalation check (a new release that newly wants `network`
    is blocked until you re-approve it).
 3. **Build provenance.** If the release carries a GitHub
-   [build-provenance attestation][att], clawpatrol verifies (via
+   [build-provenance attestation][att], PRX verifies (via
    Sigstore) that the binary was built by *that repo's* GitHub Actions
    workflow — the `github.com/owner/repo` you already named is the trust
    anchor, so there is no key to manage. This closes the first-download
    gap that checksums alone leave open. The attestation also names the
-   source **commit** the binary was built from; clawpatrol records it in
+   source **commit** the binary was built from; PRX records it in
    the lockfile (`commit = "..."`) — an immutable reference, since tags
    are mutable — and on a later re-download of the pinned version rejects
    an attestation that names a different commit (a re-pointed tag).
@@ -357,7 +357,7 @@ pluginsdk.Run(&pluginsdk.Plugin{
 ```
 
 Because privileged hands the plugin full host access — it can read every
-file the gateway user can, including clawpatrol's own secret store, and
+file the gateway user can, including PRX's own secret store, and
 run any command — it is **not** trust-on-first-use like network and
 egress. The gateway holds a privileged plugin **closed** until the
 operator approves it explicitly:

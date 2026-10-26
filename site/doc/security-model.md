@@ -480,7 +480,7 @@ gated three ways: the download must match the release's `SHA256SUMS`;
 the binary's hash is trusted-on-first-use and re-checked (fail-closed)
 on every later load; and, when the release carries a [GitHub
 build-provenance attestation](plugins.md#verification-and-trust),
-clawpatrol verifies through Sigstore that the binary was built by *that
+PRX verifies through Sigstore that the binary was built by *that
 repo's* Actions workflow — the `github.com/owner/repo` named in the
 config is the trust anchor, closing the first-download gap. The
 attestation also binds the binary to the source commit it was built

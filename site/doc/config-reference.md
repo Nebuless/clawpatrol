@@ -1,6 +1,6 @@
 # Config Reference
 
-A clawpatrol gateway config mixes **operational** settings in the
+A PRX gateway config mixes **operational** settings in the
 required top-level `gateway { ... }` block with **policy** blocks.
 Policy blocks (`approver`, `credential`, `tunnel`, `endpoint`, `rule`)
 dispatch to a plugin chosen by the block's first label.

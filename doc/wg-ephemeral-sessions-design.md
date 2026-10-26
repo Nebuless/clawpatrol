@@ -32,7 +32,7 @@ implementation.
 
 ## Phase 1 — current state
 
-### clawpatrol today (gap analysis)
+### PRX today (gap analysis)
 
 **Device keypair lifecycle.** Generated once at `clawpatrol join`:
 
@@ -160,7 +160,7 @@ per-session keypairs. End-to-end trail:
   `tunnelActivate(...)` from `src/xpc.ts:17`). The NE does not have
   per-PID cryptographic identity; the CLI starts a fresh tunnel in
   the NE per `run`. unclaw's NE supports concurrent tunnels in a
-  way clawpatrol's currently does not.
+  way PRX's currently does not.
 - **Dashboard:** sessions render as rows nested under their parent
   device. `dashboard/src/components/DevicesPage.tsx:222–237` filters
   sessions by `deviceId` and emits a table row per session
@@ -249,7 +249,7 @@ assume a single subnet; multi-subnet is more change than we need.
 **Position:** **Linux-only this iteration.** macOS NE keeps using
 the device's static keypair from `wg.conf`.
 
-*Why.* clawpatrol's NE (`macos/ClawpatrolExtension/`) holds **one**
+*Why.* PRX's NE (`macos/ClawpatrolExtension/`) holds **one**
 tunnel and **one** keypair, loaded at install time. unclaw's NE
 supports concurrent tunnels — that's a separate refactor (multiple
 `NETransparentProxyProvider` tunnels, multiple userspace WG

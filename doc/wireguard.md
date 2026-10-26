@@ -1,9 +1,9 @@
-# clawpatrol — WireGuard mode
+# PRX — WireGuard mode
 
 WireGuard as the primary control plane. No Tailscale account, no
 kernel module, no `wg-quick` lifecycle on the gateway, no systemd
 unit for the WG interface, no `/etc/hosts` pinning on clients. The
-clawpatrol binary IS the WG endpoint and the L3 forwarder.
+PRX gateway IS the WG endpoint and the L3 forwarder.
 
 ## How it works
 

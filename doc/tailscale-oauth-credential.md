@@ -151,7 +151,7 @@ Reasoning: opt-in keeps every existing deployment working without config
 changes. Hard removal of the literal path is a follow-up once dashboards exist
 for the operator to migrate.
 
-### Q3. The "OAuth flow" is tsnet's interactive login URL, not a clawpatrol OAuth flow
+### Q3. The "OAuth flow" is tsnet's interactive login URL, not a PRX OAuth flow
 
 - When `tsnet.Server.Up` runs without an authkey and without prior state,
   tsnet contacts the control plane and yields a login URL of the form
@@ -184,7 +184,7 @@ back its StateStore by sqlite instead of a filesystem dir.
   the wrong primitive:
   - `OAuthFlow()` returns a *static* `OAuthIntegration` with hardcoded
     `AuthURL`/`TokenURL`/`Scopes`. Tailscale's URL is *dynamic*, minted by
-    tsnet per attempt, and there is no clawpatrol-side token exchange.
+    tsnet per attempt, and there is no PRX-side token exchange.
   - `OAuthRegistry` stores a single OAuth access/refresh token per
     credential. Tailscale's persistence shape is different — tsnet writes
     a multi-slot identity bundle (machine key, node key, login profile)

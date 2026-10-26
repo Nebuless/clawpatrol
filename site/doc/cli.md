@@ -107,14 +107,14 @@ the configured credential, and forwards.
 `clawpatrol run` builds the network namespace one of two ways,
 depending on whether the invoking user has **passwordless `sudo`**:
 
-- **Passwordless `sudo` available (preferred).** clawpatrol uses it to
+- **Passwordless `sudo` available (preferred).** PRX uses it to
   set up the net + mount namespace as real root, then drops back to
   your own user before exec'ing the command. Inside the wrapper you
   are your normal uid, root (uid 0) exists in the namespace, and
   `sudo` works — a command that needs to elevate can just call `sudo`
   as it would anywhere. The wrapped command can't tell it was launched
   this way: clean environment, normal uid, no leftover `SUDO_*` vars.
-- **No passwordless `sudo` (or `CLAWPATROL_NO_SUDO=1`).** clawpatrol
+- **No passwordless `sudo` (or `CLAWPATROL_NO_SUDO=1`).** PRX
   falls back to an unprivileged user namespace. As a consequence of
   how Linux user namespaces work, that namespace has no mapped root:
   your own uid is the only one mapped in, host root (uid 0) is not. So
@@ -127,7 +127,7 @@ depending on whether the invoking user has **passwordless `sudo`**:
   ```
 
   The first is the namespace mapping root-owned files to "nobody"
-  (65534); the second is the `no_new_privileges` flag clawpatrol sets
+  (65534); the second is the `no_new_privileges` flag PRX sets
   to install its unprivileged seccomp filter. This isn't a deliberate
   restriction — it falls out of running unprivileged, and the host's
   own `sudo` is unaffected outside the wrapper.
@@ -158,10 +158,10 @@ warning and, without passwordless `sudo`, fails to build its
 namespace. Two ways to run without turning that protection off for
 the whole system:
 
-- **Passwordless `sudo` for the invoking user.** clawpatrol uses the
+- **Passwordless `sudo` for the invoking user.** PRX uses the
   privileged setup path described above and never creates a user
   namespace. This is the simplest option on a single-user machine.
-- **An AppArmor profile for the clawpatrol binary.** This is the
+- **An AppArmor profile for the PRX CLI.** This is the
   mechanism Ubuntu uses for its own browsers. The profile attaches
   by path, and whatever sits at that path runs with the `userns`
   grant, so put the binary somewhere only root can write (for
@@ -181,7 +181,7 @@ the whole system:
 
   then load it with `sudo apparmor_parser -r /etc/apparmor.d/clawpatrol`.
   The profile is unconfined apart from granting `userns`, so it
-  changes nothing else about how clawpatrol runs; it has to be
+  changes nothing else about how PRX runs; it has to be
   reloaded if the binary moves. The warning prints the path of the
   binary that is running.
 
@@ -272,7 +272,7 @@ clawpatrol uninstall [-y] [--keep-ca] [--keep-conf]
 
 ### `clawpatrol env`
 
-Print the shell exports clawpatrol injects when wrapping a command
+Print the shell exports PRX injects when wrapping a command
 (`SSL_CERT_FILE`, credential-placeholder env vars). Source from
 your shell rc if you need them outside `clawpatrol run`.
 

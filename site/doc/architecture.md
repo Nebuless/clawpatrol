@@ -6,18 +6,18 @@
 
 ## Overview — actors
 
-Five actors take part in a clawpatrol deployment:
+Five actors take part in a PRX deployment:
 
 - **Agent.** The AI client the operator wants to gate (Claude,
   Codex, …). The agent runs as an ordinary process on the
   operator’s workstation and dials upstream hostnames directly; it
-  has no awareness that clawpatrol is in the path. clawpatrol also
+  has no awareness that PRX is in the path. PRX also
   covers the non-AI CLIs the agent shells out to (the GitHub CLI,
   kubectl, psql, ssh, …): those aren’t agents themselves but tools
   the agent uses, and the gateway applies the same policy gates to
   whichever flows the agent kicks off through them.
 - **Device.** The machine the agent runs on. The device hosts a
-  small clawpatrol client (CLI binary on Linux; system extension
+  small PRX client (CLI binary on Linux; system extension
   inside `Clawpatrol.app` on macOS) that captures the agent’s
   outbound flows and feeds them into the transport.
 - **Transport.** A WireGuard or Tailscale connection between the
@@ -27,7 +27,7 @@ Five actors take part in a clawpatrol deployment:
   The transport carries L3 packets — every byte the agent emits
   travels inside it. The agent never sees a proxy URL or a CA
   bundle.
-- **Gateway.** The clawpatrol process. A single Go binary that
+- **Gateway.** The PRX gateway process. A single Go binary that
   terminates the transport, decides per flow whether to intercept or
   pass through, and runs the policy plugins that inject real
   credentials, gate requests, and emit events. The diagram below
