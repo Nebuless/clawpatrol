@@ -113,7 +113,7 @@ A `HostControl` call must run against the right connection's evaluation
 context (its rules, approve chain, peer). The gateway mints an opaque
 `crypto/rand` token per connection, registers that context under it, and
 hands the token to the plugin in `ConnInit`. The plugin echoes it back as
-request **metadata** (`clawpatrol-session`), and a server interceptor
+request **metadata** (`nebprx-session`), and a server interceptor
 resolves it once into the handler's context:
 
 - Messages stay payload-only; a new method is scoped for free.

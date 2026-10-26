@@ -2,7 +2,7 @@
 
 PRX by Nebuless collects gateway usage reports and installer events at
 `https://prx.nebuless.cloud`. Gateway reports also check for updates.
-`clawpatrol run` and `clawpatrol join` do not report independently, but
+`nebprx run` and `nebprx join` do not report independently, but
 the installer reports even when installing a client rather than a gateway.
 
 ## Gateway reports
@@ -42,7 +42,7 @@ They send `install_id` (random per invocation), `event` (`completed` or
 `failed`), `os`, `arch`, `version` (requested tag or `latest`), `from_source`
 (`0` or `1`), and `reason` (installer failure message, empty on success).
 Requests are best-effort background calls with a three-second timeout.
-The install command itself remains `https://clawpatrol.dev/install.sh`.
+The install command itself remains `https://prx.nebuless.cloud/install.sh`.
 
 ## What is not sent
 
@@ -78,11 +78,11 @@ worker before shipping binaries or installers that report there.
 ## Release source
 
 The worker still reads
-`https://api.github.com/repos/denoland/clawpatrol/releases/latest`, cached
+`https://api.github.com/repos/Nebuless/clawpatrol/releases/latest`, cached
 at the Cloudflare edge for 30 minutes. Its response URL comes directly from
 the release's `html_url`. Release bodies starting with `[security]` or
 `[advisory]` supply the first paragraph as an advisory. The installers also
-still download binaries from `denoland/clawpatrol` GitHub releases and clone
+still download binaries from `Nebuless/clawpatrol` GitHub releases and clone
 that repository for source builds. Nebuless has no releases yet.
 
 ## Opt-out
@@ -90,13 +90,13 @@ that repository for source builds. Nebuless has no releases yet.
 Disable gateway reporting and update checks with any one of:
 
 - `telemetry = false` in `gateway.hcl`.
-- `CLAWPATROL_TELEMETRY=0` in the gateway environment.
+- `NEBPRX_TELEMETRY=0` in the gateway environment.
 - `DO_NOT_TRACK=1` in the gateway environment.
 
-Disable installer reporting separately with `CLAWPATROL_NO_TELEMETRY=1`:
+Disable installer reporting separately with `NEBPRX_NO_TELEMETRY=1`:
 
 ```sh
-curl -fsSL https://clawpatrol.dev/install.sh | CLAWPATROL_NO_TELEMETRY=1 sh
+curl -fsSL https://prx.nebuless.cloud/install.sh | NEBPRX_NO_TELEMETRY=1 sh
 ```
 
 The gateway switches do not disable installer events, and the installer

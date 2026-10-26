@@ -13,39 +13,17 @@ build time.
 - Docker with Compose (optional, for end-to-end testing against an
   in-container agent)
 
-### macOS extras
-
-If you're going to exercise `clawpatrol run` on macOS you also need
-to build the `Clawpatrol.app` system extension:
-
-- Xcode 15+
-- [xcodegen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
-- Apple Development certificate for team `2H4KBF436B`
-- Two **macOS App Development** provisioning profiles, created at
-  [developer.apple.com/account/resources/profiles](https://developer.apple.com/account/resources/profiles):
-  - App ID `com.clawpatrol.app` — needs Network Extensions, System
-    Extension, App Groups
-    (`group.2H4KBF436B.com.clawpatrol.app.extension`).
-  - App ID `com.clawpatrol.app.extension` — needs Network
-    Extensions, App Groups (same group).
-
-  Name them "Clawpatrol App Dev" and "Clawpatrol Extension Dev"
-  (these names are referenced in `macos/project.yml`). After
-  creating them, install via Xcode: Settings → Apple Accounts → your
-  team → Download Manual Profiles.
-
-See [`macos/README.md`](https://github.com/Nebuless/clawpatrol/blob/main/macos/README.md)
-for the full system-extension build walkthrough.
+macOS client capture is handled by PRX on macOS.
 
 ## Build
 
 ```sh
-make            # builds dashboard SPA + Go binary -> ./clawpatrol
+make            # builds dashboard SPA + Go binary -> ./nebprx
 make release    # release-shaped build: dashboard + go build -ldflags '-s -w' -trimpath
 make test       # go test ./...
 make fmt        # gofmt + dashboard formatter
 make fmt-check  # CI's format gate
-make clean      # drop ./clawpatrol, dashboard/dist, dashboard/node_modules
+make clean      # drop ./nebprx, dashboard/dist, dashboard/node_modules
 make install    # PREFIX=~/.local/bin (override with PREFIX=...)
 ```
 
@@ -70,7 +48,7 @@ operational fields (listen ports, `public_url`, `wg_endpoint`,
 mkdir -p ./data
 cp examples/gateway.example.hcl ./data/gateway.hcl
 $EDITOR ./data/gateway.hcl
-./clawpatrol gateway ./data/gateway.hcl
+./nebprx gateway ./data/gateway.hcl
 ```
 
 Ports used by the example:
@@ -105,7 +83,7 @@ docker compose up -d openclaw-gateway
 Join the openclaw container against your local gateway:
 
 ```sh
-docker exec <openclaw-container> clawpatrol join \
+docker exec <openclaw-container> nebprx join \
   http://host.docker.internal:9080
 ```
 

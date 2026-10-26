@@ -31,25 +31,25 @@ in promiscuous mode — same shape as unclaw's `boringtun` + `smoltcp`
 
 ## What works (verified end-to-end on vultr)
 
-- `clawpatrol gateway gateway.hcl` boots WG endpoint on UDP 51820,
+- `nebprx gateway gateway.hcl` boots WG endpoint on UDP 51820,
   dashboard + MITM ride the same forwarder.
 - Server keypair persisted in the gateway's sqlite DB (see
   migration `0008_gateway_state`). Pubkey derived via curve25519
   at boot. Peer (pubkey → IP) map also lives in sqlite; both are
   replayed on every restart so existing clients survive gateway
   redeploys.
-- `clawpatrol join <gw>` runs once: prints user-code, opens
+- `nebprx join <gw>` runs once: prints user-code, opens
   dashboard URL, server mints a fresh keypair, allocates a /32 from
   the configured subnet, registers the peer with wireguard-go,
   hands back a `wg-quick` conf. Server **auto-claims** the peer
   IP for the approver at mint time — no client-side claim
   round-trip (which used to race against the new default route).
-- `wg-quick up` writes `/etc/wireguard/clawpatrol.conf` and brings the
+- `wg-quick up` writes `/etc/wireguard/nebprx.conf` and brings the
   tunnel up. PostUp swaps `/etc/resolv.conf` to `1.1.1.1` (no
   `resolvconf` dependency — backed up + restored on PostDown).
   Default route via wg, fwmark 51820 keeps WG handshakes themselves
   off the tunnel. SSH stays alive (fwmark 51820 + ip rule trick).
-- Agents (`claude`, `gh`, `codex`) run unmodified. `eval "$(clawpatrol
+- Agents (`claude`, `gh`, `codex`) run unmodified. `eval "$(nebprx
   env)"` exports placeholder tokens + CA bundle. Outbound HTTPS to
   `api.anthropic.com` resolves to a real public IP, routes through
   WG to the gateway, TCP forwarder catches the SYN, port-443
@@ -72,14 +72,14 @@ in promiscuous mode — same shape as unclaw's `boringtun` + `smoltcp`
 
 ## Single-host (loopback) deployments
 
-Running the gateway and `clawpatrol run` on the same machine — for
+Running the gateway and `nebprx run` on the same machine — for
 example, the gateway under one user account and agents launched
 from another — is a first-class deployment, not a debug-only setup.
 The minimum config is:
 
 ```hcl
 gateway {
-  state_dir = "/opt/clawpatrol"
+  state_dir = "/opt/nebprx"
 
   wireguard {
     subnet_cidr = "10.55.0.0/24"
@@ -97,14 +97,14 @@ two sides talk over the loopback interface.
 
 ```bash
 # on the gateway VM (real public IP needed)
-curl -fsSL https://clawpatrol.dev/install.sh | sh
+curl -fsSL https://prx.nebuless.cloud/install.sh | sh
 
-cat > /opt/clawpatrol/gateway.hcl <<'EOF'
+cat > /opt/nebprx/gateway.hcl <<'EOF'
 gateway {
   dashboard_listen = "127.0.0.1:8080"
   public_url       = "http://your-gw.example.com:8080"
-  log_path         = "/opt/clawpatrol/gateway.log"
-  state_dir        = "/opt/clawpatrol"
+  log_path         = "/opt/nebprx/gateway.log"
+  state_dir        = "/opt/nebprx"
 
   wireguard {
     subnet_cidr = "10.55.0.0/24"
@@ -112,23 +112,23 @@ gateway {
 }
 EOF
 
-mkdir -p /opt/clawpatrol
-clawpatrol init-ca /opt/clawpatrol/ca
+mkdir -p /opt/nebprx
+nebprx init-ca /opt/nebprx/ca
 
 iptables -I INPUT -p udp --dport 51820 -j ACCEPT
 iptables -I INPUT -p tcp --dport 8080 -j ACCEPT
-clawpatrol gateway /opt/clawpatrol/gateway.hcl
+nebprx gateway /opt/nebprx/gateway.hcl
 ```
 
 Connect Claude / GitHub / Codex via the dashboard at
 `http://your-gw.example.com:8080`. Per-user OAuth credentials land
-in `/opt/clawpatrol/oauth/`.
+in `/opt/nebprx/oauth/`.
 
 ## Client setup
 
 ```bash
-curl -fsSL https://clawpatrol.dev/install.sh | sh
-clawpatrol join http://your-gw.example.com:8080
+curl -fsSL https://prx.nebuless.cloud/install.sh | sh
+nebprx join http://your-gw.example.com:8080
 # approve at the displayed URL, done — claude/gh/codex just work
 ```
 

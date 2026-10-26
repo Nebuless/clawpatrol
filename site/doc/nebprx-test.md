@@ -1,6 +1,6 @@
 # Testing
 
-`clawpatrol test` is a regression-test CLI for policy changes. It replays
+`nebprx test` is a regression-test CLI for policy changes. It replays
 recorded gateway actions against a candidate HCL policy and tells you whether
 any verdict drifted — a `deny` that’s now `allow`, a `pg-reads` rule that no
 longer fires, an endpoint default that quietly changed.
@@ -9,7 +9,7 @@ It’s a pure CLI: no gateway, no database, no auth. Drop the binary into CI and
 run it on every push.
 
 ```bash
-clawpatrol test <config.hcl> <fixture.json | fixture-dir>
+nebprx test <config.hcl> <fixture.json | fixture-dir>
 ```
 
 Exit 0 when every fixture matches; 1 on any mismatch or fixture load error; 2 on
@@ -23,7 +23,7 @@ Drop these two files in a directory:
 
 ```hcl
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
 
   wireguard {
@@ -78,7 +78,7 @@ profile "default" { credentials = [bearer_token.github_pat] }
 Run it:
 
 ```
-$ clawpatrol test github.hcl fixtures/
+$ nebprx test github.hcl fixtures/
 ok   fixtures/get-user.json
 1 action(s) checked, 0 mismatch(es)
 ```
@@ -87,7 +87,7 @@ Now break it. Edit `github.hcl` and flip `github-reads`' verdict from `"allow"`
 to `"deny"`. Re-run:
 
 ```
-$ clawpatrol test github.hcl fixtures/
+$ nebprx test github.hcl fixtures/
 FAIL fixtures/get-user.json
   want verdict="allow"      rule="github-reads"                 endpoint="https.github"
   got  verdict="deny"       rule="github-reads"                 endpoint="https.github"
@@ -106,7 +106,7 @@ practice you record them from real traffic:
 1. **Run a gateway locally** against the policy you want to regression-test:
 
    ```bash
-   clawpatrol gateway github.hcl
+   nebprx gateway github.hcl
    ```
 
 2. **Send real requests through it.** Mix verdicts — drive the `allow` rules,
@@ -134,7 +134,7 @@ practice you record them from real traffic:
        └── delete-issue.json
    ```
 
-5. **Run `clawpatrol test`** and expect `0 mismatches`.
+5. **Run `nebprx test`** and expect `0 mismatches`.
 
 6. **Make a policy change** and re-run. If a verdict moved, the runner prints
    the affected fixture and the `want` / `got` diff (like the example above).
@@ -148,8 +148,8 @@ The simplest possible GitHub Actions step:
 ```yaml
 - name: Policy regression tests
   run: |
-    curl -fsSL https://clawpatrol.dev/install.sh | sh
-    clawpatrol test github.hcl fixtures/
+    curl -fsSL https://prx.nebuless.cloud/install.sh | sh
+    nebprx test github.hcl fixtures/
 ```
 
 The exit code does the work — non-zero fails the job and the diff shows up in

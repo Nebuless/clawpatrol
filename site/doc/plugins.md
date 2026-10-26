@@ -74,7 +74,7 @@ model Terraform uses for providers:
 
 ```hcl
 plugin "aws" {
-  source  = "github.com/denoland/clawpatrol-plugin-aws"
+  source  = "github.com/your-org/prx-plugin-aws"
   version = "~> 1.2"   # newest 1.x ≥ 1.2 ; omit for the newest stable
 }
 ```
@@ -93,10 +93,10 @@ The download is an explicit, reviewable step — the running gateway only
 ever loads the **locked** version, and never upgrades on its own:
 
 ```
-clawpatrol plugins install <config.hcl> [name...]   # download + pin
-clawpatrol plugins update  <config.hcl> [name...]   # re-pin to the newest match
-clawpatrol plugins lock    <config.hcl> [name...]   # record all platforms' hashes
-clawpatrol plugins info    <config.hcl> [name...]   # required privileges, no download
+nebprx plugins install <config.hcl> [name...]   # download + pin
+nebprx plugins update  <config.hcl> [name...]   # re-pin to the newest match
+nebprx plugins lock    <config.hcl> [name...]   # record all platforms' hashes
+nebprx plugins info    <config.hcl> [name...]   # required privileges, no download
 ```
 
 `plugins info` reads each GitHub plugin's signed static manifest for the
@@ -107,7 +107,7 @@ review what an install or upgrade would grant before it happens.
 - **install** resolves the constraint (keeping any already-pinned
   version), downloads, caches under `<state_dir>/plugins/…`, and records
   the resolved version, the declared network, and the binary hash in
-  `clawpatrol.lock.hcl` beside the config.
+  `nebprx.lock.hcl` beside the config.
 - **update** re-resolves to the newest release tag satisfying the
   constraint and re-pins it — the one place an upgrade happens. The new
   version shows up as a lockfile diff for review.
@@ -119,7 +119,7 @@ The gateway checks GitHub for newer matching releases in the background
 and surfaces "update available" on the dashboard's Plugins page, but
 **never downloads or upgrades automatically** — you run `update`.
 
-Commit `clawpatrol.lock.hcl`. On a fresh host the gateway downloads
+Commit `nebprx.lock.hcl`. On a fresh host the gateway downloads
 exactly the locked version (verifying it) on first load; if the locked
 version no longer satisfies the constraint, or the source changed, it
 fails closed and tells you to run `install` / `update`.
@@ -143,7 +143,7 @@ selects the archive by that suffix and reads its checksum from
 The optional **static manifest** is the plugin's own manifest emitted by
 its `--print-manifest` mode (the SDK's `pluginsdk.Run` handles the flag).
 Publishing it as a release asset — listed in `SHA256SUMS` and covered by
-the attestation — lets `clawpatrol plugins info` show a plugin's
+the attestation — lets `nebprx plugins info` show a plugin's
 metadata and **required privileges before downloading the binary**.
 
 Add a build-provenance attestation with one workflow step so PRX
@@ -187,7 +187,7 @@ Three layers gate a downloaded binary, from least to most powerful:
 1. **Checksum.** The archive's sha256 must match the release's
    `SHA256SUMS`.
 2. **Trust on first use.** The extracted binary's hash is recorded in
-   `clawpatrol.lock.hcl`; every later load re-hashes the cached binary
+   `nebprx.lock.hcl`; every later load re-hashes the cached binary
    and **fails closed** on any mismatch — and a version bump re-runs the
    permission-escalation check (a new release that newly wants `network`
    is blocked until you re-approve it).
@@ -207,7 +207,7 @@ Three layers gate a downloaded binary, from least to most powerful:
 
    ```hcl
    plugin "aws" {
-     source     = "github.com/denoland/clawpatrol-plugin-aws"
+     source     = "github.com/your-org/prx-plugin-aws"
      version    = "~> 1.2"
      provenance = "require"   # "warn" (default) | "require" | "off"
    }
@@ -229,7 +229,7 @@ Three layers gate a downloaded binary, from least to most powerful:
    and a later binary that **loses** provenance — attested before, not
    now — is **blocked** (a re-pointed tag, or an upgrade that drops its
    attestation, looks exactly like a supply-chain attack) until you
-   accept it with `clawpatrol plugins approve <name>`. A plugin that was
+   accept it with `nebprx plugins approve <name>`. A plugin that was
    never attested keeps installing with a warning; only a *downgrade* is
    blocked.
 
@@ -239,7 +239,7 @@ Three layers gate a downloaded binary, from least to most powerful:
 
 Plugins are **untrusted**. A plugin runs in the gateway process tree
 and the gateway holds secrets (the state DB with the CA key and
-credential material, WireGuard / Tailscale keys, `CLAWPATROL_SECRET_*`
+credential material, WireGuard / Tailscale keys, `NEBPRX_SECRET_*`
 environment variables). To contain a malicious or compromised plugin,
 every plugin subprocess runs inside an OS sandbox by default and with
 a scrubbed environment — it inherits **none** of the gateway's
@@ -295,7 +295,7 @@ their own connections, or a credential plugin doing its own token
 exchange.
 
 On first load the gateway records the plugin's declared network in
-**`clawpatrol.lock.hcl`** next to the config (commit it to VCS):
+**`nebprx.lock.hcl`** next to the config (commit it to VCS):
 
 ```hcl
 plugin "ssh_tools" {
@@ -323,7 +323,7 @@ trying to open an exfiltration path looks like. After an intentional
 upgrade, re-approve it:
 
 ```
-clawpatrol plugins approve <config.hcl> ssh_tools
+nebprx plugins approve <config.hcl> ssh_tools
 ```
 
 Or approve it from the **dashboard**: any blocked plugin — an escalated
@@ -363,10 +363,10 @@ egress. The gateway holds a privileged plugin **closed** until the
 operator approves it explicitly:
 
 ```
-clawpatrol plugins approve <config.hcl> ssh_tools
+nebprx plugins approve <config.hcl> ssh_tools
 ```
 
-Approval records `privileged = true` in `clawpatrol.lock.hcl`, gated on
+Approval records `privileged = true` in `nebprx.lock.hcl`, gated on
 the binary hash like every other grant, so a later version re-pends
 approval. The dashboard's Plugins page shows the request on the blocked
 card (a red **privileged** badge) and offers the same one-click approve.
@@ -477,15 +477,15 @@ Capabilities: pluginsdk.Capabilities{
 ```
 
 Each entry is `host:port` or `*.suffix.tld:port` (the same shape as
-`dial`). The gateway records the approved set in `clawpatrol.lock.hcl`
+`dial`). The gateway records the approved set in `nebprx.lock.hcl`
 on first load (trust-on-first-use, alongside the network grant) and
 merges it into every one of the plugin's endpoints' dial allow-list.
 An upgrade that **broadens** egress — a new version that wants a
 destination none of the approved entries cover — fails closed until
-the operator re-approves it (`clawpatrol plugins approve`), exactly
+the operator re-approves it (`nebprx plugins approve`), exactly
 like a network-grant escalation; a narrower or equal set loads
 unchanged. The declared set is verified against the signed static
-manifest, so `clawpatrol plugins info` shows a plugin's egress before
+manifest, so `nebprx plugins info` shows a plugin's egress before
 any binary is downloaded. The operator's `dial` list still works and
 composes with the manifest set — use it for site-specific upstreams
 the plugin author can't know.
@@ -960,7 +960,7 @@ return an error so the plugin can degrade gracefully.
 
 ## Validating a plugin config
 
-`clawpatrol validate` runs the same load path the daemon does, so
+`nebprx validate` runs the same load path the daemon does, so
 every plugin referenced from the HCL is spawned and its manifest
 is checked. Beyond the HCL pipeline the validate command also runs
 a schema-only pass (`Manager.Verify`) that catches plugin

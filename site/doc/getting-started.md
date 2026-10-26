@@ -12,28 +12,28 @@ traffic through it.
 
 ## Install
 
-Gateway and device run the **same `clawpatrol` binary** — there's
+Gateway and device run the **same `nebprx` binary** — there's
 no separate server package. Install it on both the gateway host
 and any machine that will run agents:
 
 ```bash
-curl -fsSL https://clawpatrol.dev/install.sh | sh
+curl -fsSL https://prx.nebuless.cloud/install.sh | sh
 ```
 
-The installer drops a single binary in `~/.local/bin`. macOS and
-Linux on amd64/arm64 are supported.
+PRX runs on Linux, macOS, and Windows. The installer drops a single
+binary in `~/.local/bin`.
 
 ## Run the gateway
 
-On the server, pick a data directory (anywhere — `/opt/clawpatrol`,
-`/srv/clawpatrol`, your home), drop a copy of
+On the server, pick a data directory (anywhere — `/opt/nebprx`,
+`/srv/nebprx`, your home), drop a copy of
 [`gateway.example.hcl`](https://github.com/Nebuless/clawpatrol/blob/main/examples/gateway.example.hcl)
 into it, open UDP 51820 on the host firewall, and start the
 gateway:
 
 ```bash
 iptables -I INPUT -p udp --dport 51820 -j ACCEPT
-clawpatrol gateway /opt/clawpatrol/gateway.hcl
+nebprx gateway /opt/nebprx/gateway.hcl
 ```
 
 The example config binds the dashboard to `127.0.0.1:8080`. Reach
@@ -75,37 +75,36 @@ CI runner, an EC2 instance, anywhere you'd otherwise run the
 agent directly:
 
 ```bash
-clawpatrol join http://<gateway-host>:8080
+nebprx join http://<gateway-host>:8080
 ```
 
 You'll see a one-time code. Open the URL it prints, confirm the
 code matches in the dashboard, and approve. Once approved the
 device is enrolled, the gateway CA is installed in the device's
-system trust store, and `clawpatrol env` is wired into your
+system trust store, and `nebprx env` is wired into your
 shell rc.
 
 By default `join` sets up per-process routing: only commands you
-wrap with `clawpatrol run` go through the gateway. Pass
+wrap with `nebprx run` go through the gateway. Pass
 `--whole-machine` if you want every packet on the host to route
 through it.
 
-On macOS, the first join prompts you to approve the PRX
-Network Extension in **System Settings → Privacy & Security**.
+macOS client capture is handled by PRX on macOS.
 
-> **Don't run `clawpatrol join --whole-machine` on the gateway
+> **Don't run `nebprx join --whole-machine` on the gateway
 > host itself** — the gateway shouldn't route its own traffic
 > through itself; this would create a network loop that would
 > break the gateway.
 
 ## Run an agent
 
-Wrap any command with `clawpatrol run`:
+Wrap any command with `nebprx run`:
 
 ```bash
-clawpatrol run -- claude
-clawpatrol run -- openclaw gateway
-clawpatrol run -- gh pr create
-clawpatrol run -- psql 'host=db user=agent'
+nebprx run -- claude
+nebprx run -- openclaw gateway
+nebprx run -- gh pr create
+nebprx run -- psql 'host=db user=agent'
 ```
 
 The gateway intercepts the wrapped process's network traffic,

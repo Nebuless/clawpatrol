@@ -46,7 +46,7 @@ production gets touched.
 
 - **[Secret injection](/docs/credentials/)** at the wire. The agent
   process holds a token-shaped placeholder
-  (`GITHUB_TOKEN=ghp_clawpatrol_placeholder_do_not_use`); the gateway
+  (`GITHUB_TOKEN=ghp_nebprx_placeholder_do_not_use`); the gateway
   swaps it for the real PAT in transit. SDKs read the env var
   normally and never see the real credential.
 
@@ -83,7 +83,7 @@ the agent.
 MIT. The gateway, the dashboard, and the plugins are all in one
 repo. All state lives in a single SQLite file on the gateway host —
 no cloud required. The binary phones home for an update check;
-disable with `CLAWPATROL_TELEMETRY=0` or `DO_NOT_TRACK=1`.
+disable with `NEBPRX_TELEMETRY=0` or `DO_NOT_TRACK=1`.
 
 ## Next
 

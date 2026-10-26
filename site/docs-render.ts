@@ -393,7 +393,7 @@ export function prerenderPageHtml(viteIndexHtml: string, page: (typeof pages)[nu
       description: page.description,
       url: SITE_ORIGIN,
       applicationCategory: "DeveloperApplication",
-      operatingSystem: "macOS, Linux",
+      operatingSystem: "Linux, macOS, and Windows",
       offers: {
         "@type": "Offer",
         price: "0",

@@ -1,7 +1,7 @@
 // These sentinels mirror the persisted body markers in cmd/nebprx/web.go.
-export const BODY_TRUNCATED_MARKER = "\n[clawpatrol:body-truncated]";
-export const BODY_INCOMPLETE_MARKER = "\n[clawpatrol:body-incomplete]";
-export const BODY_ABORTED_MARKER = "\n[clawpatrol:body-aborted]";
+export const BODY_TRUNCATED_MARKER = "\n[nebprx:body-truncated]";
+export const BODY_INCOMPLETE_MARKER = "\n[nebprx:body-incomplete]";
+export const BODY_ABORTED_MARKER = "\n[nebprx:body-aborted]";
 
 export type BodyCaptureState = "complete" | "incomplete" | "aborted" | "unknown";
 

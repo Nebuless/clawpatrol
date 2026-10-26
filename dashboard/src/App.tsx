@@ -204,7 +204,7 @@ function HomeAgents({
 
 function UpdateNotice({ update }: { update: UpdateBanner | null }) {
   if (!update?.update_available) return null;
-  const dismissKey = "clawpatrol:update-dismissed:" + update.latest;
+  const dismissKey = "nebprx:update-dismissed:" + update.latest;
   const [dismissed, setDismissed] = useState(
     typeof localStorage !== "undefined" && localStorage.getItem(dismissKey) === "1",
   );

@@ -88,11 +88,11 @@ export function VpnSection() {
             </h3>
             <p class="text-base text-canvas/70 mb-6 text-pretty">
               Prefix the agent's command with{" "}
-              <code class="font-mono text-canvas">clawpatrol run</code>. Same
+              <code class="font-mono text-canvas">nebprx run</code>. Same
               workflow. Every request PRX inspects is recorded.
             </p>
             <div class="font-mono text-sm text-canvas/80">
-              <span class="text-canvas/40">$</span> clawpatrol run{" "}
+              <span class="text-canvas/40">$</span> nebprx run{" "}
               <AgentTypewriter />
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { Button } from "./Button";
 
-const links = [["Product", "/"], ["How it works", "/how-it-works/"], ["Security", "/security/"], ["Deployment", "/deployment/"], ["Docs", "/docs/"], ["Demo", "/demo/"]];
+const links = [["Product", "/"], ["How it works", "/how-it-works/"], ["Security", "/security/"], ["Deployment", "/deployment/"], ["Docs", "/docs/"], ["Dashboard", "/demo/"]];
 function Links() {
   return <>{links.map(([label, href]) => <a href={href} key={href}>{label}</a>)}</>;
 }

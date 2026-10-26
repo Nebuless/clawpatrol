@@ -37,7 +37,7 @@ run. Cheap to check locally; expensive in CI round-trips.
 
 ## `cmd/nebprx/testdata/`
 
-The self-test corpus for `clawpatrol test` (see `doc/test.md`).
+The self-test corpus for `nebprx test` (see `doc/test.md`).
 `example.hcl` is the policy under test; the `*.json` files are
 action fixtures. The intent is one fixture per CEL branch in
 `example.hcl` — every rule's `allow` and `deny` arm exercised at
@@ -65,7 +65,8 @@ surfaces, and `prx-icon-mono.svg` for one-color/template uses. Use
 `prx-app-icon.svg` and its PNG exports for app tiles, the favicon and
 apple-touch exports for browser icons, and `og-image.png` for link previews.
 
-Product prose says "PRX" or "PRX by Nebuless". The `clawpatrol` command,
-install URL, `CLAWPATROL_*` environment variables, Go module path and
-protocol identifiers stay unchanged. Legacy `claw-patrol-*` assets
-are kept only for compatibility.
+Product prose says "PRX" or "PRX by Nebuless". The CLI is `nebprx`,
+environment variables use `NEBPRX_*`, and the install URL is
+`https://prx.nebuless.cloud/install.sh`. The Go module is
+`github.com/Nebuless/nebprx`. Legacy `claw-patrol-*` assets are
+kept only for compatibility.

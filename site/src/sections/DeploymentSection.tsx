@@ -44,11 +44,11 @@ export function DeploymentSection() {
           </div>
           <div class="font-mono text-sm text-text-muted leading-relaxed">
             <div>
-              <span class="text-text-subtle">$</span> clawpatrol join
+              <span class="text-text-subtle">$</span> nebprx join
               https://gw.example.com
             </div>
             <div>
-              <span class="text-text-subtle">$</span> clawpatrol run codex
+              <span class="text-text-subtle">$</span> nebprx run codex
             </div>
           </div>
         </div>

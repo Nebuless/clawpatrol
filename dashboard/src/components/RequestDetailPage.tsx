@@ -244,10 +244,10 @@ function ActionButtons({ ev }: { ev: EventRecord }) {
 }
 
 // DownloadActionButton triggers a server-side reshape of this event
-// into a `clawpatrol test` fixture and saves it as a .json file. The
+// into a `nebprx test` fixture and saves it as a .json file. The
 // runner reads files in this exact format — drop the download into a
-// fixtures/ directory and `clawpatrol test config.hcl fixtures/` will
-// replay it against a candidate policy. See site/doc/clawpatrol-test.md.
+// fixtures/ directory and `nebprx test config.hcl fixtures/` will
+// replay it against a candidate policy. See site/doc/nebprx-test.md.
 function DownloadActionButton({ ev }: { ev: EventRecord }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -381,7 +381,7 @@ function RulePreviewModal({ ev, onClose }: { ev: EventRecord; onClose: () => voi
                 Dashboard config writes are disabled for this gateway. Set{" "}
                 <code>dashboard_config_writes = true</code> in the{" "}
                 <a
-                  href="https://clawpatrol.dev/docs/config-reference/#gateway--"
+                  href="https://prx.nebuless.cloud/docs/config-reference/#gateway--"
                   target="_blank"
                   rel="noreferrer"
                   className="underline"

@@ -33,7 +33,7 @@ export function HeroSection() {
               Book a pilot
             </Button>
             <a href="/demo/" class="prx-link-cta">
-              See the live demo
+              Explore the dashboard
             </a>
           </div>
         </div>

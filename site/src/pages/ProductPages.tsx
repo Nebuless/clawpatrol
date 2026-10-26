@@ -41,7 +41,7 @@ export function HowItWorks() {
     </div></Section>
     <DotField />
     <Section label="Connect your agents"><div class="product-grid product-grid-two">
-      <Item title="One command or a whole machine"><p>Wrap a command with <code>clawpatrol run</code>, or choose whole-machine routing. Connect over WireGuard or Tailscale.</p><a class="prx-link-cta" href="/deployment/">Choose your deployment</a></Item>
+      <Item title="One command or a whole machine"><p>PRX runs on Linux, macOS, and Windows.</p><p>Wrap a command with <code>nebprx run</code>, or choose whole-machine routing. Connect over WireGuard or Tailscale.</p><a class="prx-link-cta" href="/deployment/">Choose your deployment</a></Item>
       <Item title="The traffic your tools use"><p>Apply policy to HTTPS APIs, Postgres, ClickHouse native, Kubernetes requests, and SSH channel requests.</p><a class="prx-link-cta" href="/docs/architecture/">See the architecture</a></Item>
     </div></Section>
     <Section label="What PRX doesn't do" dark><h2>A gateway, not an agent sandbox.</h2><p>Protect the gateway host. Block direct routes to protected systems. PRX does not isolate the agent's local files, environment, or operating-system privileges.</p><a class="product-doc-link" href="/docs/security-model/">Read the security model</a></Section>
@@ -52,7 +52,7 @@ export function HowItWorks() {
 export function Security() {
   return <Layout>
     <Intro label="Security" title="Know the boundary. Own the controls.">PRX runs on infrastructure you control. Review how it handles credentials, requests, and the systems it connects to.</Intro>
-    <Section label="Assurance"><p class="product-assurance"><span class="font-mono text-sm">2026-10-26</span><br />No SOC 2 report or independent penetration test is available yet.</p><p>PRX is MIT licensed. Review the <a href="https://github.com/Nebuless/clawpatrol">source</a> and <a href="/docs/security-model/">security model</a> against your requirements.</p></Section>
+    <Section label="Assurance"><p>PRX runs as a server/service on Linux, macOS, and Windows.</p><p class="product-assurance"><span class="font-mono text-sm">2026-10-26</span><br />No SOC 2 report or independent penetration test is available yet.</p><p>PRX is MIT licensed. Review the <a href="https://github.com/Nebuless/clawpatrol">source</a> and <a href="/docs/security-model/">security model</a> against your requirements.</p></Section>
     <Section label="Controls" dark><div class="product-grid product-grid-two">
       <Item title="Credential isolation"><p>Credentials are held by PRX. Injection is scoped to a device's assigned profiles.</p><a href="/docs/credentials/">Credentials and profiles</a></Item>
       <Item title="TLS inspection"><p>Agents trust a gateway-held CA. PRX terminates inspected HTTPS traffic and opens a separate connection to the service.</p><a href="/docs/security-model/">CA trust and inspection</a></Item>
@@ -72,7 +72,7 @@ export function Security() {
         <Item title="The optional AI judge"><p>The configured provider receives your policy, method, host, path, user-agent, and up to 4,000 characters of body. Review provider terms before sending sensitive requests.</p><a href="/docs/rules/">Approval configuration</a></Item>
         <Item title="Optional OpenTelemetry export"><p>Export goes to the collector you configure. GenAI telemetry is a separate opt-in. Message-content export is off by default and can include prompts and completions when enabled.</p><a href="/docs/config-reference/">Export settings</a></Item>
         <Item title="Release and plugin checks"><p>The gateway checks for available releases. Plugin update checks contact GitHub independently of usage telemetry. Updates are operator-initiated.</p><a href="/docs/plugins/">Plugin updates</a></Item>
-        <Item title="Usage telemetry"><p>Released gateways send usage telemetry to <code>prx.nebuless.cloud</code>: a persistent instance ID, version and git SHA, OS, architecture, Go version, uptime, device count, transport, and recent action and byte totals.</p><p>No request paths, hostnames, bodies, headers, rules, profile names, emails, or credentials are included. The persistent ID links reports over time. The receiving service sees the connection's source IP.</p><p>Disable gateway usage and release checks with <code>telemetry = false</code>, <code>CLAWPATROL_TELEMETRY=0</code>, or <code>DO_NOT_TRACK=1</code> before starting the gateway.</p><p>The installer reports a per-run install ID, outcome, OS, architecture, requested version, source-build status, and failure reason. Disable installer reporting separately with <code>CLAWPATROL_NO_TELEMETRY=1</code>.</p></Item>
+        <Item title="Usage telemetry"><p>Released gateways send usage telemetry to <code>prx.nebuless.cloud</code>: a persistent instance ID, version and git SHA, OS, architecture, Go version, uptime, device count, transport, and recent action and byte totals.</p><p>No request paths, hostnames, bodies, headers, rules, profile names, emails, or credentials are included. The persistent ID links reports over time. The receiving service sees the connection's source IP.</p><p>Disable gateway usage and release checks with <code>telemetry = false</code>, <code>NEBPRX_TELEMETRY=0</code>, or <code>DO_NOT_TRACK=1</code> before starting the gateway.</p><p>The installer reports a per-run install ID, outcome, OS, architecture, requested version, source-build status, and failure reason. Disable installer reporting separately with <code>NEBPRX_NO_TELEMETRY=1</code>.</p></Item>
       </div>
     </Section>
     <Section label="Your responsibilities" dark><h2>Keep the boundary intact.</h2><p>Secure the host and its backups. Limit service credentials. Review policy, approval providers, and captured data. Restrict direct access to protected services and test your rules before rollout.</p><p>PRX does not replace your host security, network controls, or operational review.</p></Section>
@@ -88,14 +88,14 @@ export function Deployment() {
       <Item title="On the same machine"><p>Use separate UNIX users. Agents must not have root-equivalent access or passwordless sudo. Protect the gateway's state directory and binary from the agent user.</p></Item>
     </div><a class="prx-link-cta" href="/docs/security-model/">Local-mode requirements</a></Section>
     <Section label="What you need" dark><div class="product-grid">
-      <Item title="A supported host"><p>Linux or macOS on amd64 or arm64. Windows is not supported.</p></Item>
+      <Item title="A supported host"><p>Linux, macOS, and Windows.</p></Item>
       <Item title="A network path"><p>A tailnet or WireGuard connection between agents and the gateway. Configure tailnet ACLs and exit-node access when using Tailscale.</p></Item>
       <Item title="The right ports"><p>Allow the configured WireGuard UDP listener when using WireGuard. Limit dashboard access to operators. Give the gateway access to the services it protects.</p><a href="/docs/configure-gateway/">Listener and port configuration</a></Item>
     </div></Section>
     <Section label="Install"><h2>Start with the CLI.</h2><div class="product-install"><InstallTerminal variant="expanded" /></div><p>Configure the gateway, add credentials and profiles, then onboard an agent device. Onboarding establishes the connection and CA trust needed for HTTPS inspection.</p><a class="prx-link-cta" href="/docs/getting-started/">Installation and onboarding</a></Section>
     <DotField />
     <Section label="Route the work"><div class="product-grid product-grid-two">
-      <Item title="Wrap one command"><p>Use <code>clawpatrol run</code> for an agent process and its traffic. Linux uses network namespaces. macOS uses the app's NetworkExtension and requires its setup.</p></Item>
+      <Item title="Wrap one command"><p>Use <code>nebprx run</code> for an agent process and its traffic. Linux uses network namespaces. macOS client capture is handled by PRX on macOS.</p></Item>
       <Item title="Route a whole machine"><p>Choose whole-machine mode over WireGuard or Tailscale. Configure routing explicitly rather than assuming a joined device routes everything.</p></Item>
     </div><a class="prx-link-cta" href="/docs/architecture/">Transport and routing details</a></Section>
     <Section label="Operate it" dark><div class="product-grid product-grid-two">

@@ -1,7 +1,7 @@
-# Ephemeral WG keypair per `clawpatrol run` session — design
+# Ephemeral WG keypair per `nebprx run` session — design
 
-Today every `clawpatrol run` invocation on a device shares the device's
-single long-lived WireGuard keypair (set up at `clawpatrol join`). The
+Today every `nebprx run` invocation on a device shares the device's
+single long-lived WireGuard keypair (set up at `nebprx join`). The
 gateway can't distinguish concurrent sessions, dashboard tagging is
 muddled, and session-scoped features (e.g. the dry-run work in
 `cl-d9d`) inherit the same ambiguity.
@@ -16,7 +16,7 @@ implementation.
   keypair, returns the private key in the response, peer is wired
   into the WG device and torn down on explicit DELETE.
 - Auth: reuse the per-peer bearer token the client already persists
-  at `~/.clawpatrol/api-token`. The bearer proves "I am the approved
+  at `~/.nebprx/api-token`. The bearer proves "I am the approved
   device that owns peer IP X"; the session inherits that approval.
 - IP allocation: ephemeral peers draw `/32`s from a dedicated subrange
   inside `WGSubnetCIDR` (top half, e.g. `.128–.254`). Device peers keep
@@ -34,7 +34,7 @@ implementation.
 
 ### PRX today (gap analysis)
 
-**Device keypair lifecycle.** Generated once at `clawpatrol join`:
+**Device keypair lifecycle.** Generated once at `nebprx join`:
 
 - `runJoin()` at [login.go:50](../login.go#L50) drives the device-flow
   onboarding.
@@ -51,14 +51,14 @@ implementation.
 - Client receives the full `wg-quick(5)` config + a one-time
   `api_token` via `apiOnboardPoll()` at
   [onboard.go:654](../onboard.go#L654), and persists them to
-  `~/.config/clawpatrol/wg.conf` (chmod 600,
-  [login.go:712](../login.go#L712)) and `~/.clawpatrol/api-token`
+  `~/.config/nebprx/wg.conf` (chmod 600,
+  [login.go:712](../login.go#L712)) and `~/.nebprx/api-token`
   (chmod 600, [login.go:673](../login.go#L673)).
 
 **Per-process tunnel on Linux.** `runRun()` at
 [run_linux.go:54](../run_linux.go#L54):
 
-- Parses `~/.config/clawpatrol/wg.conf` (`parseRunConf()` at
+- Parses `~/.config/nebprx/wg.conf` (`parseRunConf()` at
   [run_linux.go:285](../run_linux.go#L285)).
 - Re-execs into a new user+net+mnt namespace with `CAP_NET_ADMIN`
   ([run_linux.go:100–116](../run_linux.go#L100)).
@@ -71,18 +71,11 @@ implementation.
   [run_linux.go:338](../run_linux.go#L338) using the device's static
   key from `wg.conf`, calls `dev.IpcSet` + `dev.Up`.
 
-**Identity**: every concurrent `clawpatrol run` on the same device
+**Identity**: every concurrent `nebprx run` on the same device
 uses the same static keypair and shows up on the gateway as the same
 WG peer / `/32`.
 
-**macOS.** `runRun` on darwin ([run_darwin.go:80](../run_darwin.go#L80))
-shells out to the `Clawpatrol.app` helper, which loads the device's
-`wg.conf` into a single `NETransparentProxyProvider` tunnel at
-install time. `registerSession()` at
-[run_darwin.go:44](../run_darwin.go#L44) is purely an
-application-level IPC (`/tmp/clawpatrol.sock`, "register <pid>") so
-the extension knows which PIDs to route — no per-session cryptographic
-identity. The extension owns one tunnel and one keypair.
+macOS client capture is handled by PRX on macOS.
 
 **Auth between CLI and gateway.** Two surfaces:
 
@@ -173,7 +166,7 @@ per-session keypairs. End-to-end trail:
 ### Q1. How does the gateway attest an ephemeral pubkey to its parent device?
 
 **Position:** **Bearer token, no signature.** The CLI presents the
-per-peer API token it already stores at `~/.clawpatrol/api-token`.
+per-peer API token it already stores at `~/.nebprx/api-token`.
 The gateway resolves it to a peer IP via the existing
 `peerIPForAPIToken()` path
 ([peer_api_tokens.go:46](../peer_api_tokens.go#L46)), and the session
@@ -246,20 +239,7 @@ assume a single subnet; multi-subnet is more change than we need.
 
 ### Q5. macOS
 
-**Position:** **Linux-only this iteration.** macOS NE keeps using
-the device's static keypair from `wg.conf`.
-
-*Why.* PRX's NE (`macos/ClawpatrolExtension/`) holds **one**
-tunnel and **one** keypair, loaded at install time. unclaw's NE
-supports concurrent tunnels — that's a separate refactor (multiple
-`NETransparentProxyProvider` tunnels, multiple userspace WG
-instances, multiplexed XPC). Out of scope for this bead.
-
-The existing `registerSession()` PID-tracking ([run_darwin.go:44](../run_darwin.go#L44))
-already gives per-session attribution at the application layer on
-macOS — enough for the dry-run dispatcher in `cl-d9d`, which is the
-near-term consumer. File a follow-up bead for "macOS NE: per-session
-WG identity".
+macOS client capture is handled by PRX on macOS.
 
 ### Q6. Dashboard rendering
 
@@ -312,13 +292,13 @@ the WG layer doesn't care.
    - Background goroutine: sweep ephemerals with no handshake in
      `wg_idle_timeout` (default 1h).
 3. **CLI:** `run_linux.go` gets a new path before `parseRunConf`:
-   - If `~/.clawpatrol/api-token` exists and gateway responds 200 to
+   - If `~/.nebprx/api-token` exists and gateway responds 200 to
      `POST /api/sessions`, use the returned ephemeral config and
      register a deferred DELETE on exit.
    - Else fall back to `parseRunConf` on the static `wg.conf`.
 4. **Tests:**
    - Unit: `generateWgKeyPair()` shape (curve25519, 32 bytes).
-   - Integration: two concurrent `clawpatrol run` invocations on
+   - Integration: two concurrent `nebprx run` invocations on
      the same device produce two distinct WG peers and route to
      two distinct dashboard entries
      (`integration_two_sessions_test.go`).

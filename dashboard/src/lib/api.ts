@@ -284,7 +284,7 @@ export type Plugin = {
   approvedHashes?: string[];
   // updateAvailable is the newest release tag (GitHub sources) that
   // satisfies the plugin's constraint and is newer than the locked
-  // version; apply it with `clawpatrol plugins update`.
+  // version; apply it with `nebprx plugins update`.
   updateAvailable?: string;
   // requested is what a blocked/unapproved plugin's resolvable version
   // declares it needs, read from its signed static manifest (no spawn) —
@@ -304,7 +304,7 @@ export async function getPlugins(): Promise<Plugin[]> {
 
 // approvePlugin records the named plugin's current permissions in the
 // lockfile and reloads so a previously-blocked plugin loads. The
-// dashboard equivalent of `clawpatrol plugins approve`.
+// dashboard equivalent of `nebprx plugins approve`.
 export async function approvePlugin(name: string): Promise<void> {
   const r = await fetch("/api/plugins/approve", {
     method: "POST",
@@ -588,7 +588,7 @@ export type EventRecord = {
   family?: string;
   facets?: Record<string, unknown>;
   // endpoint/rule are populated at dispatch time; needed by the
-  // Download action button (site/doc/clawpatrol-test.md).
+  // Download action button (site/doc/nebprx-test.md).
   endpoint?: string;
   rule?: string;
   // credential is the bare name of the credential the gateway resolved
@@ -604,7 +604,7 @@ export type EventRecord = {
 };
 
 // downloadActionFixture fetches the action reshaped as a
-// `clawpatrol test` fixture. Returns a Blob so the caller can
+// `nebprx test` fixture. Returns a Blob so the caller can
 // trigger a browser download.
 export async function downloadActionFixture(id: string): Promise<Blob> {
   const r = await api(`/api/actions/${id}?fmt=fixture`);

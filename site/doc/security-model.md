@@ -1,5 +1,7 @@
 # Security Model
 
+PRX runs as a server/service on Linux, macOS, and Windows.
+
 PRX is a forward proxy that intercepts outbound traffic
 (HTTPS, SSH, Postgres, …), injects credentials on behalf of the
 agent, and enforces policy. The agent — an AI tool, a script, a
@@ -139,7 +141,7 @@ Two accounts:
 The agent user can’t read the state DB (owned by the PRX
 user), can’t replace the binary (owned by root or the PRX
 user), and can’t read the dashboard’s access token. Recovering the
-token uses `sudo clawpatrol get-token`, which requires a password
+token uses `sudo nebprx get-token`, which requires a password
 the agent can’t supply.
 
 ### Host preconditions
@@ -169,7 +171,7 @@ not migrated stays readable to the agent.
 ### Secrets at rest
 
 Everything the gateway needs across restarts lives in `state_dir`,
-mostly in `clawpatrol.db`. That file holds, in plaintext: the MITM CA
+mostly in `nebprx.db`. That file holds, in plaintext: the MITM CA
 private key, the WireGuard server key, OAuth access and refresh
 tokens, and every credential value pasted into the dashboard. The
 dashboard root password and per-device API tokens are stored as
@@ -182,7 +184,7 @@ Consequences for operators:
 - Anyone who can read `state_dir` as the gateway user or root holds
   every injected credential and can mint certificates the agents
   trust. Run the gateway under a dedicated user with no other role.
-- Backups, disk snapshots, and copies of `clawpatrol.db` are as
+- Backups, disk snapshots, and copies of `nebprx.db` are as
   sensitive as the live file. Encrypt them, or exclude the state
   directory and re-enter credentials after a restore.
 - Full-disk encryption on the gateway host covers the stolen-disk
@@ -212,8 +214,8 @@ tailnet that the gateway joined — must still be denied.
 
 Why we cannot rely on network reachability:
 
-- `clawpatrol join` persists a Tailscale node identity (machine key
-  + node key) under `~/.config/clawpatrol/tsnet-client/`. Anyone
+- `nebprx join` persists a Tailscale node identity (machine key
+  + node key) under `~/.config/nebprx/tsnet-client/`. Anyone
   who can read that directory can stand up a tsnet server and
   rejoin the tailnet as the same peer, indefinitely.
 - That tailnet peer can route to the gateway’s tailnet IP. Without
@@ -278,7 +280,7 @@ Endpoints whose callers are not browsers are exempt, because they
 send no origin headers and prove themselves per request instead:
 credential webhooks under `/api/cred/` (a provider signature, such
 as Slack's v0 HMAC), the HITL operation-status paths (a per-operation
-token), and the device-flow handshakes `clawpatrol join` drives.
+token), and the device-flow handshakes `nebprx join` drives.
 
 The login form is not among them. Its `POST` sets the root password on
 a gateway that has none, so a cross-site submission would choose the
@@ -297,7 +299,7 @@ force-acquiring anything.
 On a fresh install the dashboard has no operator yet. The first
 request — from anywhere — is redirected to a "set password" form;
 the chosen password becomes the bcrypt-hashed `root` row in
-`clawpatrol.db`. Logging in with that password mints an opaque
+`nebprx.db`. Logging in with that password mints an opaque
 session token, held in the `HttpOnly`, `SameSite=Lax` `cp_session`
 cookie and stored only as a SHA-256 in `dashboard_sessions`;
 subsequent requests are authenticated by that cookie.
@@ -308,13 +310,13 @@ HITL decisions, and all of those endpoints sit behind the same gate
 the first-run flow protects. So no sensitive state can predate the
 root password — losing the first-run race to an attacker means
 they hold an empty dashboard. Recover with
-`clawpatrol gateway --reset-dashboard-password`.
+`nebprx gateway --reset-dashboard-password`.
 
 To skip the web first-run entirely, set the password from the CLI
 before the dashboard ever serves a request:
 
 ```
-clawpatrol gateway --set-dashboard-password '<pw>' gateway.hcl
+nebprx gateway --set-dashboard-password '<pw>' gateway.hcl
 ```
 
 ### Tailnet operator allowlist (tailscale block)
@@ -411,7 +413,7 @@ gateway with new credential, endpoint, and tunnel types. They run as
 subprocesses inside the gateway's process tree, and the gateway holds
 the secrets a plugin must never reach: the state database (CA private
 key, stored credential material), the WireGuard / Tailscale keys, and
-the `CLAWPATROL_SECRET_*` environment variables. A planned
+the `NEBPRX_SECRET_*` environment variables. A planned
 Terraform-style distribution mechanism would let operators fetch
 plugins they did not write — so plugins are treated as a supply-chain
 attack surface, not trusted gateway code.
@@ -454,7 +456,7 @@ credential plugin doing its own token exchange) requests it, and that
 grant is per-plugin, so it does not loosen the plugins beside it.
 
 Network is **declared by the plugin** in its manifest and recorded,
-trust-on-first-use, in a committed lockfile (`clawpatrol.lock.hcl`).
+trust-on-first-use, in a committed lockfile (`nebprx.lock.hcl`).
 The threat this addresses is the supply-chain one: a benign plugin's
 next version silently gaining a network leak path. An upgrade (a
 changed binary hash) that requests more than the lockfile recorded
@@ -494,7 +496,7 @@ update that strips its attestation would otherwise slip through. The
 per-plugin `provenance` field (`warn` default, `require`, `off`) sets
 how a *first*, never-attested release is treated.
 The gateway loads only the locked version and never upgrades on its own;
-moving to a newer release is the operator's explicit `clawpatrol plugins
+moving to a newer release is the operator's explicit `nebprx plugins
 update`.
 
 The sandbox is defense-in-depth, not a capability wall around the
@@ -525,15 +527,12 @@ Grant the minimum a plugin needs, and prefer the brokered dial over
 Routing the agent’s traffic through the gateway is what lets PRX
 inject credentials and apply policy — it is **not** a
 containment wall, and intercepting every packet the agent emits is not
-part of the guarantee. Per-process `clawpatrol run` confines the
-wrapped process as well as the platform allows (a kernel network
-namespace on Linux; a PPID-chain match in the macOS Network
-Extension), but neither is airtight: on macOS an agent that detaches
-from its session — double-fork + `setsid` to reparent under launchd —
-no longer matches and egresses untunneled, and even the Linux
-namespace can be left by an agent with enough privilege (passwordless
-`sudo`). Whole-machine mode routes at the host level and sidesteps the
-question.
+part of the guarantee. Per-process `nebprx run` confines the
+wrapped process as well as the platform allows. Linux uses a kernel
+network namespace. macOS client capture is handled by PRX on macOS.
+Interception is not airtight: processes may escape platform capture,
+and a Linux namespace can be left with enough privilege (passwordless
+`sudo`). Whole-machine mode routes at the host level.
 
 This does not weaken the guarantee, because credentials and policy
 share one chokepoint: traversing the gateway is what earns a request a
@@ -546,7 +545,7 @@ over a side channel it opens outside the tunnel; if that is in your
 threat model, use whole-machine mode or an external network egress
 control.
 
-The same holds for everything else on the client host. `clawpatrol
+The same holds for everything else on the client host. `nebprx
 run` is not a sandbox: the wrapped process runs as your OS user and
 can read whatever that user can read — files, the environment of the
 shell it was launched from, other processes, keychains and credential
@@ -572,4 +571,4 @@ PRX does not defend against:
   best-effort](#egress-interception-is-best-effort));
 - anything the wrapped process's OS user can already read on the
   client host, including secrets in the launching shell's environment
-  (`clawpatrol run` is not a sandbox).
+  (`nebprx run` is not a sandbox).

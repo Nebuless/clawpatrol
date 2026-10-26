@@ -127,7 +127,7 @@ endpoint. The agent never holds the real key — only the placeholder.
 ### Secret store
 
 The gateway-side source of secret bytes. Default backend: environment
-variables, keyed by `CLAWPATROL_SECRET_<UPPER_NAME>` (with
+variables, keyed by `NEBPRX_SECRET_<UPPER_NAME>` (with
 `@/path/to/file` shorthand for reading PEM bundles off disk).
 
 ### MitM

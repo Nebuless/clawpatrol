@@ -1,7 +1,7 @@
 // Strip the harness portion from an HCL example file.
 // Landing-page snippets in examples/ contain a display snippet
 // followed by a "# ===== harness =====" marker and config
-// scaffolding that makes the file pass `clawpatrol validate`.
+// scaffolding that makes the file pass `nebprx validate`.
 // Landing page sections render only what’s above the marker.
 
 export function snippet(source: string): string {

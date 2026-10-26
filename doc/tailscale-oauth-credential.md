@@ -6,7 +6,7 @@ dashboard, by completing Tailscale's interactive login flow — exactly the
 sequence `tailscale up` runs on a fresh device. The node identity (node key +
 machine key) lands in SQLite via the credential secret store and is reused
 across gateway restarts. Replaces the inline `authkey = "..."` field (and the
-`CLAWPATROL_TUNNEL_<NAME>_AUTHKEY` env-var fallback) for tunnels that opt into
+`NEBPRX_TUNNEL_<NAME>_AUTHKEY` env-var fallback) for tunnels that opt into
 the credential reference.
 
 Target shape:
@@ -16,7 +16,7 @@ credential "tailscale_auth" "my-tailnet" {}
 
 tunnel "tailscale" "my-tunnel" {
   credential = tailscale_auth.my-tailnet
-  hostname   = "clawpatrol-tunnel-prod"
+  hostname   = "nebprx-tunnel-prod"
   tags       = ["tag:client"]
 }
 
@@ -47,7 +47,7 @@ unchanged.
 - `TailscaleTunnel` (config/plugins/tunnels/tailscale.go) already carries a
   framework-level `Credential string` field via `commonRefs`
   (config/plugins/tunnels/util.go). It's currently unused — `Open` reads
-  `t.AuthKey` and falls back to `CLAWPATROL_TUNNEL_<NAME>_AUTHKEY`. No
+  `t.AuthKey` and falls back to `NEBPRX_TUNNEL_<NAME>_AUTHKEY`. No
   credential resolution path exists yet for this tunnel type.
 - The runtime side already plumbs `TunnelHost.Credential` (resolved entity)
   and `TunnelHost.SecretStore` (paste-slot SQLite reader/writer) to every
@@ -89,7 +89,7 @@ unchanged.
 
 - `gatewaySecretStore.Get` (config/runtime/secrets.go) walks credential_secrets
   (paste-slot SQLite) → `OAuthRegistry.Token` (browser-flow) →
-  `CLAWPATROL_SECRET_<NAME>` env. The paste-slot tier is the one we'll write
+  `NEBPRX_SECRET_<NAME>` env. The paste-slot tier is the one we'll write
   through, with the gateway as the *writer* (not the operator pasting).
 - The dashboard `/api/credentials/set` endpoint accepts a `{slot, value}` map
   for any credential whose body implements `SecretSlotsProvider`. We do *not*

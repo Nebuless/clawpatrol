@@ -30,7 +30,7 @@ printf '<!doctype html><html><body><pre>placeholder</pre></body></html>' \
   > dashboard/dist/index.html
 go build -o nebprx-dev ./cmd/nebprx
 go build -ldflags "-s -w" -trimpath -o nebprx-release ./cmd/nebprx
-ls -la clawpatrol-dev clawpatrol-release
+ls -la nebprx-dev nebprx-release
 ```
 
 The dev binary's extra ~26 MB is debug info (`-w` removes DWARF
@@ -63,7 +63,7 @@ Top-level groups, summed over the dev binary's `T` symbols:
 | clickhouse-go + ch-go  | 1,662      | `clickhouse_native` endpoint speaks the wire protocol; clients require both   |
 | google.golang.org/{protobuf,grpc} | 1,507 | go-plugin and OTLP exporters need a real gRPC stack                          |
 | github.com/google/cel-go | 1,477    | rule expressions in HCL compile to CEL programs                               |
-| gvisor.dev/gvisor      | 1,321      | userspace TCP/IP stack for `clawpatrol run` (per-process WireGuard)           |
+| gvisor.dev/gvisor      | 1,321      | userspace TCP/IP stack for `nebprx run` (per-process WireGuard)           |
 | github.com/aws/aws-sdk-go-v2 | 1,193 | SigV4 presigner for the EKS bearer-token credential                          |
 | github.com/pgplex/pgparser | 916    | Postgres SQL parser for the `postgres` endpoint matcher                       |
 | github.com/AfterShip/clickhouse-sql-parser | 385 | ClickHouse SQL parser for the same                                |
