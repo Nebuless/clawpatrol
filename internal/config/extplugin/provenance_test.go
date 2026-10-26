@@ -15,7 +15,7 @@ import (
 	"github.com/sigstore/sigstore-go/pkg/testing/ca"
 	"github.com/sigstore/sigstore-go/pkg/verify"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 const testGitCommit = "2a6fb83e91633ab8a606f306f609f2fbfc8154f4"

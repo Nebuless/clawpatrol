@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

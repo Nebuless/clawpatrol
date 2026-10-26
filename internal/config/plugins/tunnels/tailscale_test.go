@@ -12,7 +12,7 @@ import (
 
 	"tailscale.com/tsnet"
 
-	cruntime "github.com/denoland/clawpatrol/internal/config/runtime"
+	cruntime "github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 func TestTunnelStateDir_HostStateDir(t *testing.T) {

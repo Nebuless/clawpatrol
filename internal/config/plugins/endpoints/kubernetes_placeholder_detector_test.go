@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config/match"
 )
 
 func TestKubernetesDetectPlaceholderMatchesExactBearerValue(t *testing.T) {

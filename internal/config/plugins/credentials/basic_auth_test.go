@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 func TestBasicAuthInjectHTTPStampsAuthorization(t *testing.T) {

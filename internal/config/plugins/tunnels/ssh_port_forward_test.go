@@ -15,8 +15,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/denoland/clawpatrol/internal/config/plugins/sshproto"
-	cruntime "github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/plugins/sshproto"
+	cruntime "github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // fakeSSHCred satisfies the sshproto.AuthCredential interface

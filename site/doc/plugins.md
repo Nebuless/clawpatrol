@@ -542,13 +542,13 @@ just like built-in ones, in either role (parent or child); see
 ## Writing a plugin
 
 Plugins are ordinary Go programs. The author SDK lives at
-`github.com/denoland/clawpatrol/pluginsdk`; the canonical example
+`github.com/Nebuless/nebprx/pluginsdk`; the canonical example
 is `pluginsdk/example/` in the PRX repo.
 
 ```go
 package main
 
-import "github.com/denoland/clawpatrol/pluginsdk"
+import "github.com/Nebuless/nebprx/pluginsdk"
 
 func main() {
     pluginsdk.Run(&pluginsdk.Plugin{

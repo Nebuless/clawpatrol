@@ -108,8 +108,8 @@ in `.2–.254`. Sequential, no defrag, no separate range for ephemeral
 peers.
 
 **Dashboard.** `agentsList()` at
-[agents.go:678](../cmd/clawpatrol/agents.go#L678) walks the live WG peers
-(`EndpointsByIP()` at [wireguard.go:487](../cmd/clawpatrol/wireguard.go#L487))
+[agents.go:678](../cmd/nebprx/agents.go#L678) walks the live WG peers
+(`EndpointsByIP()` at [wireguard.go:487](../cmd/nebprx/wireguard.go#L487))
 and enriches with onboard metadata. Rendered by
 `dashboard/src/components/AgentsTable.tsx`, one row per WG peer.
 

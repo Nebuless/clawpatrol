@@ -7,8 +7,8 @@ import (
 
 	"tailscale.com/ipn"
 
-	"github.com/denoland/clawpatrol/internal/config/plugins/tailscaleproto"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/plugins/tailscaleproto"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // fakeWritableStore is a minimal SecretStore that also satisfies

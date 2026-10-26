@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // emptyEmit is the no-op Emit used by credentials whose body has no

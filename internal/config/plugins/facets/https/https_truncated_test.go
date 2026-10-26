@@ -3,7 +3,7 @@ package https_test
 import (
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/facet"
 )
 
 // TestHTTPSMatcherInspectsTruncatableFacet pins which CEL

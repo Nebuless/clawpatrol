@@ -1,4 +1,4 @@
-// These sentinels mirror the persisted body markers in cmd/clawpatrol/web.go.
+// These sentinels mirror the persisted body markers in cmd/nebprx/web.go.
 export const BODY_TRUNCATED_MARKER = "\n[clawpatrol:body-truncated]";
 export const BODY_INCOMPLETE_MARKER = "\n[clawpatrol:body-incomplete]";
 export const BODY_ABORTED_MARKER = "\n[clawpatrol:body-aborted]";

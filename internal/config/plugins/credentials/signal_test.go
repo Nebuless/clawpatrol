@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 func signalTestReq(store testSecretStore) runtime.ApproveRequest {

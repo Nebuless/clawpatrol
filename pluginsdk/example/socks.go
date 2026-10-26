@@ -10,7 +10,7 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/denoland/clawpatrol/pluginsdk"
+	"github.com/Nebuless/nebprx/pluginsdk"
 )
 
 // socks is an example tunnel plugin that routes upstream connections

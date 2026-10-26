@@ -4,11 +4,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/facet"
 
 	// Pull in the built-in facets so Lookup resolves the families
 	// the composition registry references.
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/all"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all"
 )
 
 // TestFacets documents the family→facets composition registry as it

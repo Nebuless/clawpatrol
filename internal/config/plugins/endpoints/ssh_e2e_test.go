@@ -25,13 +25,13 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	sshfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/ssh"
-	cruntime "github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	sshfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/ssh"
+	cruntime "github.com/Nebuless/nebprx/internal/config/runtime"
 
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/credentials"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/rules"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/credentials"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/rules"
 )
 
 // ── upstream ssh server (records what each session actually ran) ──────

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
 // DialUpstreamFunc opens a tunnel plugin's transport connection — the

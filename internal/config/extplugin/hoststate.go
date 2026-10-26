@@ -3,9 +3,9 @@ package extplugin
 import (
 	"context"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	"github.com/denoland/clawpatrol/internal/config/extplugin/wire"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config/extplugin/wire"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

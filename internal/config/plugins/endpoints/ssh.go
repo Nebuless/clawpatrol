@@ -58,12 +58,12 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	sshfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/ssh"
-	"github.com/denoland/clawpatrol/internal/config/plugins/sshproto"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	sshfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/ssh"
+	"github.com/Nebuless/nebprx/internal/config/plugins/sshproto"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // SSHEndpoint binds one or more host:port tuples. The credentials
@@ -617,7 +617,7 @@ func proxyChannel(a ssh.Channel, aReqs <-chan *ssh.Request, b ssh.Channel, bReqs
 // bytes (so typed/streamed stdin doesn't hang — its prefix is judged,
 // the rest streams on unjudged).
 const (
-	stdinMatchCap = 1 << 20 // mirror cmd/clawpatrol maxHTTPMatchBody
+	stdinMatchCap = 1 << 20 // mirror cmd/nebprx maxHTTPMatchBody
 	stdinIdle     = 250 * time.Millisecond
 )
 

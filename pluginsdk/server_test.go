@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
 func TestServerCredentialMetadataAndInjectHTTP(t *testing.T) {

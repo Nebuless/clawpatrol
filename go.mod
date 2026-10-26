@@ -1,4 +1,4 @@
-module github.com/denoland/clawpatrol
+module github.com/Nebuless/nebprx
 
 go 1.26.6
 

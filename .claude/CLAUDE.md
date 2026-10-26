@@ -10,7 +10,7 @@ Render every timestamp in the UI as `yyyy-MM-dd HH:mm:ss.SSS` (24-hour,
 locale-independent, millisecond precision). When only the time-of-day
 is shown, use `HH:mm:ss.SSS`.
 
-Helpers live in `cmd/clawpatrol/www/src/lib/format.ts`:
+Helpers live in `cmd/nebprx/www/src/lib/format.ts`:
 
 - `fmtDateTime(t)` — full timestamp.
 - `fmtTime(t)` — time-of-day only.
@@ -35,7 +35,7 @@ checks the lint job runs:
 Either fail will block the `test` workflow before the actual tests
 run. Cheap to check locally; expensive in CI round-trips.
 
-## `cmd/clawpatrol/testdata/`
+## `cmd/nebprx/testdata/`
 
 The self-test corpus for `clawpatrol test` (see `doc/test.md`).
 `example.hcl` is the policy under test; the `*.json` files are

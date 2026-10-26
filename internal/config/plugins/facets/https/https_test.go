@@ -5,10 +5,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
 
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/facets/https"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/facets/https"
 )
 
 // httpReq builds a minimal Request for the HTTP matcher tests.

@@ -20,10 +20,10 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/cityhash102"
 	chproto "github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	sqlfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	sqlfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // chMaxCompressionBuffer caps the per-frame compressed-payload size the

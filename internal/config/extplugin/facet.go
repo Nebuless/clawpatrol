@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"regexp"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
 	"github.com/hashicorp/hcl/v2"
 )
 

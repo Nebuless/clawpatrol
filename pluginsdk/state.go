@@ -5,8 +5,8 @@ import (
 	"errors"
 	"sync"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	"github.com/denoland/clawpatrol/internal/config/extplugin/wire"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config/extplugin/wire"
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 )

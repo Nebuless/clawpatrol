@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 	goplugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 )

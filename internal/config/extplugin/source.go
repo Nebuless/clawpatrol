@@ -13,7 +13,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // A plugin `source` is either a local filesystem path or a GitHub repo

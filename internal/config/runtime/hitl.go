@@ -3,8 +3,8 @@ package runtime
 import (
 	"strings"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/facet"
 )
 
 // Shared HITL prompt formatting helpers. Used by both the Slack

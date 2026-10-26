@@ -21,8 +21,8 @@ import (
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/ext"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
 
 	// Composed facet: the k8s family adds both the http and k8s
 	// facets to its actions (a kubernetes API call is an HTTPS
@@ -33,7 +33,7 @@ import (
 	// facet.Register) has run before the first k8s rule compiles —
 	// otherwise direct k8s-package imports (tests, downstream code)
 	// silently produce a nil matcher.
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/facets/https"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/facets/https"
 )
 
 // Fields is the CEL-facing view of a kubernetes request. Exposed

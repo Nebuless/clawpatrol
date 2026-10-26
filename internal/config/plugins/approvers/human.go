@@ -20,8 +20,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // HumanApprover targets one channel. Timeout / require_approvers

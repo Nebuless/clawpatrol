@@ -8,7 +8,7 @@
 package extplugin
 
 import (
-	"github.com/denoland/clawpatrol/internal/config/extplugin/wire"
+	"github.com/Nebuless/nebprx/internal/config/extplugin/wire"
 )
 
 // HandshakeConfig and PluginName are the go-plugin handshake shared by the

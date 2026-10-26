@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 func TestSlackNotifyHITLRecordsMessageRefForSyncPendingRequest(t *testing.T) {

@@ -72,7 +72,7 @@ gateway rewrites the header upstream so the placeholder never reaches
 Anthropic.
 
 For the `claude` CLI specifically, `clawpatrol run` can install a small
-shim (`installClaudeCodeOAuthShim`, `cmd/clawpatrol/integrations.go`)
+shim (`installClaudeCodeOAuthShim`, `cmd/nebprx/integrations.go`)
 just before the wrapped command starts. **It is opt-in** (R&D decision,
 2026-06-03): rewriting the worker's environment and config dir is too
 invasive to do silently — pointing `CLAUDE_CONFIG_DIR` at a

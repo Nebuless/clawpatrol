@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // Per-endpoint `retention` must be validated at compile — a typo has to

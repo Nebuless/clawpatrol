@@ -15,9 +15,9 @@ built SPA, which adds the SPA's own bundle size on top.
 
 | Build                                              | Bytes      | MB    |
 |----------------------------------------------------|-----------:|------:|
-| `go build ./cmd/clawpatrol` (dev / `make build`)   | 88,088,501 | 84.0  |
-| `go build -ldflags="-s -w" ./cmd/clawpatrol`       | 61,634,889 | 58.8  |
-| `go build -ldflags="-s -w" -trimpath ./cmd/clawpatrol` (`make release`, release CI, `install.sh` source build) | 61,366,537 | 58.5  |
+| `go build ./cmd/nebprx` (dev / `make build`)   | 88,088,501 | 84.0  |
+| `go build -ldflags="-s -w" ./cmd/nebprx`       | 61,634,889 | 58.8  |
+| `go build -ldflags="-s -w" -trimpath ./cmd/nebprx` (`make release`, release CI, `install.sh` source build) | 61,366,537 | 58.5  |
 
 `-s -w` removes the symbol table and DWARF debug info. `-trimpath`
 rewrites embedded source paths and saves a few hundred KB on top.
@@ -28,8 +28,8 @@ To reproduce:
 mkdir -p dashboard/dist
 printf '<!doctype html><html><body><pre>placeholder</pre></body></html>' \
   > dashboard/dist/index.html
-go build -o clawpatrol-dev ./cmd/clawpatrol
-go build -ldflags "-s -w" -trimpath -o clawpatrol-release ./cmd/clawpatrol
+go build -o nebprx-dev ./cmd/nebprx
+go build -ldflags "-s -w" -trimpath -o nebprx-release ./cmd/nebprx
 ls -la clawpatrol-dev clawpatrol-release
 ```
 
@@ -106,7 +106,7 @@ pull in solves the same problem. A few common cases that have come up:
 - **Compression readers:** the sampler already speaks gzip, deflate,
   zlib, brotli (`github.com/andybalholm/brotli`), and zstd
   (`github.com/klauspost/compress/zstd`) — extend `maybeDecode` in
-  `cmd/clawpatrol/web.go` rather than adding a fourth decoder.
+  `cmd/nebprx/web.go` rather than adding a fourth decoder.
 
 If a new direct dependency is unavoidable, mention the size impact in
 the PR (`go build -ldflags '-s -w' -trimpath` before and after) so we

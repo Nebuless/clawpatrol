@@ -4951,7 +4951,7 @@ const file_plugin_proto_rawDesc = "" +
 	"\bEvaluate\x12%.clawpatrol.plugin.v1.EvaluateRequest\x1a%.clawpatrol.plugin.v1.EvaluateVerdict2f\n" +
 	"\n" +
 	"HostTunnel\x12X\n" +
-	"\fDialUpstream\x12!.clawpatrol.plugin.v1.DialMessage\x1a!.clawpatrol.plugin.v1.DialMessage(\x010\x01BCZAgithub.com/denoland/clawpatrol/config/extplugin/proto;extpluginpbb\x06proto3"
+	"\fDialUpstream\x12!.clawpatrol.plugin.v1.DialMessage\x1a!.clawpatrol.plugin.v1.DialMessage(\x010\x01B?Z=github.com/Nebuless/nebprx/config/extplugin/proto;extpluginpbb\x06proto3"
 
 var (
 	file_plugin_proto_rawDescOnce sync.Once

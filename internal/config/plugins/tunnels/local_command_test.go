@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	cruntime "github.com/denoland/clawpatrol/internal/config/runtime"
+	cruntime "github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // TestLocalCommandSpawn verifies Open spawns the configured argv,

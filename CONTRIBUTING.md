@@ -52,7 +52,7 @@ use placeholders.
   blocks and attributes as part of another change.
 - If you touch a documented HCL field, regenerate the reference:
   `go run ./internal/tools/docgen`. CI fails when it is stale.
-- If you add a rule branch to `cmd/clawpatrol/testdata/example.hcl`,
+- If you add a rule branch to `cmd/nebprx/testdata/example.hcl`,
   add fixtures for both arms (see
   [clawpatrol test](https://clawpatrol.dev/docs/clawpatrol-test)).
 - Small follow-up fixes to your PR may be applied by a maintainer

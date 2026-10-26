@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/tools/docgen/internal/render"
+	"github.com/Nebuless/nebprx/internal/tools/docgen/internal/render"
 )
 
 // TestGeneratedDocIsFresh fails when site/doc/config-reference.md

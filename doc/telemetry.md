@@ -23,7 +23,7 @@ The gateway POSTs JSON to
 
 The persistent ID links reports across restarts. It is not a user identity.
 If saving the ID fails, the current run uses it but a restart generates a new one.
-Implementation: [`cmd/clawpatrol/telemetry.go`](../cmd/clawpatrol/telemetry.go).
+Implementation: [`cmd/nebprx/telemetry.go`](../cmd/nebprx/telemetry.go).
 
 The first report runs 30 seconds after gateway startup, then every six hours.
 Requests run in a background goroutine with a five-second timeout. Network

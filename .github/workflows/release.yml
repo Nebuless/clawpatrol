@@ -41,7 +41,7 @@ jobs:
           deno install
           deno task build
 
-      - name: build clawpatrol
+      - name: build nebprx
         env:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
@@ -54,12 +54,12 @@ jobs:
           go build \
             -ldflags "-s -w -X main.buildVersion=${version} -X main.buildGitSHA=${SHA}" \
             -trimpath \
-            -o out/clawpatrol-${{ matrix.os }}-${{ matrix.arch }} ./cmd/clawpatrol
+            -o out/nebprx-${{ matrix.os }}-${{ matrix.arch }} ./cmd/nebprx
 
       - uses: actions/upload-artifact@v4
         with:
-          name: clawpatrol-${{ matrix.os }}-${{ matrix.arch }}
-          path: out/clawpatrol-${{ matrix.os }}-${{ matrix.arch }}
+          name: nebprx-${{ matrix.os }}-${{ matrix.arch }}
+          path: out/nebprx-${{ matrix.os }}-${{ matrix.arch }}
           retention-days: 7
 
   macos-app:
@@ -109,8 +109,8 @@ jobs:
       - name: create checksums
         run: |
           cd artifacts
-          (sha256sum clawpatrol-* Clawpatrol.app.tar.gz 2>/dev/null > SHA256SUMS \
-            || sha256sum clawpatrol-* > SHA256SUMS)
+          (sha256sum nebprx-* Clawpatrol.app.tar.gz 2>/dev/null > SHA256SUMS \
+            || sha256sum nebprx-* > SHA256SUMS)
 
       - name: create release
         env:
@@ -121,7 +121,7 @@ jobs:
           gh release create "${TAG}" \
             --title "${TAG}" \
             --generate-notes \
-            artifacts/clawpatrol-* \
+            artifacts/nebprx-* \
             artifacts/SHA256SUMS
           if [ -f artifacts/Clawpatrol.app.tar.gz ]; then
             gh release upload "${TAG}" artifacts/Clawpatrol.app.tar.gz

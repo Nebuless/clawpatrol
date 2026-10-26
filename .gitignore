@@ -9,8 +9,7 @@ dist/
 # in and edits it; nothing under data/ is meant to be checked in.
 data/
 /gateway
-/clawpatrol
-/clawpatrol
+/nebprx
 /unclaw
 *.log
 www/node_modules

@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/denoland/clawpatrol/internal/tools/docgen/internal/render"
+	"github.com/Nebuless/nebprx/internal/tools/docgen/internal/render"
 )
 
 func main() {

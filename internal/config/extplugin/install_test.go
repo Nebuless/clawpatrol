@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // mkRelease builds a release spec with one archive per platform plus a

@@ -3,7 +3,7 @@ package runtime_test
 import (
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // TestEnvSecretStore_AWSParts verifies the AWS credential slots are

@@ -3,7 +3,7 @@ package runtime
 import (
 	"fmt"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // init installs a plugin checker on the config registry that

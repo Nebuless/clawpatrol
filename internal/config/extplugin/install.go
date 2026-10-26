@@ -8,8 +8,8 @@ import (
 
 	version "github.com/hashicorp/go-version"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
 // This file backs the `clawpatrol plugins install|update|lock`

@@ -50,7 +50,7 @@ make install    # PREFIX=~/.local/bin (override with PREFIX=...)
 ```
 
 Under the hood, the dashboard build runs `deno install && deno task
-build` in `dashboard/`. Skip it (`go build ./cmd/clawpatrol` directly)
+build` in `dashboard/`. Skip it (`go build ./cmd/nebprx` directly)
 and the Go embed ships a placeholder.
 
 `make build` keeps debug symbols and DWARF for panics with file:line

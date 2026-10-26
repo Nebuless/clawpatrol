@@ -8,8 +8,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // AnthropicOAuthSubscription is part of the clawpatrol plugin API.
@@ -42,7 +42,7 @@ func (a *AnthropicOAuthSubscription) InjectHTTP(_ context.Context, req *http.Req
 // network call). `clawpatrol run` works around that for the `claude`
 // binary specifically via installClaudeCodeOAuthShim — it strips this
 // env var and supplies a synthesized OAuth credential instead. See
-// cmd/clawpatrol/integrations.go and doc/claude-code-oauth.md.
+// cmd/nebprx/integrations.go and doc/claude-code-oauth.md.
 func (*AnthropicOAuthSubscription) EnvVars() []config.EnvVar {
 	return []config.EnvVar{
 		{Name: "ANTHROPIC_AUTH_TOKEN", Value: phClaude, Description: "Claude Code / Anthropic SDKs"},

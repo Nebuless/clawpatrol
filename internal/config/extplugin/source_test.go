@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 func TestParseSource(t *testing.T) {

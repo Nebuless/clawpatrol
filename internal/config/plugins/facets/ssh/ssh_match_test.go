@@ -3,9 +3,9 @@ package ssh_test
 import (
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	sshfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/ssh"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	sshfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/ssh"
 )
 
 func mustMatcher(t *testing.T, cond string) match.Matcher {

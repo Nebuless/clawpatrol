@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/all"
-	"github.com/denoland/clawpatrol/internal/config/plugins/credentials"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all"
+	"github.com/Nebuless/nebprx/internal/config/plugins/credentials"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // TestMTLSConfigure round-trips a freshly-generated cert / key / CA

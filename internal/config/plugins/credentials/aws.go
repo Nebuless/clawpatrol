@@ -38,8 +38,8 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // emptyPayloadHash is the SHA-256 of the empty string — the SigV4

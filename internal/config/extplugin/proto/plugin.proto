@@ -15,7 +15,7 @@ syntax = "proto3";
 
 package clawpatrol.plugin.v1;
 
-option go_package = "github.com/denoland/clawpatrol/config/extplugin/proto;extpluginpb";
+option go_package = "github.com/Nebuless/nebprx/config/extplugin/proto;extpluginpb";
 
 // =====================================================================
 // Manifest + Build

@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // templateVarRe matches {{var}} placeholders, capturing the var name.

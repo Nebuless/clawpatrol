@@ -16,12 +16,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	"github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 	"github.com/google/uuid"
 	"golang.org/x/net/http/httpguts"
 )
@@ -510,7 +510,7 @@ func halfCloseWrite(c net.Conn) {
 
 // bodyTruncatedMarker is appended to a persisted response-body sample when
 // the body exceeded the gateway's body-storage cap. It is byte-for-byte the
-// marker the built-in HTTP sampler emits (cmd/clawpatrol/web.go's
+// marker the built-in HTTP sampler emits (cmd/nebprx/web.go's
 // bodyTruncatedMarker), so the dashboard's BODY_TRUNCATED_MARKER handling
 // renders a plugin response body's "truncated" badge with no extra wiring.
 const bodyTruncatedMarker = "\n[clawpatrol:body-truncated]"

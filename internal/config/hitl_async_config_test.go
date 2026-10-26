@@ -8,8 +8,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/all"
+	"github.com/Nebuless/nebprx/internal/config"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all"
 )
 
 func TestHITLAsyncConfigLoadsProfileApproverAndNormalizesPublicURL(t *testing.T) {

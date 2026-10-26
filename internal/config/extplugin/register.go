@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclwrite"

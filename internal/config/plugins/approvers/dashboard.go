@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // DashboardApprover is part of the clawpatrol plugin API.

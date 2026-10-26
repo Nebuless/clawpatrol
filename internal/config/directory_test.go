@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/all"
+	"github.com/Nebuless/nebprx/internal/config"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all"
 )
 
 // TestLoadDirectory exercises the multi-file directory loader. The

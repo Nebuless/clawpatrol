@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/denoland/clawpatrol/pluginsdk"
+	"github.com/Nebuless/nebprx/pluginsdk"
 )
 
 // demoHTTPS is the example plugin's HTTPS endpoint. The gateway

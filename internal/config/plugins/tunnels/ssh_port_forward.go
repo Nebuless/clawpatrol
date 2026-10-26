@@ -37,9 +37,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/plugins/sshproto"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/plugins/sshproto"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // SSHPortForwardTunnel configures the tunnel runtime.

@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // minimalConfig is the smallest body that loads without errors: one

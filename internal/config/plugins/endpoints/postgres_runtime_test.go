@@ -12,13 +12,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/credentials"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/rules"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/credentials"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/rules"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // TestParseSQL exercises the AST extractor that feeds the SQL

@@ -24,7 +24,7 @@ import (
 	"net"
 	"net/http"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
 // Plugin is the top-level declaration a plugin's main() builds and

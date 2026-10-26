@@ -21,9 +21,9 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	sqlfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	sqlfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // ClickhouseNativeEndpoint addresses one ClickHouse server reachable

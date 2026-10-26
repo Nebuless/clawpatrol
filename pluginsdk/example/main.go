@@ -8,7 +8,7 @@
 // HTTPS, TLS-but-not-HTTPS, and plain TCP respectively.
 package main
 
-import "github.com/denoland/clawpatrol/pluginsdk"
+import "github.com/Nebuless/nebprx/pluginsdk"
 
 func main() {
 	pluginsdk.Run(&pluginsdk.Plugin{
