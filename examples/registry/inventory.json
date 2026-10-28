@@ -1,0 +1,10 @@
+{
+  "graph_complete": false,
+  "packages": [
+    {"ecosystem": "npm", "name": "prx-synthetic-demo", "version": "1.0.0", "public": true},
+    {"ecosystem": "PyPI", "name": "prx_synthetic_demo", "version": "1.0", "public": true},
+    {"ecosystem": "crates.io", "name": "prx-synthetic-demo", "version": "1.0.0", "public": true},
+    {"ecosystem": "Go", "name": "example.org/prx-synthetic-demo", "version": "v1.0.0", "public": true},
+    {"ecosystem": "npm", "name": "@private/internal-demo", "version": "9.0.0", "public": false, "decision": "review"}
+  ]
+}

@@ -29,6 +29,7 @@ export function LiveRequests({
   height?: string;
 }) {
   const [events, setEvents] = useState<RowState[]>([]);
+  const [backlogGap, setBacklogGap] = useState(false);
   // Allowed brokered "dial" actions are the plumbing behind a plugin
   // endpoint (an AWS API call's gateway→AWS dial); they carry no metadata
   // and just clutter the log, so hide them by default. Denied dials are a
@@ -38,8 +39,10 @@ export function LiveRequests({
 
   useEffect(() => {
     setEvents([]);
+    setBacklogGap(false);
     const url = agentIP ? `/api/events?agent=${encodeURIComponent(agentIP)}` : "/api/events";
     const es = new EventSource(url);
+    es.addEventListener("backlog-gap", () => setBacklogGap(true));
 
     // Batched render: SSE can fire dozens of events per second on a
     // busy gateway (start + frame + end per request). setState every
@@ -75,6 +78,17 @@ export function LiveRequests({
         /* ignore */
       }
     });
+    const end = () => {
+      es.close();
+      pending = [];
+      setEvents([]);
+      setBacklogGap(false);
+      if (raf !== 0) cancelAnimationFrame(raf);
+    };
+    window.addEventListener("prx-support-ended", end);
+    es.addEventListener("session-ended", () =>
+      window.dispatchEvent(new Event("prx-support-ended")),
+    );
     es.onmessage = (e) => {
       try {
         pending.push(JSON.parse(e.data) as EventRecord);
@@ -84,6 +98,7 @@ export function LiveRequests({
       }
     };
     return () => {
+      window.removeEventListener("prx-support-ended", end);
       es.close();
       if (raf !== 0) cancelAnimationFrame(raf);
     };
@@ -97,6 +112,11 @@ export function LiveRequests({
       className="flex flex-col bg-canvas border-1.5 border-navy overflow-hidden"
       style={{ height: height ?? "420px" }}
     >
+      {backlogGap && (
+        <p role="status" className="px-4 py-2 text-text-muted">
+          Some older requests have left the live buffer. The retained requests are shown.
+        </p>
+      )}
       <div className="flex items-center px-4 py-2.5 text-xs font-mono uppercase tracking-wider text-navy font-bold bg-navy-100 border-b border-navy shrink-0">
         <span>Live requests</span>
         <span className="ml-2 text-success-500 tabular-nums flex items-center gap-1">

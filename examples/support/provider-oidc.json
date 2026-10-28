@@ -1,0 +1,18 @@
+{
+  "issuer": "https://idp.example",
+  "client_id": "prx-provider",
+  "client_secret_file": "/var/lib/prx-provider/oidc-client.secret",
+  "authorization_endpoint": "https://idp.example/authorize",
+  "token_endpoint": "https://idp.example/token",
+  "jwks_endpoint": "https://idp.example/jwks",
+  "introspection_endpoint": "https://idp.example/introspect",
+  "introspection_client_id": "prx-provider-introspection",
+  "introspection_client_secret_file": "/var/lib/prx-provider/introspection.secret",
+  "introspection_auth_method": "client_secret_basic",
+  "allowed_signing_algorithms": [
+    "RS256"
+  ],
+  "mfa_acr_values": [
+    "urn:example:assurance:mfa"
+  ]
+}

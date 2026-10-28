@@ -1,7 +1,7 @@
 // Settings page. Credentials declared in gateway.hcl render at the
 // top; the gateway.hcl viewer below shows the running config in
-// read-only mode. The gateway no longer accepts dashboard-driven
-// config edits — operators push HCL via SSH from a separate repo.
+// read-only mode. Ordinary config writes remain governed by
+// dashboard_config_writes. Support cannot apply arbitrary HCL.
 
 import { useEffect, useState } from "react";
 import { getConfigHCL, type Integration } from "../lib/api";
@@ -14,30 +14,55 @@ export function SettingsPage({
   integrations,
   onConnect,
   onRefresh,
+  support = false,
 }: {
   integrations: Integration[];
   onConnect: (id: string) => void;
   onRefresh: () => void;
+  support?: boolean;
 }) {
   return (
     <Main>
       <PageTitle trail={[{ label: "Settings" }]} />
+      {support ? (
+        <section className="bg-canvas border-1.5 border-navy p-4 space-y-3">
+          <h2 className="font-bold">Support settings view</h2>
+          <p>
+            Connection status and profiles remain visible. Secrets, credential changes and arbitrary
+            HCL changes are unavailable during support.
+          </p>
+          <ul>
+            {integrations.map((i) => (
+              <li key={i.id}>
+                {i.name} · {i.connected ? "Connected" : "Disconnected"} ·{" "}
+                {(i.profiles ?? []).join(", ")}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <>
+          <section className="space-y-3">
+            <h2 className="font-mono text-xs uppercase tracking-wider text-navy font-bold">
+              Credentials
+            </h2>
+            {integrations.length === 0 ? (
+              <div className="bg-canvas border-1.5 border-navy px-4 py-6 text-xs text-text-subtle">
+                No credentials declared in gateway.hcl yet. Add a credential block to connect
+                Anthropic / GitHub / Notion / Postgres / etc. here.
+              </div>
+            ) : (
+              <CredentialsTypeGrid
+                list={integrations}
+                onConnect={onConnect}
+                onRefresh={onRefresh}
+              />
+            )}
+          </section>
 
-      <section className="space-y-3">
-        <h2 className="font-mono text-xs uppercase tracking-wider text-navy font-bold">
-          Credentials
-        </h2>
-        {integrations.length === 0 ? (
-          <div className="bg-canvas border-1.5 border-navy px-4 py-6 text-xs text-text-subtle">
-            No credentials declared in gateway.hcl yet. Add a credential block to connect Anthropic
-            / GitHub / Notion / Postgres / etc. here.
-          </div>
-        ) : (
-          <CredentialsTypeGrid list={integrations} onConnect={onConnect} onRefresh={onRefresh} />
-        )}
-      </section>
-
-      <ConfigSection />
+          <ConfigSection />
+        </>
+      )}
     </Main>
   );
 }
@@ -59,7 +84,7 @@ function ConfigSection() {
           <h2 className="font-mono text-xs uppercase tracking-wider text-navy font-bold">
             Configuration · gateway.hcl
             <span className="ml-2 normal-case tracking-normal font-normal text-navy/70">
-              · read-only (push edits via your config repo)
+              · read-only viewer. Ordinary API edits require dashboard_config_writes.
             </span>
           </h2>
         </div>

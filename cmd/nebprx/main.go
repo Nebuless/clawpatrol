@@ -378,6 +378,10 @@ type gatewayDialer interface {
 }
 
 type Gateway struct {
+	support               *supportConnector
+	supportRegistryHealth func(context.Context) string
+	supportStop           context.CancelFunc
+	supportDone           chan struct{}
 	// credSaveLocks serialises /api/credentials/set and /clear per
 	// credential id (value: *sync.Mutex). The save handler snapshots
 	// the stored slots, probes the provider and records the outcome;
@@ -3524,6 +3528,12 @@ func main() {
 	switch os.Args[1] {
 	case "gateway":
 		runGateway(os.Args[2:])
+	case "provider":
+		runProvider(os.Args[2:])
+	case "support":
+		runSupport(os.Args[2:])
+	case "registry":
+		runRegistry(os.Args[2:])
 	case "join":
 		runJoin(os.Args[2:])
 	case "run":
@@ -3632,6 +3642,9 @@ func usage() {
 
 usage:
   nebprx gateway <config.hcl>        run the gateway server
+  nebprx registry --mode server|client [flags]  vulnerability intelligence registry
+  nebprx provider [flags]           manage or serve the Provider control plane
+  nebprx support [flags]            configure customer-approved support access
   nebprx join [flags] <gateway-url>  onboard this machine via wg device flow
                   --hostname NAME        device name to register (default: os.Hostname)
                   --profile NAME         suggest a profile for the approver
@@ -3691,12 +3704,14 @@ HCL reference:
 // supposed to do with a half-initialized gateway.
 func runGateway(args []string) {
 	fs := flag.NewFlagSet("gateway", flag.ExitOnError)
+	registryOpts := registryFlags(fs, "registry-")
+	supportConfigFile := fs.String("support-config-file", "", "owner-only opt-in support configuration")
 	setDashboardPassword := fs.String("set-dashboard-password", "",
 		"upsert the dashboard root password from this value, then continue starting (skips the first-run web flow)")
 	resetDashboardPassword := fs.Bool("reset-dashboard-password", false,
 		"delete the stored dashboard root password before starting (the next dashboard hit goes back to first-run)")
 	seedHook := devSeedAttach(fs)
-	fs.Usage = func() { fmt.Fprintln(os.Stderr, gatewayHelp) }
+	fs.Usage = func() { fmt.Fprintln(os.Stderr, gatewayHelp); fs.PrintDefaults() }
 	_ = fs.Parse(args)
 	rest := fs.Args()
 	if len(rest) != 1 {
@@ -3704,6 +3719,17 @@ func runGateway(args []string) {
 		os.Exit(2)
 	}
 	cfgPath := rest[0]
+	registrySvc, registryErr := startGatewayRegistry(registryOpts)
+	if registryErr != nil && !errors.Is(registryErr, errRegistryDisabled) {
+		log.Fatalf("registry startup: %v", registryErr)
+	}
+	if registrySvc != nil {
+		go func() {
+			if err := <-registrySvc.Errors; err != nil {
+				log.Fatalf("registry lifecycle: %v", err)
+			}
+		}()
+	}
 
 	startModelRefresh()
 	pluginMgr := extplugin.New(log.Default())
@@ -3799,6 +3825,9 @@ func runGateway(args []string) {
 		agents:    NewAgentRegistry(),
 		hitl:      newHITLRegistry(sink),
 		onboard:   newOnboardRegistry(),
+	}
+	if registrySvc != nil {
+		g.supportRegistryHealth = registrySvc.Store.SupportHealth
 	}
 	g.cfg.Store(cfg)
 	// A tunnel plugin opens its transport through the gateway's brokered
@@ -3902,7 +3931,10 @@ func runGateway(args []string) {
 	// The listen loop below blocks runGateway, so the goroutine
 	// terminates via os.Exit — preserves the daemon-style single-
 	// exit-site discipline (the loop never returns).
-	installGatewayShutdown(g, otelShutdown)
+	if err := g.startSupport(context.Background(), *supportConfigFile); err != nil {
+		log.Fatalf("support: %v", err)
+	}
+	installGatewayShutdown(g, registryGatewayShutdown(registrySvc, otelShutdown))
 
 	seedHook.Run(context.Background(), g)
 
@@ -4248,6 +4280,10 @@ func installGatewayShutdown(g *Gateway, otelShutdown func(context.Context) error
 // best-effort: any single failure logs and moves on so a wedged
 // collaborator can't strand WAL checkpointing.
 func runGatewayShutdown(g *Gateway, otelShutdown func(context.Context) error) {
+	if g != nil && g.supportStop != nil {
+		g.supportStop()
+		<-g.supportDone
+	}
 	runShutdownFlush(otelShutdown, gatewayOtelShutdownTimeout)
 	if g != nil && g.sink != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), gatewaySinkShutdownTimeout)

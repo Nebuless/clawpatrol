@@ -1545,7 +1545,7 @@ func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname s
 	// gateway. tsnetJoin marks the tailscale paths.
 	tsnetJoin := !strings.HasPrefix(loginServer, "wireguard://")
 	if tsnetJoin && runtime.GOOS == "darwin" {
-		return false, fmt.Errorf("Tailscale client routing is not supported on macOS; use a WireGuard gateway with --whole-machine")
+		return false, fmt.Errorf("client routing through Tailscale is not supported on macOS; use a WireGuard gateway with --whole-machine")
 	}
 	var canonicalCA []byte
 	if tsnetJoin {

@@ -154,3 +154,49 @@ pre > code.config-diff-view.diff-highlight .token.deleted:not(.prefix) {
   color: #f8fafc;
   user-select: none;
 }
+
+:root[data-theme="dark"] .prx-wordmark img {
+  content: url("../public/prx-icon-light.svg");
+}
+:root[data-theme="dark"] .bg-rust-400.text-navy {
+  color: var(--color-navy-900);
+}
+/* Dashboard-only Clear Glass dark surfaces. Shared brand ramps stay intact. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-canvas: var(--color-canvas-950);
+  --color-canvas-light: var(--color-canvas-900);
+  --color-canvas-muted: var(--color-canvas-800);
+  --color-canvas-dark: var(--color-canvas-600);
+  --color-text: var(--color-canvas-100);
+  --color-text-muted: var(--color-canvas-300);
+  --color-text-subtle: var(--color-canvas-400);
+  --color-navy: var(--color-canvas-300);
+  --color-navy-50: var(--color-canvas-900);
+  --color-navy-100: var(--color-canvas-800);
+  --color-rust: var(--color-rust-300);
+}
+:root[data-theme="dark"] :is(.bg-butter-50, .bg-butter-100) {
+  background-color: var(--color-butter-950);
+  color: var(--color-butter-100);
+}
+:root[data-theme="dark"] :is(.bg-danger-50, .bg-danger-100) {
+  background-color: var(--color-danger-950);
+  color: var(--color-danger-100);
+}
+:root[data-theme="dark"] :is(.bg-success-50, .bg-success-100) {
+  background-color: var(--color-success-950);
+  color: var(--color-success-100);
+}
+:root[data-theme="dark"] :is(.text-navy-700, .text-navy-600, .text-rust-600, .text-rust-700) {
+  color: var(--color-rust-300);
+}
+:root[data-theme="dark"] :is(.text-danger-600, .text-danger-700) {
+  color: var(--color-danger-300);
+}
+:root[data-theme="dark"] :is(.text-success-600, .text-success-700) {
+  color: var(--color-success-300);
+}
+:root[data-theme="dark"] :is(.text-butter-700, .text-butter-900) {
+  color: var(--color-butter-300);
+}

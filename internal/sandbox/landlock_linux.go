@@ -72,9 +72,9 @@ func applyLandlock(spec Spec) error {
 		return fmt.Errorf("landlock: kernel support missing")
 	}
 	fsMask := landlockFSMask(abi)
-	attr := unix.LandlockRulesetAttr{Access_fs: fsMask}
+	attr := unix.LandlockRulesetAttr{Handled_access_fs: fsMask}
 	if abi >= 4 && spec.Network == NetworkNone {
-		attr.Access_net = unix.LANDLOCK_ACCESS_NET_BIND_TCP | unix.LANDLOCK_ACCESS_NET_CONNECT_TCP
+		attr.Handled_access_net = unix.LANDLOCK_ACCESS_NET_BIND_TCP | unix.LANDLOCK_ACCESS_NET_CONNECT_TCP
 	}
 	fd, _, errno := unix.Syscall(unix.SYS_LANDLOCK_CREATE_RULESET,
 		uintptr(unsafe.Pointer(&attr)), unsafe.Sizeof(attr), 0)

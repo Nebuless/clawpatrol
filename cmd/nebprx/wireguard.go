@@ -695,6 +695,18 @@ func (s *WGServer) RevokePeerByIP(ip string) {
 	_, _ = s.db.Exec("DELETE FROM wg_peers WHERE ip = ?", ip)
 }
 
+func (s *WGServer) removeSupportPeers(keys []string) error {
+	if s == nil || s.dev == nil {
+		return fmt.Errorf("WireGuard device unavailable")
+	}
+	for _, key := range keys {
+		if err := s.dev.IpcSet(fmt.Sprintf("public_key=%s\nremove=true\n", key)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // loadOrGenWGServerKey returns the gateway's WG server private key in
 // hex (the format wireguard-go's IpcSet expects). Reads from the
 // wg_server_key sqlite row; mints + persists on first call.

@@ -95,25 +95,36 @@ const (
 )
 
 type webRoute struct {
-	Method  string
-	Path    string
-	Auth    authRequirement
-	Handler http.HandlerFunc
+	SupportPolicy supportPolicy
+	Method        string
+	Path          string
+	Auth          authRequirement
+	Handler       http.HandlerFunc
 }
+
+type supportPolicy uint8
+
+const (
+	supportDeny supportPolicy = iota
+	supportAllow
+)
 
 type principalKind string
 
 const (
 	principalDashboardPassword principalKind = "dashboard_password"
 	principalTailnet           principalKind = "tailnet"
+	principalSupport           principalKind = "support"
 )
 
 type principal struct {
-	Kind   principalKind
-	Owner  string
-	User   string
-	Device string
-	Host   string
+	Authority, Subject                                                                               string
+	ActorID, ActorName, EffectiveID, EffectiveName, OrganizationID, InstallationID, SupportSessionID string
+	Kind                                                                                             principalKind
+	Owner                                                                                            string
+	User                                                                                             string
+	Device                                                                                           string
+	Host                                                                                             string
 }
 
 type principalContextKey struct{}
@@ -134,7 +145,11 @@ func principalFromContext(ctx context.Context) (principal, bool) {
 }
 
 func (w *webMux) dashboardPasswordPrincipal() principal {
-	return principal{Kind: principalDashboardPassword, Owner: dashboardRootUsername}
+	p := principal{Kind: principalDashboardPassword, Owner: dashboardRootUsername}
+	if a, err := resolveDashboardAccount(w.g.db, "password", "local", dashboardRootUsername, dashboardRootUsername); err == nil {
+		p.ActorID, p.ActorName, p.EffectiveID, p.EffectiveName = a.ID, a.Name, a.ID, a.Name
+	}
+	return p
 }
 
 func routeAuthIndex(routes []webRoute) map[string]authRequirement {
@@ -231,23 +246,23 @@ func (w *webMux) handler() http.Handler {
 }
 
 func (w *webMux) routes() []webRoute {
-	return []webRoute{
+	return append(w.supportRoutes(), []webRoute{
 		{Method: http.MethodGet, Path: "/info", Auth: authPublic, Handler: w.serveInfo},
 		{Method: http.MethodGet, Path: "/ca.crt", Auth: authPublic, Handler: w.serveCA},
 		// /api/whoami + /api/agents are gone — superseded by /api/state.
 		// /api/status stays because DevicePage scopes it with ?profile=.
-		{Method: http.MethodGet, Path: "/api/status", Auth: authDashboard, Handler: w.apiStatus},
+		{Method: http.MethodGet, Path: "/api/status", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiStatus},
 		// /api/state is the dashboard's single-call refresh endpoint —
 		// bundles whoami+status+agents in one round-trip and returns 304
 		// when the JSON hash matches If-None-Match. Replaces the three
 		// parallel per-3s fetches App.refresh used to fire.
-		{Method: http.MethodGet, Path: "/api/state", Auth: authDashboard, Handler: w.apiState},
-		{Method: http.MethodPost, Path: "/api/agents/delete", Auth: authDashboard, Handler: w.apiAgentDelete},
-		{Method: http.MethodPost, Path: "/api/agents/profile", Auth: authDashboard, Handler: w.apiAgentProfile},
-		{Method: http.MethodGet, Path: "/api/profiles", Auth: authDashboard, Handler: w.apiProfiles},
-		{Method: http.MethodGet, Path: "/api/plugins", Auth: authDashboard, Handler: w.apiPlugins},
+		{Method: http.MethodGet, Path: "/api/state", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiState},
+		{Method: http.MethodPost, Path: "/api/agents/delete", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiAgentDelete},
+		{Method: http.MethodPost, Path: "/api/agents/profile", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiAgentProfile},
+		{Method: http.MethodGet, Path: "/api/profiles", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiProfiles},
+		{Method: http.MethodGet, Path: "/api/plugins", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiPlugins},
 		{Method: http.MethodPost, Path: "/api/plugins/approve", Auth: authDashboard, Handler: w.apiPluginApprove},
-		{Method: http.MethodGet, Path: "/api/rules", Auth: authDashboard, Handler: w.apiRules},
+		{Method: http.MethodGet, Path: "/api/rules", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiRules},
 		{Method: http.MethodGet, Path: "/api/config", Auth: authDashboard, Handler: w.apiConfig},
 		{Method: http.MethodPost, Path: "/api/config/apply", Auth: authDashboard, Handler: w.apiConfigApply},
 		{Method: http.MethodGet, Path: "/api/hitl/pending", Auth: authDashboard, Handler: w.apiHITLPending},
@@ -263,11 +278,11 @@ func (w *webMux) routes() []webRoute {
 		{Method: http.MethodPost, Path: "/api/tailscale/disconnect", Auth: authDashboard, Handler: w.apiTailscaleDisconnect},
 		{Method: http.MethodPost, Path: "/api/credentials/set", Auth: authDashboard, Handler: w.apiCredentialsSet},
 		{Method: http.MethodPost, Path: "/api/credentials/clear", Auth: authDashboard, Handler: w.apiCredentialsClear},
-		{Method: http.MethodGet, Path: "/api/events", Auth: authDashboard, Handler: w.apiEventsSSE},
-		{Method: http.MethodPost, Path: "/api/actions/rule-preview", Auth: authDashboard, Handler: w.apiActionRulePreview},
-		{Method: http.MethodGet, Path: "/api/actions/", Auth: authDashboard, Handler: w.apiActionByID},
-		{Method: http.MethodGet, Path: "/api/analytics", Auth: authDashboard, Handler: w.apiAnalytics},
-		{Method: http.MethodGet, Path: "/api/facets", Auth: authDashboard, Handler: w.apiFacets},
+		{Method: http.MethodGet, Path: "/api/events", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiEventsSSE},
+		{Method: http.MethodPost, Path: "/api/actions/rule-preview", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiActionRulePreview},
+		{Method: http.MethodGet, Path: "/api/actions/", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiActionByID},
+		{Method: http.MethodGet, Path: "/api/analytics", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiAnalytics},
+		{Method: http.MethodGet, Path: "/api/facets", SupportPolicy: supportAllow, Auth: authDashboard, Handler: w.apiFacets},
 		{Method: http.MethodPost, Path: "/api/onboard/start", Auth: authPublic, Handler: w.apiOnboardStart},
 		{Method: http.MethodPost, Path: "/api/onboard/poll", Auth: authPublic, Handler: w.apiOnboardPoll},
 		{Method: http.MethodPost, Path: "/api/onboard/approve", Auth: authDashboardOrTailnetOperator, Handler: w.apiOnboardApprove},
@@ -288,7 +303,7 @@ func (w *webMux) routes() []webRoute {
 		// session to clear; the dashboard SPA disables the button for
 		// them rather than calling this endpoint).
 		{Method: http.MethodPost, Path: "/__logout", Auth: authDashboard, Handler: w.apiDashboardLogout},
-	}
+	}...)
 }
 
 // dashboardAuthGate requires every non-public request to carry a
@@ -619,12 +634,13 @@ func (w *webMux) tailnetGate(next http.Handler) http.Handler {
 		if i := strings.LastIndex(host, ":"); i >= 0 {
 			host = host[:i]
 		}
-		var login, device, displayHost string
+		var login, device, displayHost, subject string
 		if w.g.agents != nil {
 			if who := w.g.agents.lookupWhois(host); who != nil {
 				login = who.UserProfile.LoginName
 				device = who.Node.StableID
 				displayHost = who.Node.HostName
+				subject = who.UserProfile.ID
 			}
 		}
 		if login == "" {
@@ -654,6 +670,12 @@ func (w *webMux) tailnetGate(next http.Handler) http.Handler {
 			}
 		}
 		principal := principal{Kind: principalTailnet, Owner: login, User: login, Device: device, Host: displayHost}
+		principal.Authority, principal.Subject = w.tailnetAuthority(), subject
+		if w.g.support != nil && subject != "" && subject != "0" && w.tailnetMembership(principal.Authority, subject, login) {
+			if a, err := resolveDashboardAccount(w.g.db, "tailnet", principal.Authority, subject, login); err == nil {
+				principal.ActorID, principal.ActorName, principal.EffectiveID, principal.EffectiveName = a.ID, a.Name, a.ID, a.Name
+			}
+		}
 		next.ServeHTTP(rw, r.WithContext(contextWithPrincipal(r.Context(), principal)))
 	})
 }
@@ -1174,6 +1196,7 @@ func (w *webMux) apiState(rw http.ResponseWriter, r *http.Request) {
 		"update":                  currentUpdateBanner.Load(),
 		"config_file":             filepath.Base(w.g.cfgPath),
 		"dashboard_config_writes": w.g.cfg.Load().DashboardConfigWrites(),
+		"support_available":       w.g.support != nil,
 	}
 	body, err := json.Marshal(state)
 	if err != nil {

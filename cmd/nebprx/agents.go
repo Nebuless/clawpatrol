@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -280,7 +281,7 @@ func (r *AgentRegistry) lookupWhois(ip string) *whoisResult {
 		res.Node = whoisNode{StableID: string(who.Node.StableID), HostName: who.Node.Hostinfo.Hostname()}
 	}
 	if who.UserProfile != nil {
-		res.UserProfile = whoisProfile{LoginName: who.UserProfile.LoginName}
+		res.UserProfile = whoisProfile{LoginName: who.UserProfile.LoginName, ID: fmt.Sprint(who.UserProfile.ID)}
 	}
 	return res
 }
@@ -290,7 +291,7 @@ type whoisResult struct {
 	UserProfile whoisProfile
 }
 type whoisNode struct{ StableID, HostName string }
-type whoisProfile struct{ LoginName string }
+type whoisProfile struct{ LoginName, ID string }
 
 func (r *AgentRegistry) fillIdentity(ip string) {
 	addr, err := netip.ParseAddr(ip)

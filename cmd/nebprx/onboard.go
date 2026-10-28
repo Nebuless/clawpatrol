@@ -691,6 +691,13 @@ func (r *onboardRegistry) ClaimAliasResolve(ip string, within time.Duration) boo
 func (r *onboardRegistry) ForgetIP(ip string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.forgetMemoryLocked(ip)
+	if r.db != nil {
+		_, _ = r.db.Exec("DELETE FROM devices WHERE id = ?", ip)
+	}
+}
+
+func (r *onboardRegistry) forgetMemoryLocked(ip string) {
 	delete(r.ownerByIP, ip)
 	delete(r.hostnameByIP, ip)
 	delete(r.profileByIP, ip)
@@ -708,9 +715,6 @@ func (r *onboardRegistry) ForgetIP(ip string) {
 			delete(r.canonicalByAlias, alias)
 			delete(r.profileByIP, alias)
 		}
-	}
-	if r.db != nil {
-		_, _ = r.db.Exec("DELETE FROM devices WHERE id = ?", ip)
 	}
 }
 

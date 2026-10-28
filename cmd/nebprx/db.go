@@ -57,6 +57,10 @@ func OpenDB(path string) (*sql.DB, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
+	if err := backfillDashboardAccounts(db); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("account backfill: %w", err)
+	}
 	return db, nil
 }
 
@@ -119,6 +123,12 @@ func migrate(db *sql.DB) error {
 		if err != nil {
 			return fmt.Errorf("migrate %s: read file: %w", p.name, err)
 		}
+		if p.num >= 25 {
+			if err := applyAtomicMigration(db, p.num, string(body)); err != nil {
+				return fmt.Errorf("migrate %s: %w", p.name, err)
+			}
+			continue
+		}
 		if _, err := db.Exec(string(body)); err != nil {
 			return fmt.Errorf("migrate %s: apply: %w", p.name, err)
 		}
@@ -137,4 +147,21 @@ func migrate(db *sql.DB) error {
 		log.Printf("[migrate] applied %s", p.name)
 	}
 	return nil
+}
+
+// Older migration files keep their historical execution semantics.
+// New DDL and its version marker must commit together.
+func applyAtomicMigration(db *sql.DB, version int, body string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(body); err != nil {
+		return err
+	}
+	if _, err := tx.Exec("INSERT INTO _schema(version) VALUES(?)", version); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

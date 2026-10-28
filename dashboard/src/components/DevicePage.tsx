@@ -28,6 +28,7 @@ export function DevicePage({
   onBack,
   onConnect,
   onRefresh,
+  support = false,
 }: {
   ip: string;
   agents: Agent[];
@@ -36,6 +37,7 @@ export function DevicePage({
   onBack: () => void;
   onConnect: (id: string) => void;
   onRefresh: () => void;
+  support?: boolean;
 }) {
   const a = useMemo(() => agents.find((x) => x.ip === ip) ?? null, [agents, ip]);
   const [profiles, setProfiles] = useState<string[]>([]);
@@ -204,7 +206,7 @@ export function DevicePage({
       {/* pending approvals awaiting a decision for this device — same
           cards as the home page, scoped to this device's agent IP.
           Renders nothing when there are none. */}
-      <HITLBar agentIP={a.ip} />
+      {!support && <HITLBar agentIP={a.ip} />}
 
       {/* agents (sessions) running on this device */}
       <SessionsTable sessions={a.sessions ?? []} />
