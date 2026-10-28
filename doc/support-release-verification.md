@@ -1,5 +1,9 @@
 # Support release verification
 
+This records the baseline feature release. Subsequent PR #1 OIDC continuation
+and support action-control corrections are recorded in
+[PR feedback verification](support-pr1-feedback-verification.md).
+
 Coordinator evidence, 2026-10-28. Current status supersedes historical worker
 handoffs in [support-implementation.md](support-implementation.md).
 The repository implementation, dependency/lint corrections and final lifecycle

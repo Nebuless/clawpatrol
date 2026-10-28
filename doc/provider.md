@@ -53,7 +53,9 @@ nebprx provider --action installation-enroll --state-dir /var/lib/prx-provider \
 
 Output must not exist. Enrollment secret expires after five minutes and is consumed once. Transfer privately to gateway operator, run gateway enrollment, then remove transient copies under approved retention policy. A failed output write can occur after registration, so inspect current installation before repeating. Re-enrollment is not a CLI idempotency guarantee. Existing-installation key/connector rotation needs coordinated owner-controlled store tooling and verification, not direct ad hoc SQL in production.
 
-Open Provider, authenticate with MFA, choose organization/installation, assign a named technician to the case. Customer issues code after assignment. Assigned technician enters it and posts the one-use activation form. Activation returns a same-origin continuation page so Strict cookies work after cross-site navigation. No token appears in its URL. Support origin receives only its host-only support cookie, not a customer login cookie.
+After MFA, the callback displays a sign-in completion page. Click **Continue to Provider** to enter management from the Provider origin with its Strict session cookie. A manual reload is not required.
+
+Choose organization/installation and assign a named technician to the case. Customer issues code after assignment. Assigned technician enters it and posts the one-use activation form. Activation returns a same-origin continuation page so Strict cookies work after cross-site navigation. No token appears in its URL. Support origin receives only its host-only support cookie, not a customer login cookie.
 
 ## Disable, incident response and recovery
 

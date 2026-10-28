@@ -130,6 +130,37 @@ func TestOIDCRealSignedCallbackAndTrustFailures(t *testing.T) {
 		t.Fatal("logout retained session")
 	}
 }
+
+func TestOIDCCallbackCommitsOriginBeforeStrictSessionNavigation(t *testing.T) {
+	a, _ := oidcFixture(t)
+	state, browser, code := oidcCode(t, a)
+	s := &Server{Auth: a, Store: a.store, PublicURL: "https://provider.example", SupportDomain: "support.example"}
+	callback := s.PublicURL + "/__provider/oidc/callback?" + url.Values{"state": {state}, "code": {code}}.Encode()
+	r := httptest.NewRequest(http.MethodGet, callback, nil)
+	r.AddCookie(&http.Cookie{Name: "__Host-prx_login", Value: browser})
+	r.Header.Set("Sec-Fetch-Site", "cross-site")
+	w := httptest.NewRecorder()
+	s.ServeHTTP(w, r)
+	if w.Code != http.StatusOK || w.Header().Get("Location") != "" || !strings.Contains(w.Body.String(), "href='/'") || !strings.Contains(w.Body.String(), "Continue to Provider") {
+		t.Fatalf("callback did not commit a continuation document: %d %q", w.Code, w.Body.String())
+	}
+	var session *http.Cookie
+	for _, cookie := range w.Result().Cookies() {
+		if cookie.Name == providerCookie {
+			session = cookie
+		}
+	}
+	if session == nil || session.Value == "" || !session.Secure || !session.HttpOnly || session.SameSite != http.SameSiteStrictMode || session.Path != "/" || session.Domain != "" {
+		t.Fatalf("session cookie protections changed: %#v", session)
+	}
+	r = httptest.NewRequest(http.MethodGet, s.PublicURL+"/__provider/session", nil)
+	r.AddCookie(session)
+	w = httptest.NewRecorder()
+	s.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("continuation session unavailable: %d", w.Code)
+	}
+}
 func TestOIDCRejectsSignedAuthorizedParty(t *testing.T) {
 	for _, azp := range []string{"", "other-client"} {
 		t.Run("azp="+azp, func(t *testing.T) {

@@ -310,6 +310,14 @@ func TestSupportProcessAcceptance(t *testing.T) {
 		if _, e = db.Exec("INSERT INTO devices(id,profile,created_ns,last_seen_ns) VALUES('10.55.0.2','default',1,1),('2001:db8::2','default',1,1)"); e != nil {
 			t.Fatal(e)
 		}
+		sink, err := NewSink(db, 4)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sink.Emit(Event{ID: "fixture-support-action", Mode: "mitm", Family: "http", AgentIP: "10.55.0.2", Host: "public.example", Method: "GET", Path: "/", Endpoint: "public", Action: "allow", Status: "200", ReqBodyState: bodyCaptureComplete})
+		if err := sink.Close(context.Background()); err != nil {
+			t.Fatal(err)
+		}
 		account, err := resolveDashboardAccount(db, "password", "local", "root", "root")
 		if err != nil {
 			t.Fatal(err)
@@ -400,7 +408,7 @@ func TestSupportProcessAcceptance(t *testing.T) {
 	callback := resp.Header.Get("Location")
 	fixtureRead(t, resp, 303, nil)
 	_ = resp.Body.Close()
-	fixtureDo(t, client, "GET", callback, "", "", nil, 303, nil)
+	fixtureDo(t, client, "GET", callback, "", "", nil, 200, nil)
 	other := fixtureClient(t, f)
 	otherResponse := fixtureRequest(t, other, "GET", f.Provider+"/__provider/oidc/login", "", "", nil)
 	otherLocation := otherResponse.Header.Get("Location")
@@ -410,7 +418,7 @@ func TestSupportProcessAcceptance(t *testing.T) {
 	otherCallback := otherResponse.Header.Get("Location")
 	fixtureRead(t, otherResponse, 303, nil)
 	_ = otherResponse.Body.Close()
-	fixtureDo(t, other, "GET", otherCallback, "", "", nil, 303, nil)
+	fixtureDo(t, other, "GET", otherCallback, "", "", nil, 200, nil)
 	for j, role := range []string{"gateway-a", "gateway-b"} {
 		gateway := f.Gateways[j]
 		fixtureDo(t, client, "POST", gateway+"/__login", gateway, "application/x-www-form-urlencoded", strings.NewReader("password=synthetic-password"), 302, nil)

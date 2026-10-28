@@ -44,7 +44,15 @@ function approverKindLabel(type?: string): string {
   }
 }
 
-export function RequestDetailPage({ id, agents }: { id: string; agents: Agent[] }) {
+export function RequestDetailPage({
+  id,
+  agents,
+  support = false,
+}: {
+  id: string;
+  agents: Agent[];
+  support?: boolean;
+}) {
   const [ev, setEv] = useState<EventRecord | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const { byFamily } = useFacets();
@@ -128,7 +136,7 @@ export function RequestDetailPage({ id, agents }: { id: string; agents: Agent[] 
             {fullUrl}
           </span>
           <span className="ml-auto">
-            <ActionButtons ev={ev} />
+            <ActionButtons ev={ev} support={support} />
           </span>
         </div>
         <div className="flex items-center gap-4 text-xs text-text-muted flex-wrap">
@@ -227,7 +235,7 @@ export function RequestDetailPage({ id, agents }: { id: string; agents: Agent[] 
   );
 }
 
-function ActionButtons({ ev }: { ev: EventRecord }) {
+function ActionButtons({ ev, support }: { ev: EventRecord; support: boolean }) {
   const [ruleOpen, setRuleOpen] = useState(false);
   const canBlock = !!ev.id && ev.action !== "in_flight" && (!!ev.endpoint || ev.mode === "splice");
   return (
@@ -237,7 +245,7 @@ function ActionButtons({ ev }: { ev: EventRecord }) {
           Block requests like this
         </Button>
       )}
-      <DownloadActionButton ev={ev} />
+      {!support && <DownloadActionButton ev={ev} />}
       {ruleOpen && <RulePreviewModal ev={ev} onClose={() => setRuleOpen(false)} />}
     </div>
   );

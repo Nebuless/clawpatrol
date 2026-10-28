@@ -43,8 +43,9 @@ try {
     await provider.goto(f.Provider);
     await provider.getByRole("link", { name: "Sign in with technician MFA" }).click();
     await provider.getByRole("button", { name: "Complete synthetic MFA" }).click();
-    await provider.waitForURL(`${f.Provider}/`);
-    await provider.goto(f.Provider);
+    await provider.getByRole("link", { name: "Continue to Provider", exact: true }).waitFor();
+    assert.equal(new URL(provider.url()).pathname, "/__provider/oidc/callback");
+    await provider.getByRole("link", { name: "Continue to Provider", exact: true }).click();
     await provider.getByRole("heading", { name: "PRX Provider", exact: true }).waitFor();
     // Management requires technician MFA, never customer phone approval.
     await provider.getByLabel("Organization ID", { exact: true }).fill("browser-managed");
@@ -170,6 +171,10 @@ try {
       await page.goto(`${f.Gateways[index]}/__login`);
       await page.locator('input[name="password"]').fill("synthetic-password");
       await page.locator('button[type="submit"]').click();
+      await page.goto(`${f.Gateways[index]}/#/request/fixture-support-action`);
+      const fixtureDownload = page.waitForResponse((r) => r.url().includes("fmt=fixture"));
+      await page.getByRole("button", { name: "Download action", exact: true }).click();
+      assert.equal((await fixtureDownload).status(), 200, "customer fixture download unavailable");
       await page.goto(`${f.Gateways[index]}/#/account`);
       await page.getByRole("heading", { name: "Customer-approved support" }).waitFor();
       for (const [label, key, value] of [
@@ -345,14 +350,19 @@ try {
       assert.ok(
         !cookies.some((c) => c.name === "__Host-cp_session" || c.name === "__Host-prx_provider"),
       );
+      await provider.goto(`${origin}/#/request/fixture-support-action`);
+      await provider.getByRole("button", { name: "Block requests like this", exact: true }).waitFor();
+      assert.equal(await provider.getByRole("button", { name: "Download action", exact: true }).count(), 0, "support exposes forbidden fixture download");
+      await provider.getByRole("complementary", { name: "Support session", exact: true }).waitFor();
+      await provider.getByRole("heading", { name: "Support session ended", exact: true }).waitFor({ state: "hidden" });
       const denied = await provider.evaluate(async () => {
         const out = [];
-        for (const target of ["/api/config", "/api/future-unclassified", "/api/support/grants"]) {
+        for (const target of ["/api/config", "/api/future-unclassified", "/api/support/grants", "/api/actions/fixture-support-action?fmt=fixture"]) {
           out.push((await fetch(target, { cache: "no-store" })).status);
         }
         return out;
       });
-      assert.deepEqual(denied, [403, 403, 403]);
+      assert.deepEqual(denied, [403, 403, 403, 403]);
       for (const ip of ["10.55.0.2", "2001:db8::2"]) {
         await provider.goto(`${origin}/#/device/${encodeURIComponent(ip)}`);
         await provider.getByRole("complementary", { name: "Support session", exact: true }).waitFor();

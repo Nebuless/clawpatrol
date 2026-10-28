@@ -45,7 +45,8 @@ func (s *Server) providerHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		setCookie(w, providerCookie, token, 1800)
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = io.WriteString(w, "<!doctype html><title>PRX Provider ready</title><h1>Technician sign-in complete</h1><a href='/'>Continue to Provider</a>")
 		return
 	}
 	if r.Method != "GET" && r.Header.Get("Origin") != s.PublicURL {
