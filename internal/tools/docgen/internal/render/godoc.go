@@ -122,7 +122,7 @@ func commentText(g *ast.CommentGroup) string {
 	return strings.TrimSpace(g.Text())
 }
 
-// repoRoot resolves to the clawpatrol repo root by walking up from
+// repoRoot resolves to the nebprx repo root by walking up from
 // this file's location at compile time.
 func repoRoot() (string, error) {
 	_, file, _, ok := runtime.Caller(0)

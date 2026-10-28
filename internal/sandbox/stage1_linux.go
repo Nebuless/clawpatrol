@@ -13,7 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// stage1Payload rides CLAWPATROL_SANDBOX_SPEC from the gateway to the
+// stage1Payload rides NEBPRX_SANDBOX_SPEC from the gateway to the
 // re-exec'd child.
 type stage1Payload struct {
 	Spec Spec
@@ -23,9 +23,9 @@ type stage1Payload struct {
 // Stage1 is the env-gated re-exec entry point. Host binaries that
 // spawn plugins must call it as the first statement of main() (test
 // packages: from TestMain). In the parent it only records that the
-// hook is wired. In the re-exec'd child (CLAWPATROL_SANDBOX_STAGE1
+// hook is wired. In the re-exec'd child (NEBPRX_SANDBOX_STAGE1
 // set) it sets the sandbox up and execs the plugin binary — it never
-// returns. Setup failures print one "clawpatrol-sandbox:" line on
+// returns. Setup failures print one "nebprx-sandbox:" line on
 // stderr (stdout stays clean for the go-plugin handshake) and exit 87.
 func Stage1() {
 	stage1Wired = true
@@ -35,7 +35,7 @@ func Stage1() {
 	}
 	runtime.LockOSThread()
 	if err := stage1Main(action); err != nil {
-		fmt.Fprintf(os.Stderr, "clawpatrol-sandbox: %v\n", err)
+		fmt.Fprintf(os.Stderr, "nebprx-sandbox: %v\n", err)
 		os.Exit(stage1ExitCode)
 	}
 	// Only the probe action gets here; stage1Main execs otherwise.

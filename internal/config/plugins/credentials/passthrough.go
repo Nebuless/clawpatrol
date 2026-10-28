@@ -9,7 +9,7 @@ package credentials
 //   - No Runtime. The body satisfies none of the request-time
 //     injection interfaces (HTTPCredentialRuntime / HTTPRequestSigner /
 //     WebSocketCredentialRuntime / PostgresCredentialRuntime / …), so
-//     the gateway's injection block (cmd/clawpatrol/main.go) skips it
+//     the gateway's injection block (cmd/nebprx/main.go) skips it
 //     verbatim — no header, no SQL prepend, no WS rewrite — while the
 //     profile's policy rules still run on the request.
 //   - Empty struct body. gohcl rejects any attribute at decode time,
@@ -20,7 +20,7 @@ package credentials
 //     plugin's type is cosmetic and harmless.
 
 import (
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // Passthrough is a credential that injects nothing. It exists only as

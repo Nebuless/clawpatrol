@@ -24,8 +24,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 const llmJudgeSystem = `You are a security gate. Decide whether the operator's policy intends the gateway to ALLOW or DENY this request. The policy text is the source of truth.
@@ -58,7 +58,7 @@ type LLMApprover struct {
 	Policy string `hcl:"policy,optional"`
 }
 
-// Approve is part of the clawpatrol plugin API.
+// Approve is part of the PRX plugin API.
 func (a *LLMApprover) Approve(ctx context.Context, req runtime.ApproveRequest) (runtime.ApproveVerdict, error) {
 	if a.Model == "" {
 		return runtime.ApproveVerdict{Decision: "deny", Reason: "llm approver has no model"}, nil

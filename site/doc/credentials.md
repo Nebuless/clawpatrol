@@ -1,7 +1,7 @@
 # Credentials
 
 Agents call upstream APIs that want secrets — a GitHub PAT, an
-Anthropic key, a Postgres password. One of the things Claw Patrol
+Anthropic key, a Postgres password. One of the things PRX
 does, alongside the [rule engine](/docs/rules/) and the
 [approver flow](/docs/glossary/#approver), is hold those secrets
 on the gateway side and inject them at the wire so the agent
@@ -26,7 +26,7 @@ A credential has two parts that live in different places:
 - The **secret bytes** themselves — the PAT, the OAuth refresh
   token, the password. Live in the gateway's
   [secret store](/docs/glossary/#secret-store) (default: env vars
-  keyed `CLAWPATROL_SECRET_<UPPER_NAME>`, with `@/path/to/file`
+  keyed `NEBPRX_SECRET_<UPPER_NAME>`, with `@/path/to/file`
   shorthand for PEM bundles). Pasted via the dashboard for most
   operators. Never in HCL.
 
@@ -39,7 +39,7 @@ secret bytes from the store, and forwards.
 
 ```
         gateway.hcl              secret store
-       credential "github"      CLAWPATROL_SECRET_GITHUB
+       credential "github"      NEBPRX_SECRET_GITHUB
               │                          │
               └──────────┐    ┌──────────┘
                          ▼    ▼
@@ -55,8 +55,8 @@ SDKs read; the daemon ships the placeholder as the value. For
 example, the GitHub plugin contributes:
 
 ```
-GH_TOKEN=ghp_clawpatrol_placeholder_do_not_use
-GITHUB_TOKEN=ghp_clawpatrol_placeholder_do_not_use
+GH_TOKEN=ghp_nebprx_placeholder_do_not_use
+GITHUB_TOKEN=ghp_nebprx_placeholder_do_not_use
 ```
 
 `gh auth status`, the `octokit` SDK, GitHub Actions tooling — they
@@ -68,18 +68,18 @@ path; from its point of view, the env contains a real token.
 You can see the full set with:
 
 ```bash
-clawpatrol env
+nebprx env
 ```
 
-`clawpatrol run <cmd>` exports those env vars into `<cmd>`'s
+`nebprx run <cmd>` exports those env vars into `<cmd>`'s
 environment automatically. For long-lived shells, source them once
 via your shell rc:
 
 ```bash
-eval "$(clawpatrol env)"
+eval "$(nebprx env)"
 ```
 
-Set `CLAWPATROL_NO_ENV=1` to disable pushdown for a single
+Set `NEBPRX_NO_ENV=1` to disable pushdown for a single
 invocation.
 
 Generic credential types (`bearer_token`, `header_token`, `mtls`)
@@ -121,7 +121,7 @@ profile "default" {
 ```
 
 The agent under this profile gets
-`GITHUB_TOKEN=ghp_clawpatrol_placeholder_do_not_use` pushed into its
+`GITHUB_TOKEN=ghp_nebprx_placeholder_do_not_use` pushed into its
 env, calls `api.github.com` through the tunnel, and the gateway
 swaps in the real PAT. Most credentials live here.
 
@@ -166,8 +166,8 @@ manually before launching the workflow that should use that
 credential:
 
 ```bash
-GITHUB_TOKEN=PH_gh_prod    clawpatrol run ./prod-job
-GITHUB_TOKEN=PH_gh_staging clawpatrol run ./staging-job
+GITHUB_TOKEN=PH_gh_prod    nebprx run ./prod-job
+GITHUB_TOKEN=PH_gh_staging nebprx run ./staging-job
 ```
 
 The agent reads `GITHUB_TOKEN` normally; the gateway sees
@@ -198,14 +198,14 @@ backends, in this order:
    flow at first dashboard visit, then refreshes tokens
    automatically.
 3. **Env vars on the gateway host** —
-   `CLAWPATROL_SECRET_<UPPER_NAME>`, with hyphens normalized to
+   `NEBPRX_SECRET_<UPPER_NAME>`, with hyphens normalized to
    underscores. A credential named `github-prod` falls back to
-   `CLAWPATROL_SECRET_GITHUB_PROD`. Used as a last-resort
+   `NEBPRX_SECRET_GITHUB_PROD`. Used as a last-resort
    fallback for ops-by-deploy / systemd / Kubernetes workflows.
 
 For multi-slot credentials (mTLS in particular), each slot is its
 own env-var key under the credential's base name —
-`CLAWPATROL_SECRET_<NAME>_CERT`, `_KEY`, `_CA`. Single-slot
+`NEBPRX_SECRET_<NAME>_CERT`, `_KEY`, `_CA`. Single-slot
 credentials (`bearer_token`, `postgres_credential`, …) use the
 bare key.
 
@@ -213,8 +213,8 @@ Env-var values starting with `@` are read as a file path — keeps
 PEM bundles out of the env table:
 
 ```bash
-export CLAWPATROL_SECRET_K8S_PROD_CERT=@/etc/clawpatrol/k8s-prod.crt
-export CLAWPATROL_SECRET_K8S_PROD_KEY=@/etc/clawpatrol/k8s-prod.key
+export NEBPRX_SECRET_K8S_PROD_CERT=@/etc/nebprx/k8s-prod.crt
+export NEBPRX_SECRET_K8S_PROD_KEY=@/etc/nebprx/k8s-prod.key
 ```
 
 Dashboard-pasted values win over env vars when both exist — once

@@ -10,18 +10,18 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// ClickhouseHTTPSEndpoint is part of the clawpatrol plugin API.
+// ClickhouseHTTPSEndpoint is part of the PRX plugin API.
 type ClickhouseHTTPSEndpoint struct {
 	// Hosts is the set of ClickHouse HTTPS hostnames or host:port pairs
 	// this endpoint intercepts.
 	Hosts []string `hcl:"hosts"`
 }
 
-// EndpointHosts is part of the clawpatrol plugin API.
+// EndpointHosts is part of the PRX plugin API.
 func (e *ClickhouseHTTPSEndpoint) EndpointHosts() []string { return e.Hosts }
 
 // ClickhouseHTTPSEndpointRuntime is the per-request handler. The

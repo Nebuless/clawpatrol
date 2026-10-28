@@ -1,30 +1,30 @@
 # CLI Reference
 
-The `clawpatrol` binary is the unified entry point for both the
+The `nebprx` binary is the unified entry point for both the
 gateway server and the client tools. Same binary, different
 subcommands.
 
 ## Install
 
 ```bash
-curl -fsSL https://clawpatrol.dev/install.sh | sh
+curl -fsSL https://prx.nebuless.cloud/install.sh | sh
 ```
 
-Statically-linked Go binary, dropped in `~/.local/bin`. macOS and
-Linux on amd64 + arm64. Set `CLAWPATROL_FROM_SOURCE=1` to build from
+PRX runs on Linux, macOS, and Windows. The statically-linked Go binary
+is dropped in `~/.local/bin`. Set `NEBPRX_FROM_SOURCE=1` to build from
 source instead (requires Go + `gh auth login`).
 
 ## Commands
 
-### `clawpatrol gateway`
+### `nebprx gateway`
 
 Run the gateway daemon against an HCL config. Start from
-[`gateway.example.hcl`](https://github.com/denoland/clawpatrol/blob/main/examples/gateway.example.hcl)
+[`gateway.example.hcl`](https://github.com/Nebuless/clawpatrol/blob/main/examples/gateway.example.hcl)
 — see [Getting Started](/docs/getting-started/) for the operational
 fields you need to edit.
 
 ```bash
-clawpatrol gateway <config.hcl>
+nebprx gateway <config.hcl>
 ```
 
 By default the gateway is read-only-config: the dashboard can
@@ -35,7 +35,7 @@ config and hot-reloading it. Git-managed deployments should leave it
 false and push edits through their normal review/deploy flow. See
 [config-reference](config-reference) for the HCL grammar.
 
-### `clawpatrol join`
+### `nebprx join`
 
 Enroll the current device with a gateway. Prints a one-time code,
 opens the dashboard so an operator can confirm and assign a
@@ -44,47 +44,51 @@ trust store. Falls back to the Tailscale path (see `login` below)
 when the gateway runs in Tailscale mode.
 
 ```bash
-clawpatrol join <gateway-url> [flags]
+nebprx join <gateway-url> [flags]
 ```
 
 | Flag | Default | Notes |
 |---|---|---|
 | `--hostname NAME` | OS hostname | Device name registered with the gateway |
 | `--profile NAME` | gateway default | Profile to assign at approval time |
-| `--whole-machine` | off | Route every packet through the gateway. Linux installs system Tailscale (or `wg-quick` for WG gateways); macOS uses the NE in whole-host config. Default: per-process via `clawpatrol run`. |
+| `--whole-machine` | off | Route every packet through the gateway. Linux installs system Tailscale (or `wg-quick` for WG gateways). Default: per-process via `nebprx run`. |
 | `--no-trust` | off | Fetch the CA but skip system trust install |
-| `--ca-dir DIR` | `~/.clawpatrol` | Where to store the fetched CA |
+| `--ca-dir DIR` | `~/.nebprx` | Where to store the fetched CA |
 | `--ca-fingerprint FP` | unset | SHA-256 fingerprint the gateway's CA must match before it is written or trusted. Read it off the dashboard. Pins a non-interactive join instead of relying on the operator comparing the printed fingerprint by eye. Accepts the digest with or without colons. |
-| `--name NAME` | `clawpatrol` | Exit-node hostname (Tailscale gateway, `--whole-machine` only) |
+| `--name NAME` | `nebprx` | Exit-node hostname (Tailscale gateway, `--whole-machine` only) |
 
-### `clawpatrol login`
+### `nebprx login`
 
 Tailscale-based onboarding alternative for fleets already on a
 tailnet. Joins the device to the tailnet, finds the gateway by its
 exit-node hostname, and installs the CA.
 
 ```bash
-clawpatrol login [flags]
+nebprx login [flags]
 ```
 
 | Flag | Default | Notes |
 |---|---|---|
-| `--name NAME` | `clawpatrol` | Exit-node hostname to look for on the tailnet |
+| `--name NAME` | `nebprx` | Exit-node hostname to look for on the tailnet |
 | `--no-trust` | off | Fetch the CA but skip system trust install |
 | `--no-exit-node` | off | Skip setting the tailscale exit-node (run manually) |
 
-### `clawpatrol run`
+### `nebprx run`
 
 Run a command with its traffic routed through the joined gateway.
 
 ```bash
-clawpatrol run -- <command> [args...]
+nebprx run -- <command> [args...]
 ```
 
-`run` reads the WG conf that `clawpatrol join` wrote to the standard
+`run` reads the WG conf that `nebprx join` wrote to the standard
 location; there is no flag to point it elsewhere. On Linux the wrapped
 command runs in an unprivileged user namespace with a private WG
-tunnel; on macOS the Network Extension does the capture.
+tunnel. On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+routes host traffic through a WireGuard gateway using `wg-quick` (requires
+`wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+routing is not supported on macOS.
 
 Linux only, and only on the no-`sudo` path described below:
 `--no-auto-expose` (before the `--`) disables the loopback relay that
@@ -93,28 +97,28 @@ forwards the wrapped command's connections to 127.0.0.1 out to host
 services. macOS does not parse it.
 
 ```bash
-clawpatrol run -- claude
-clawpatrol run -- gh pr create
-clawpatrol run -- psql 'host=db user=agent'
+nebprx run -- claude
+nebprx run -- gh pr create
+nebprx run -- psql 'host=db user=agent'
 ```
 
 The agent sees a normal network — outbound flows just route through
 the gateway, which matches each request against the rules, injects
 the configured credential, and forwards.
 
-#### Root and `sudo` inside `clawpatrol run` (Linux)
+#### Root and `sudo` inside `nebprx run` (Linux)
 
-`clawpatrol run` builds the network namespace one of two ways,
+`nebprx run` builds the network namespace one of two ways,
 depending on whether the invoking user has **passwordless `sudo`**:
 
-- **Passwordless `sudo` available (preferred).** clawpatrol uses it to
+- **Passwordless `sudo` available (preferred).** PRX uses it to
   set up the net + mount namespace as real root, then drops back to
   your own user before exec'ing the command. Inside the wrapper you
   are your normal uid, root (uid 0) exists in the namespace, and
   `sudo` works — a command that needs to elevate can just call `sudo`
   as it would anywhere. The wrapped command can't tell it was launched
   this way: clean environment, normal uid, no leftover `SUDO_*` vars.
-- **No passwordless `sudo` (or `CLAWPATROL_NO_SUDO=1`).** clawpatrol
+- **No passwordless `sudo` (or `NEBPRX_NO_SUDO=1`).** PRX
   falls back to an unprivileged user namespace. As a consequence of
   how Linux user namespaces work, that namespace has no mapped root:
   your own uid is the only one mapped in, host root (uid 0) is not. So
@@ -127,7 +131,7 @@ depending on whether the invoking user has **passwordless `sudo`**:
   ```
 
   The first is the namespace mapping root-owned files to "nobody"
-  (65534); the second is the `no_new_privileges` flag clawpatrol sets
+  (65534); the second is the `no_new_privileges` flag PRX sets
   to install its unprivileged seccomp filter. This isn't a deliberate
   restriction — it falls out of running unprivileged, and the host's
   own `sudo` is unaffected outside the wrapper.
@@ -141,47 +145,47 @@ least resistance, not an escape-proof jail.
 If you're on the unprivileged path and a command needs to act as root:
 
 - **Install the tooling on the host first**, then launch — e.g.
-  `sudo apt-get install -y postgresql-client && clawpatrol run -- psql …`.
+  `sudo apt-get install -y postgresql-client && nebprx run -- psql …`.
   Many tools can also be unpacked into a local prefix (e.g.
   `dpkg-deb -x`) without root at all.
-- **Use `--whole-machine`** (see `clawpatrol join --whole-machine`).
+- **Use `--whole-machine`** (see `nebprx join --whole-machine`).
   It routes traffic at the host level instead of per-process, so the
   command runs in the normal host environment where `sudo` works —
-  you run it directly, not through `clawpatrol run`.
+  you run it directly, not through `nebprx run`.
 
 #### Ubuntu 24.04 and AppArmor
 
 Ubuntu 24.04 ships with `kernel.apparmor_restrict_unprivileged_userns=1`,
 which denies unprivileged user namespaces to any program that has no
-AppArmor profile granting them. `clawpatrol run` then prints a
+AppArmor profile granting them. `nebprx run` then prints a
 warning and, without passwordless `sudo`, fails to build its
 namespace. Two ways to run without turning that protection off for
 the whole system:
 
-- **Passwordless `sudo` for the invoking user.** clawpatrol uses the
+- **Passwordless `sudo` for the invoking user.** PRX uses the
   privileged setup path described above and never creates a user
   namespace. This is the simplest option on a single-user machine.
-- **An AppArmor profile for the clawpatrol binary.** This is the
+- **An AppArmor profile for the PRX CLI.** This is the
   mechanism Ubuntu uses for its own browsers. The profile attaches
   by path, and whatever sits at that path runs with the `userns`
   grant, so put the binary somewhere only root can write (for
-  example `/usr/local/bin/clawpatrol`) and name that exact path; a
+  example `/usr/local/bin/nebprx`) and name that exact path; a
   glob over home directories would hand the grant to any file a
-  user drops there. Create `/etc/apparmor.d/clawpatrol`:
+  user drops there. Create `/etc/apparmor.d/nebprx`:
 
   ```
   abi <abi/4.0>,
   include <tunables/global>
 
-  profile clawpatrol /usr/local/bin/clawpatrol flags=(unconfined) {
+  profile nebprx /usr/local/bin/nebprx flags=(unconfined) {
     userns,
-    include if exists <local/clawpatrol>
+    include if exists <local/nebprx>
   }
   ```
 
-  then load it with `sudo apparmor_parser -r /etc/apparmor.d/clawpatrol`.
+  then load it with `sudo apparmor_parser -r /etc/apparmor.d/nebprx`.
   The profile is unconfined apart from granting `userns`, so it
-  changes nothing else about how clawpatrol runs; it has to be
+  changes nothing else about how PRX runs; it has to be
   reloaded if the binary moves. The warning prints the path of the
   binary that is running.
 
@@ -189,26 +193,26 @@ Setting `kernel.apparmor_restrict_unprivileged_userns=0` also works
 but removes the restriction for every program on the host, which is
 what it exists to prevent.
 
-### `clawpatrol test`
+### `nebprx test`
 
 Replay recorded gateway actions against a candidate HCL policy and
 report verdict drift.
 
 ```bash
-clawpatrol test <config.hcl> <fixture.json | fixture-dir>
+nebprx test <config.hcl> <fixture.json | fixture-dir>
 ```
 
-See [Testing](clawpatrol-test) for the fixture format and
+See [Testing](nebprx-test) for the fixture format and
 CI integration. Exit 0 = all match, 1 = drift, 2 = usage/config
 error.
 
-### `clawpatrol validate`
+### `nebprx validate`
 
 Parse and compile a gateway HCL config, then exit. Use it in CI to
 catch typos before they hit production.
 
 ```bash
-clawpatrol validate <config.hcl>
+nebprx validate <config.hcl>
 ```
 
 `validate` runs the same load path the daemon does, so any
@@ -225,19 +229,19 @@ ok: gateway.hcl — 7 endpoints across 3 profile(s)
   plugin "example" v0.1: 2 facet(s), 1 credential type(s), 1 tunnel type(s), 3 endpoint type(s)
 ```
 
-### `clawpatrol plugins`
+### `nebprx plugins`
 
 Manage external plugins — download GitHub-sourced plugins, pin them in
-`clawpatrol.lock.hcl`, and approve permission grants. The running gateway
+`nebprx.lock.hcl`, and approve permission grants. The running gateway
 only ever loads the locked version and never downloads on its own; these
 are the explicit, reviewable steps.
 
 ```bash
-clawpatrol plugins install <config.hcl> [name...]   # download + pin the locked version
-clawpatrol plugins update  <config.hcl> [name...]   # re-pin to the newest matching release
-clawpatrol plugins lock    <config.hcl> [name...]   # record every platform's binary hash
-clawpatrol plugins info    <config.hcl> [name...]   # show required privileges (no download)
-clawpatrol plugins approve <config.hcl> [name...]   # approve a pending permission escalation
+nebprx plugins install <config.hcl> [name...]   # download + pin the locked version
+nebprx plugins update  <config.hcl> [name...]   # re-pin to the newest matching release
+nebprx plugins lock    <config.hcl> [name...]   # record every platform's binary hash
+nebprx plugins info    <config.hcl> [name...]   # show required privileges (no download)
+nebprx plugins approve <config.hcl> [name...]   # approve a pending permission escalation
 ```
 
 `info` reads each GitHub plugin's signed static manifest — without
@@ -249,38 +253,38 @@ sources skip the download but still pin a binary hash. See
 [Plugins](/docs/plugins/) for the `source` / `version` syntax and the
 trust model.
 
-### `clawpatrol status`
+### `nebprx status`
 
 Report device install state — whether `join`/`login` ran, whether
 the CA is trusted, whether the WG conf or tailnet membership is
 healthy.
 
 ```bash
-clawpatrol status
+nebprx status
 ```
 
-### `clawpatrol uninstall`
+### `nebprx uninstall`
 
-Tear down everything `join` / `login` put on this machine — stops
-the macOS Network Extension, brings down the WG interface, removes
+Tear down everything `join` / `login` put on this machine — brings
+down the tunnel, removes
 the CA from system trust, drops per-user state dirs, strips the
 shell-rc.
 
 ```bash
-clawpatrol uninstall [-y] [--keep-ca] [--keep-conf]
+nebprx uninstall [-y] [--keep-ca] [--keep-conf]
 ```
 
-### `clawpatrol env`
+### `nebprx env`
 
-Print the shell exports clawpatrol injects when wrapping a command
+Print the shell exports PRX injects when wrapping a command
 (`SSL_CERT_FILE`, credential-placeholder env vars). Source from
-your shell rc if you need them outside `clawpatrol run`.
+your shell rc if you need them outside `nebprx run`.
 
 ```bash
-eval "$(clawpatrol env)"
+eval "$(nebprx env)"
 ```
 
-### `clawpatrol version`
+### `nebprx version`
 
 Print the version. Also accepts `-v` and `--version`.
 
@@ -291,25 +295,25 @@ device-side knobs:
 
 | Variable | Effect |
 |---|---|
-| `CLAWPATROL_RUN_CONF` | Override the WG conf path `clawpatrol run` reads |
-| `CLAWPATROL_DEBUG` | Print the relay / auto-expose diagnostic lines, which are otherwise silent |
-| `CLAWPATROL_PLUGIN_LOG` | Raise the external-plugin subprocess log level (`trace`/`debug`/`info`/`warn`/`error`/`off`); at `trace`/`debug` surfaces a sandboxed plugin's own stderr, useful when a plugin dies before the handshake completes |
-| `CLAWPATROL_NO_ENV` | Skip the env pushdown (`SSL_CERT_FILE`, placeholders) when wrapping a command |
-| `CLAWPATROL_NO_SUDO` | Force the unprivileged user-namespace path even when passwordless `sudo` is available (see [Root and `sudo` inside `clawpatrol run`](#root-and-sudo-inside-clawpatrol-run-linux)); `sudo` won't work inside the wrapper |
-| `CLAWPATROL_TELEMETRY` | `0` to disable telemetry (same as `DO_NOT_TRACK=1`) |
+| `NEBPRX_RUN_CONF` | Override the WG conf path `nebprx run` reads |
+| `NEBPRX_DEBUG` | Print the relay / auto-expose diagnostic lines, which are otherwise silent |
+| `NEBPRX_PLUGIN_LOG` | Raise the external-plugin subprocess log level (`trace`/`debug`/`info`/`warn`/`error`/`off`); at `trace`/`debug` surfaces a sandboxed plugin's own stderr, useful when a plugin dies before the handshake completes |
+| `NEBPRX_NO_ENV` | Skip the env pushdown (`SSL_CERT_FILE`, placeholders) when wrapping a command |
+| `NEBPRX_NO_SUDO` | Force the unprivileged user-namespace path even when passwordless `sudo` is available (see [Root and `sudo` inside `nebprx run`](#root-and-sudo-inside-nebprx-run-linux)); `sudo` won't work inside the wrapper |
+| `NEBPRX_TELEMETRY` | `0` to disable telemetry (same as `DO_NOT_TRACK=1`) |
 | `DO_NOT_TRACK` | Standard opt-out, honored |
-| `TS_AUTHKEY` | Used by `clawpatrol login` to authenticate to Tailscale non-interactively |
+| `TS_AUTHKEY` | Used by `nebprx login` to authenticate to Tailscale non-interactively |
 
 ## Data directories
 
 Where state lives, by role:
 
 **Gateway host** — the operator picks the location; nothing is
-hardcoded. A typical layout under `/opt/clawpatrol/`:
+hardcoded. A typical layout under `/opt/nebprx/`:
 
 ```
 gateway.hcl              HCL config (operator-edited)
-state/clawpatrol.db      SQLite — everything else
+state/nebprx.db      SQLite — everything else
 ```
 
 `state_dir` in the HCL points at the sqlite directory. The DB holds
@@ -319,8 +323,8 @@ audit log, telemetry UUID, and DNS-VIP allocations.
 **Device** (set up by `join` / `login`):
 
 ```
-~/.clawpatrol/
+~/.nebprx/
   ca.crt                  Fetched gateway CA
-~/.config/clawpatrol/
+~/.config/nebprx/
   wg.conf                 Per-device WireGuard config (join path)
 ```

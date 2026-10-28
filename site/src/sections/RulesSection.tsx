@@ -43,15 +43,15 @@ export function RulesSection() {
         <div class="max-w-3xl mx-auto text-center mb-16">
           <h3 class="text-4xl sm:text-5xl md:text-6xl font-display text-balance mb-5">
             You write access rules.{" "}
-            <span class="text-rust">Claw Patrol enforces them.</span>
+            <span class="text-rust">PRX enforces them.</span>
           </h3>
           <p class="text-base text-canvas/70 text-balance max-w-prose mx-auto">
             Every outbound request runs through{" "}
             <a href="/docs/rules/" class="underline underline-offset-2">
-              Claw Patrol's rule engine
+              PRX's rule engine
             </a>
-            . Match on HTTP method, SQL verb, k8s resource, and more; not just
-            URLs. Rules go live the second you press save.
+            . Match on HTTP method, SQL statement, Kubernetes resource and
+            more, not just URLs.
           </p>
         </div>
 
@@ -82,7 +82,7 @@ export function RulesSection() {
         </div>
 
         <p class="mt-14 text-sm text-canvas/70 text-center max-w-xl mx-auto">
-          Extend Claw Patrol with plugins{" "}
+          Extend PRX with plugins{" "}
           <a
             href="/docs/plugins/"
             class="text-rust-300 hover:text-rust-200 underline underline-offset-4"

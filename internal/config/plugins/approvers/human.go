@@ -20,8 +20,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // HumanApprover targets one channel. Timeout / require_approvers
@@ -82,10 +82,10 @@ type HumanApprover struct {
 // — main does an anonymous-interface type-assert on ent.Body.
 func (h *HumanApprover) HumanApproverChannel() string { return h.Channel }
 
-// HumanApproverCredential is part of the clawpatrol plugin API.
+// HumanApproverCredential is part of the PRX plugin API.
 func (h *HumanApprover) HumanApproverCredential() string { return h.Credential }
 
-// HumanApproverInteractive is part of the clawpatrol plugin API.
+// HumanApproverInteractive is part of the PRX plugin API.
 func (h *HumanApprover) HumanApproverInteractive() bool { return h.Interactive }
 
 // HITLAsyncGrantEnabled exposes the async opt-in to config-level cross validation.
@@ -133,7 +133,7 @@ func (h *HumanApprover) HITLAsyncFingerprintBody() string {
 	return h.AsyncGrant.FingerprintBodyValue()
 }
 
-// Approve is part of the clawpatrol plugin API.
+// Approve is part of the PRX plugin API.
 func (h *HumanApprover) Approve(ctx context.Context, req runtime.ApproveRequest) (runtime.ApproveVerdict, error) {
 	if req.Pool == nil {
 		return runtime.ApproveVerdict{}, fmt.Errorf("human approver %q: no pool", req.ApproverName)

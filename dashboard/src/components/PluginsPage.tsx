@@ -6,7 +6,7 @@ import { PageTitle } from "./PageTitle";
 
 // PluginsPage lists the external plugins and the permissions each
 // runs with. Network is declared by the plugin and approved on first
-// load (recorded in clawpatrol.lock.hcl). A plugin the gateway
+// load (recorded in nebprx.lock.hcl). A plugin the gateway
 // refused to load — chiefly one whose upgrade escalated its
 // permissions — is shown as a blocked card with the reason and the
 // re-approve command.
@@ -30,12 +30,12 @@ export function PluginsPage() {
 
       <p className="text-sm text-text-muted mb-5 max-w-3xl">
         External plugins run sandboxed. Each declares its own network need; the gateway records the
-        approved permissions in <code className="font-mono text-xs">clawpatrol.lock.hcl</code> on
-        first load and refuses to start a plugin whose update asks for more — shown below as a
-        blocked plugin until you re-approve it. Network and egress are recorded on first load; a
-        plugin that declares it must run <span className="font-bold">privileged</span> (sandbox off,
-        full host access) is held back until you approve it explicitly. Granting extra filesystem
-        read paths stays operator-only.
+        approved permissions in <code className="font-mono text-xs">nebprx.lock.hcl</code> on first
+        load and refuses to start a plugin whose update asks for more — shown below as a blocked
+        plugin until you re-approve it. Network and egress are recorded on first load; a plugin that
+        declares it must run <span className="font-bold">privileged</span> (sandbox off, full host
+        access) is held back until you approve it explicitly. Granting extra filesystem read paths
+        stays operator-only.
       </p>
 
       {err && (
@@ -126,7 +126,7 @@ function BlockedCard({ p, onApproved }: { p: Plugin; onApproved: () => void }) {
         )}
         <Field label="Or run">
           <code className="font-mono text-2xs text-text bg-navy-100 px-2 py-1 squircle-md break-all">
-            clawpatrol plugins approve &lt;config.hcl&gt; {p.name}
+            nebprx plugins approve &lt;config.hcl&gt; {p.name}
           </code>
         </Field>
         {err && <div className="text-xs text-danger-500">{err}</div>}
@@ -148,7 +148,7 @@ function PluginCard({ p }: { p: Plugin }) {
       </div>
 
       {p.sandboxWarning && (
-        <div className="px-4 py-2 bg-butter-100 border-b border-butter-300 text-xs text-rust-700">
+        <div className="px-4 py-2 bg-butter-100 border-b border-butter-300 text-xs text-butter-700">
           Reduced sandbox: {p.sandboxWarning}
         </div>
       )}
@@ -157,7 +157,7 @@ function PluginCard({ p }: { p: Plugin }) {
         <div className="px-4 py-2 bg-navy-100 border-b border-navy text-xs text-navy">
           Update available: <span className="font-mono font-bold">{p.updateAvailable}</span> — run{" "}
           <code className="font-mono text-2xs bg-canvas px-1 py-0.5 squircle-md">
-            clawpatrol plugins update
+            nebprx plugins update
           </code>
         </div>
       )}
@@ -283,7 +283,7 @@ function Badge({
 }) {
   const tones: Record<string, string> = {
     calm: "bg-navy-100 text-navy",
-    warn: "bg-butter-100 text-rust-700",
+    warn: "bg-butter-100 text-butter-700",
     danger: "bg-danger-500 text-canvas",
   };
   return (

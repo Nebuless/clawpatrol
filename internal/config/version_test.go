@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // minimalConfig is the smallest body that loads without errors: one
@@ -14,7 +14,7 @@ import (
 // line (or not) to exercise the version gate.
 const minimalConfig = `
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
 
   wireguard {
@@ -89,7 +89,7 @@ func TestSchemaVersionTooNew(t *testing.T) {
 		t.Fatalf("expected an error for version > max")
 	}
 	got := errorText(diags)
-	if !strings.Contains(got, "too new") || !strings.Contains(got, "Upgrade clawpatrol") {
+	if !strings.Contains(got, "too new") || !strings.Contains(got, "Upgrade nebprx") {
 		t.Fatalf("expected upgrade error, got: %s", got)
 	}
 	if strings.Contains(got, "Unsupported") || strings.Contains(got, "future_block") {

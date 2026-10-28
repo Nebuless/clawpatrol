@@ -23,7 +23,7 @@ export function RulesPanel({ profile }: { deviceIP?: string; profile?: string })
 
   return (
     <div className="bg-canvas border-1.5 border-navy">
-      {err && <div className="px-4 py-3 text-xs text-rust-700">{err}</div>}
+      {err && <div className="px-4 py-3 text-xs text-danger-700">{err}</div>}
       <Section title="Rules" rows={visible} />
     </div>
   );

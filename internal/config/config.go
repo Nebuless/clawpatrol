@@ -27,7 +27,7 @@ const (
 	// MaxSchemaVersion is the newest grammar this binary understands.
 	// Bump it whenever a breaking grammar change ships. Configs
 	// declaring a higher version are rejected with an "upgrade
-	// clawpatrol" error rather than a wall of decode noise.
+	// nebprx" error rather than a wall of decode noise.
 	MaxSchemaVersion = 1
 )
 
@@ -79,7 +79,7 @@ func checkSchemaVersion(v int) hcl.Diagnostics {
 		return hcl.Diagnostics{{
 			Severity: hcl.DiagError,
 			Summary:  "Config schema_version too new",
-			Detail:   fmt.Sprintf("schema_version = %d, but this clawpatrol understands up to %d. Upgrade clawpatrol to load this config.", v, MaxSchemaVersion),
+			Detail:   fmt.Sprintf("schema_version = %d, but this nebprx understands up to %d. Upgrade nebprx to load this config.", v, MaxSchemaVersion),
 		}}
 	}
 	if v < MinSchemaVersion {
@@ -92,7 +92,7 @@ func checkSchemaVersion(v int) hcl.Diagnostics {
 	return nil
 }
 
-// Gateway is the fully-loaded clawpatrol gateway config: a single
+// Gateway is the fully-loaded nebprx gateway config: a single
 // `gateway { ... }` block of operational settings (with nested
 // `wireguard { ... }` / `tailscale { ... }` transport sub-blocks), an
 // optional top-level `defaults { ... }` block of policy defaults, and
@@ -167,8 +167,8 @@ type GatewaySettings struct {
 	// doesn't) the host clients dial for WireGuard.
 	PublicURL string `hcl:"public_url,optional"`
 
-	// StateDir is the directory holding clawpatrol.db (and anything
-	// a plugin persists to disk under it). Defaults to ${HOME}/.clawpatrol.
+	// StateDir is the directory holding nebprx.db (and anything
+	// a plugin persists to disk under it). Defaults to ${HOME}/.nebprx.
 	StateDir string `hcl:"state_dir,optional"`
 
 	// DashboardSessionTTL is how long a dashboard login session stays
@@ -204,7 +204,7 @@ type GatewaySettings struct {
 
 	// Telemetry opts in/out of the update-checker / anonymous usage
 	// ping (doc/telemetry.md). nil = default on; explicit `telemetry
-	// = false` silences the goroutine. Env vars CLAWPATROL_TELEMETRY=0
+	// = false` silences the goroutine. Env vars NEBPRX_TELEMETRY=0
 	// and DO_NOT_TRACK=1 also work.
 	Telemetry *bool `hcl:"telemetry,optional"`
 
@@ -279,7 +279,7 @@ type WireGuardBlock struct {
 
 	// HostLoopbackPort is the TCP port the gateway binds on
 	// 127.0.0.1 for host-local clients (single-host deployments where
-	// clawpatrol-run loops back to the gateway on the same box).
+	// nebprx-run loops back to the gateway on the same box).
 	// Default 8443. Make it operator-controlled so two gateways can
 	// coexist on one host (dev/test, blue-green, multi-tenant)
 	// without colliding on the loopback landing pad.
@@ -311,7 +311,7 @@ type TailscaleBlock struct {
 	AuthKey string `hcl:"authkey,optional"`
 
 	// Hostname is the device name requested for the tsnet node.
-	// Default "clawpatrol-gateway".
+	// Default "nebprx-gateway".
 	Hostname string `hcl:"hostname,optional"`
 
 	// ControlURL is the Tailscale control-plane URL. Empty →
@@ -490,7 +490,7 @@ func (g *Gateway) DashboardConfigWrites() bool {
 func (g *Gateway) StateDir() string { return g.settings().StateDir }
 
 // ResolvedStateDir returns the effective state directory: the
-// configured state_dir, or ${HOME}/.clawpatrol when unset. This is the
+// configured state_dir, or ${HOME}/.nebprx when unset. This is the
 // path the gateway actually uses at runtime, so it is what the plugin
 // loader must guard read_paths against — the raw StateDir() is empty by
 // default, which would let a read_paths grant of the default dir slip
@@ -504,7 +504,7 @@ func (g *Gateway) ResolvedStateDir() string {
 	if err != nil || home == "" {
 		return ""
 	}
-	return filepath.Join(home, ".clawpatrol")
+	return filepath.Join(home, ".nebprx")
 }
 
 // Operators returns the tailnet-login allowlist from the `tailscale
@@ -697,8 +697,8 @@ func (f FrameworkAttrs) Str(name string) string {
 //   - "github.com/<owner>/<repo>" downloads the binary from the repo's
 //     GitHub releases, selecting the newest release tag that satisfies
 //     Version, then caches it under the state dir and pins the resolved
-//     version + per-platform hashes in clawpatrol.lock.hcl. The running
-//     gateway only ever loads the locked version; `clawpatrol plugins
+//     version + per-platform hashes in nebprx.lock.hcl. The running
+//     gateway only ever loads the locked version; `nebprx plugins
 //     update` is the explicit upgrade.
 type PluginSource struct {
 	Name   string `hcl:"name,label"`
@@ -1010,7 +1010,7 @@ func loadFiles(files []*hcl.File, configDir string, diags hcl.Diagnostics) (*Gat
 
 	// Read and gate the schema version before the strict decode. This
 	// pre-pass is lenient (PartialContent), so a config authored for a
-	// newer grammar fails with one "upgrade clawpatrol" line here
+	// newer grammar fails with one "upgrade nebprx" line here
 	// rather than a wall of unknown-field noise from gohcl below. A
 	// version outside the supported window short-circuits the decode
 	// entirely. The absent-version warning is deferred to the end of
@@ -1169,7 +1169,7 @@ func validateOperational(gw *Gateway) hcl.Diagnostics {
 		// wireguard.endpoint with a non-wildcard host is the escape
 		// hatch when public_url isn't reachable from clients
 		// (split-host deployments). On single-host loopback
-		// deployments (gateway and clawpatrol-run on the same box)
+		// deployments (gateway and nebprx-run on the same box)
 		// neither needs to be set — clients dial loopback.
 		if !hasWGDialTarget(gw.Settings.PublicURL, w.Endpoint) && !isLoopbackOnlyWG(w) {
 			diags = append(diags, &hcl.Diagnostic{
@@ -1248,7 +1248,7 @@ func validateRetentionDuration(name, val string) hcl.Diagnostics {
 
 // isLoopbackOnlyWG reports whether a WireGuard block has its endpoint
 // pinned to loopback. Single-host deployments — gateway under one UID,
-// `clawpatrol run` from another, both on the same machine — are a
+// `nebprx run` from another, both on the same machine — are a
 // supported pattern and need no public_url.
 func isLoopbackOnlyWG(w *WireGuardBlock) bool {
 	if w == nil || w.Endpoint == "" {

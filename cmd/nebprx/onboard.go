@@ -1,0 +1,1508 @@
+package main
+
+// Device-flow onboarding for new clients that don't yet have Tailscale.
+//
+// Flow:
+//   1. CLI: POST /api/onboard/start  → {device_code, user_code, verify_url, interval}
+//   2. CLI prints user_code + opens verify_url in browser.
+//   3. Admin (any user already on the tailnet who hits the dashboard)
+//      visits /#/onboard/{user_code}, clicks "approve".
+//   4. Server mints a single-use Tailscale auth key (Tailscale OAuth
+//      client_credentials → POST /api/v2/tailnet/-/keys).
+//   5. CLI: POST /api/onboard/poll?device_code=... → {auth_key} once
+//      approved; CLI runs `tailscale up --authkey=<key>`.
+//
+// Codes expire in 10 minutes; auth keys minted are single-use,
+// non-reusable, ephemeral=false.
+
+import (
+	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"net/netip"
+	"net/url"
+	"slices"
+	"strings"
+	"sync"
+	"time"
+)
+
+// randomString returns a URL-safe base64 string of n random bytes.
+// Used for onboard device codes, OAuth state/verifier, HITL IDs.
+func randomString(nBytes int) string {
+	b := make([]byte, nBytes)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+type onboardSession struct {
+	deviceCode  string
+	userCode    string // human-friendly, e.g. ABCD-1234
+	created     time.Time
+	approved    bool
+	authKey     string // populated once approved
+	loginServer string // "wireguard://<iface>" for WG mode; empty for Tailscale
+	err         string
+	owner       string // who approved (for audit log)
+	profile     string // profile assigned at approval time
+	hostname    string // client-supplied (os.Hostname) at /api/onboard/start
+	apiToken    string // per-peer bearer for gated client API calls (env-pushdown)
+	// delivered is set once the approved auth material has been
+	// handed to a poller. The device code is a bearer capability for
+	// one joining client, so the material goes out exactly once; a
+	// later poll gets expired_token, and a client that lost the
+	// response re-runs join.
+	delivered bool
+	// wholeMachine: client asked at /start to install a persistent tailnet
+	// node (system Tailscale on Linux) rather than
+	// per-process tsnet. Determines whether the minted auth key is
+	// ephemeral (per-process) or not (whole-machine).
+	wholeMachine bool
+}
+
+// onboardRegistry persists onboarded peers in the `devices` table,
+// keyed by tunnel IP (WG /32 or tsnet 100.x.x.x). The in-memory maps
+// cache hot lookups (OwnerForIP / HostnameForIP / ProfileForIP fire
+// on every request); mutations write through to SQLite.
+//
+// One transient case has no devices row: the tsnet "tsnet-<host>"
+// placeholder used between approve time and the first
+// /api/peer/tsnet/register call from the daemon. Such IDs are
+// detected by prefix and skipped in upsertLocked so they don't
+// surface as ghost dashboard rows.
+type onboardRegistry struct {
+	mu               sync.Mutex
+	byDevice         map[string]*onboardSession
+	byUser           map[string]*onboardSession
+	ownerByIP        map[string]string
+	hostnameByIP     map[string]string
+	profileByIP      map[string]string
+	extV4ByIP        map[string]string
+	extV6ByIP        map[string]string
+	canonicalByAlias map[string]string // alias IP → canonical device IP (e.g. fd7a:115c:a1e0::… → 100.x.x.x)
+	// nodeIDByIP holds the Tailscale StableID of the node each device
+	// IP belongs to. It is the only identity an alias may be derived
+	// from: a hostname is self-asserted by the node (`tailscale set
+	// --hostname`) and freed again when an ephemeral node goes
+	// offline, so matching on one lets any tailnet member that can
+	// reach the gateway claim a privileged device's name and inherit
+	// its profile. A StableID is issued by the control plane and
+	// cannot be asserted by the node.
+	nodeIDByIP     map[string]string
+	knownDeviceIPs map[string]bool // all IPs present in devices table
+	// resolveTriedAt caches the last time we asked tsnet WhoIs whether an
+	// unknown peer IP corresponds to a known device. Without it, traffic
+	// from any IP that genuinely has no devices-table mapping would
+	// trigger a WhoIs lookup per packet.
+	resolveTriedAt map[string]time.Time
+	db             *sql.DB
+}
+
+func newOnboardRegistry() *onboardRegistry {
+	return &onboardRegistry{
+		byDevice:         map[string]*onboardSession{},
+		byUser:           map[string]*onboardSession{},
+		ownerByIP:        map[string]string{},
+		hostnameByIP:     map[string]string{},
+		profileByIP:      map[string]string{},
+		extV4ByIP:        map[string]string{},
+		extV6ByIP:        map[string]string{},
+		canonicalByAlias: map[string]string{},
+		nodeIDByIP:       map[string]string{},
+		knownDeviceIPs:   map[string]bool{},
+		resolveTriedAt:   map[string]time.Time{},
+	}
+}
+
+// tsnetPlaceholderPrefix marks an onboard session that's still
+// awaiting the daemon's /api/peer/tsnet/register first call. The
+// post-approve flow binds the api-token + chosen profile to
+// "tsnet-<hostname>" until the daemon comes up and tells us the
+// real tailnet IP. IDs starting with this prefix are scrubbed by
+// upsertLocked so they don't surface as ghost devices rows.
+const tsnetPlaceholderPrefix = "tsnet-"
+
+// resolveProfileFromList picks the profile to assign given an ordered
+// profile list and a suggestion (a CLI `join --profile` value). The
+// suggestion wins when it names a real profile; otherwise the gateway
+// default applies — the profile named "default" if present, else the
+// first in source order. With no profiles declared there is nothing to
+// validate against, so the suggestion is returned verbatim. Shared by
+// apiOnboardLookup (picker preselection) and apiOnboardApprove
+// (assignment) so the picker shows exactly what approve would pick.
+func resolveProfileFromList(profiles []string, suggestion string) string {
+	if slices.Contains(profiles, suggestion) {
+		return suggestion
+	}
+	if len(profiles) == 0 {
+		return suggestion
+	}
+	if slices.Contains(profiles, "default") {
+		return "default"
+	}
+	return profiles[0]
+}
+
+// SetExternalIPs records the underlay endpoint addresses (v4 and/or v6)
+// observed for the wg peer at ip. Mirrors unclaw's approvedIpv4 /
+// approvedIpv6 model — the dashboard shows these in place of the wg /32,
+// which is just a routing artefact. Persists through to the devices row.
+func (r *onboardRegistry) SetExternalIPs(ip, v4, v6 string) {
+	// Both v4 and v6 wg-side allowed_ips reach this path (one fd77::<n>
+	// per peer); collapse to the canonical v4 so each device exists as a
+	// single row. Without this the dashboard shows ghost fd77:: entries
+	// alongside the real device.
+	ip = canonicalPeerIP(ip)
+	if ip == "" || (v4 == "" && v6 == "") {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	changed := false
+	if v4 != "" && r.extV4ByIP[ip] != v4 {
+		r.extV4ByIP[ip] = v4
+		changed = true
+	}
+	if v6 != "" && r.extV6ByIP[ip] != v6 {
+		r.extV6ByIP[ip] = v6
+		changed = true
+	}
+	if changed {
+		r.upsertLocked(ip)
+	}
+}
+
+func (r *onboardRegistry) ExternalIPs(ip string) (v4, v6 string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.extV4ByIP[ip], r.extV6ByIP[ip]
+}
+
+func (r *onboardRegistry) ProfileForIP(ip string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.profileByIP[ip]
+}
+
+// RegisterIPAlias maps alias to the same profile as canonical without
+// creating a devices row. Used at startup so Tailscale IPv6 peer
+// addresses (fd7a:) resolve to the same profile as the device's
+// Tailscale IPv4 (100.x.x.x).
+func (r *onboardRegistry) RegisterIPAlias(alias, canonical string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.registerIPAliasLocked(alias, canonical)
+}
+
+func (r *onboardRegistry) registerIPAliasLocked(alias, canonical string) {
+	if p := r.profileByIP[canonical]; p != "" {
+		r.profileByIP[alias] = p
+	}
+	r.canonicalByAlias[alias] = canonical
+}
+
+// AssignProfile records that a peer IP belongs to a named profile, and
+// propagates it across the IP's whole alias group. A Tailscale peer
+// reaches the gateway on both its 100.x IPv4 and its fd7a: IPv6 ULA;
+// RegisterIPAlias links the two but only copies the profile once. So a
+// later reassignment (e.g. an operator changing the profile from the
+// dashboard) of one address must update the others, or profileFor
+// resolves traffic on the un-updated address to the stale (often
+// "default") profile while the dashboard shows the new one. Persists
+// the canonical devices row; aliases are in-memory only.
+func (r *onboardRegistry) AssignProfile(ip, profile string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	canonical := ip
+	if c := r.canonicalByAlias[ip]; c != "" {
+		canonical = c
+	}
+	r.profileByIP[canonical] = profile
+	for alias, c := range r.canonicalByAlias {
+		if c == canonical {
+			r.profileByIP[alias] = profile
+		}
+	}
+	r.upsertLocked(canonical)
+}
+
+// seedPlaceholder records hostname/owner/profile for a tsnet
+// placeholder ID, in memory only (upsertLocked refuses placeholder
+// IDs), so the agents-registry Seed at approve time renders a
+// recognizable device row before the daemon's first register call
+// promotes the placeholder to a real devices row. Done in one
+// critical section so a concurrent register promotion never observes
+// a half-seeded placeholder. ForgetIP at promotion clears these
+// entries (their values are carried across to the real tailnet IP).
+func (r *onboardRegistry) seedPlaceholder(id, hostname, owner, profile string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if hostname != "" {
+		r.hostnameByIP[id] = hostname
+	}
+	if owner != "" {
+		r.ownerByIP[id] = owner
+	}
+	if profile != "" {
+		r.profileByIP[id] = profile
+	}
+}
+
+// AgentIPFor returns the device IP that traffic from ip should be
+// attributed to. Today the only remapping is the IPv6 ULA alias
+// (fd7a:115c:a1e0::… → 100.x.x.x) used by Tailscale-mode peers; for
+// every other peer ip is returned unchanged.
+func (r *onboardRegistry) AgentIPFor(ip string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if canonical := r.canonicalByAlias[ip]; canonical != "" {
+		return canonical
+	}
+	return ip
+}
+
+// Load attaches the SQLite-backed `devices` table and replays every
+// row into the in-memory caches. Call once after construction.
+func (r *onboardRegistry) Load(db *sql.DB) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.db = db
+	if db == nil {
+		return nil
+	}
+	rows, err := db.Query("SELECT id, name, profile, external_ipv4, external_ipv6, ts_node_id FROM devices")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var (
+			ip      string
+			name    sql.NullString
+			profile sql.NullString
+			v4      sql.NullString
+			v6      sql.NullString
+			nodeID  sql.NullString
+		)
+		if err := rows.Scan(&ip, &name, &profile, &v4, &v6, &nodeID); err != nil {
+			return err
+		}
+		r.knownDeviceIPs[ip] = true
+		if name.Valid {
+			r.hostnameByIP[ip] = name.String
+		}
+		if profile.Valid {
+			r.profileByIP[ip] = profile.String
+		}
+		if v4.Valid {
+			r.extV4ByIP[ip] = v4.String
+		}
+		if v6.Valid {
+			r.extV6ByIP[ip] = v6.String
+		}
+		if nodeID.Valid {
+			r.nodeIDByIP[ip] = nodeID.String
+		}
+	}
+	return rows.Err()
+}
+
+// HasDevice reports whether ip has a row in the devices table.
+// Used to filter out sessions from ephemeral peers that no longer exist.
+func (r *onboardRegistry) HasDevice(ip string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.knownDeviceIPs[ip]
+}
+
+// upsertLocked writes the in-memory tuple for ip into the devices row.
+// Caller holds r.mu. Persists the row for any IP we've seen claim or
+// hostname/profile data; rows for un-claimed IPs land with NULLs and
+// fill in as the claim flow progresses.
+func (r *onboardRegistry) upsertLocked(ip string) {
+	if r.db == nil {
+		return
+	}
+	// Placeholder IDs (e.g. "tsnet-<hostname>" between approve and the
+	// daemon's first register call) never get a devices row — they
+	// only exist in profileByIP to remember the operator-picked
+	// profile across the gap.
+	if strings.HasPrefix(ip, tsnetPlaceholderPrefix) {
+		return
+	}
+	if _, seen := r.profileByIP[ip]; !seen {
+		if _, hn := r.hostnameByIP[ip]; !hn {
+			if _, owner := r.ownerByIP[ip]; !owner {
+				if _, v4 := r.extV4ByIP[ip]; !v4 {
+					if _, v6 := r.extV6ByIP[ip]; !v6 {
+						if _, nid := r.nodeIDByIP[ip]; !nid {
+							return
+						}
+					}
+				}
+			}
+		}
+	}
+	now := time.Now().UnixNano()
+	_, _ = r.db.Exec(`
+		INSERT INTO devices (id, name, profile, external_ipv4, external_ipv6, ts_node_id, created_ns, last_seen_ns)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name          = excluded.name,
+			profile       = excluded.profile,
+			external_ipv4 = excluded.external_ipv4,
+			external_ipv6 = excluded.external_ipv6,
+			ts_node_id    = excluded.ts_node_id,
+			last_seen_ns  = excluded.last_seen_ns
+	`, ip, nullStr(r.hostnameByIP[ip]), nullStr(r.profileByIP[ip]),
+		nullStr(r.extV4ByIP[ip]), nullStr(r.extV6ByIP[ip]),
+		nullStr(r.nodeIDByIP[ip]), now, now)
+	r.knownDeviceIPs[ip] = true
+}
+
+func nullStr(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+// ClaimIP binds a peer IP to its approver. hostnameOverride wins over
+// the value captured at /api/onboard/start — older CLIs didn't send a
+// hostname at start, so the post-tunnel claim is the reliable hook.
+func (r *onboardRegistry) ClaimIP(deviceCode, ip, hostnameOverride string) (string, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s := r.byDevice[deviceCode]
+	if s == nil || s.owner == "" {
+		return "", false
+	}
+	r.ownerByIP[ip] = s.owner
+	if hostnameOverride != "" {
+		r.hostnameByIP[ip] = hostnameOverride
+	} else if s.hostname != "" {
+		r.hostnameByIP[ip] = s.hostname
+	}
+	// Carry the operator-picked profile onto the claimed IP. The
+	// whole-machine Tailscale path reaches the gateway only via claim
+	// (its tailnet IP isn't known at approve time, and unlike the
+	// per-host daemon it never hits /api/peer/tsnet/register), so
+	// without this the device lands in no profile despite --profile.
+	if s.profile != "" {
+		r.profileByIP[ip] = s.profile
+	}
+	r.upsertLocked(ip)
+	return s.owner, true
+}
+
+// SetHostname records a hostname for a peer IP outside the onboard
+// device-code flow (e.g. `nebprx run` register, which already
+// authenticated via api-token).
+func (r *onboardRegistry) SetHostname(ip, hostname string) {
+	if ip == "" || hostname == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.hostnameByIP[ip] = hostname
+	r.upsertLocked(ip)
+}
+
+func (r *onboardRegistry) OwnerForIP(ip string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.ownerByIP[ip]
+}
+
+// SetOwner records an approver for a peer IP outside the onboard
+// device-code flow — used by the tsnet register promotion to carry
+// the owner seeded on the placeholder across to the real tailnet IP.
+func (r *onboardRegistry) SetOwner(ip, owner string) {
+	if ip == "" || owner == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.ownerByIP[ip] = owner
+	r.upsertLocked(ip)
+}
+
+func (r *onboardRegistry) HostnameForIP(ip string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.hostnameByIP[ip]
+}
+
+// IPForHostname returns the wg IP previously bound to (owner, hostname),
+// if any. Lets the approve flow recycle the existing /32 when the same
+// machine re-runs `nebprx join` — without it, every rejoin minted
+// a fresh IP and the dashboard accumulated duplicate device rows.
+func (r *onboardRegistry) IPForHostname(owner, hostname string) string {
+	if hostname == "" {
+		return ""
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for ip, hn := range r.hostnameByIP {
+		if hn != hostname {
+			continue
+		}
+		if owner != "" {
+			if o, ok := r.ownerByIP[ip]; ok && o != "" && o != owner {
+				continue
+			}
+		}
+		return ip
+	}
+	return ""
+}
+
+// SetNodeID binds a device IP to the Tailscale node that owns it,
+// replacing any binding already there. The value is a
+// control-plane-issued StableID, and overwriting is reserved for the
+// onboarding calls that carry an approval for this IP — a device code,
+// or the api-token minted against it — which is the operator saying
+// this IP is now that node's.
+//
+// Only an existing devices row takes a binding, and the check shares
+// the write's critical section: every caller reaches here after the
+// row was created (ClaimIP, or the promotion's AssignProfile/SetOwner)
+// and after a WhoIs round-trip, so a delete landing in between must
+// find the write refused rather than the row re-created through
+// upsertLocked.
+func (r *onboardRegistry) SetNodeID(ip, nodeID string) {
+	if ip == "" || nodeID == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.knownDeviceIPs[ip] {
+		return
+	}
+	r.setNodeIDLocked(ip, nodeID)
+}
+
+func (r *onboardRegistry) setNodeIDLocked(ip, nodeID string) {
+	if r.nodeIDByIP[ip] == nodeID {
+		return
+	}
+	r.nodeIDByIP[ip] = nodeID
+	r.upsertLocked(ip)
+}
+
+// UnboundDeviceIPs returns, in sorted order, the IP of every devices row
+// that has no node recorded. These are rows written before ts_node_id
+// existed (or by a WhoIs that reported no StableID): they match nothing
+// on the alias passes and stay absorbable on exact-IP reuse until the
+// node behind them is observed.
+func (r *onboardRegistry) UnboundDeviceIPs() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var out []string
+	for ip := range r.knownDeviceIPs {
+		if r.nodeIDByIP[ip] == "" {
+			out = append(out, ip)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// BindNodeIfUnbound records nodeID as the node behind ip's devices row,
+// provided the row exists and carries no binding yet. Reports whether
+// the binding was written.
+//
+// It is the boot-time counterpart of the binding FoldAliasOntoDevice
+// lands on the address pass: the caller's WhoIs names ip among the
+// node's own addresses, which is the control plane's statement of
+// whose that address is. The same guards apply — only an existing row
+// takes a binding, so a row deleted during the WhoIs round-trip is not
+// re-created through upsertLocked, and a row already bound is never
+// rebound, because a different node holding its address is what IP
+// reuse after a delete looks like.
+func (r *onboardRegistry) BindNodeIfUnbound(ip, nodeID string) bool {
+	if ip == "" || nodeID == "" {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.knownDeviceIPs[ip] || r.nodeIDByIP[ip] != "" {
+		return false
+	}
+	r.setNodeIDLocked(ip, nodeID)
+	return true
+}
+
+// FoldAliasOntoDevice records alias as another address of the device at
+// canonical, and binds that device to nodeID. Reports whether the fold
+// happened.
+//
+// The whole decision is one critical section, because it is three
+// questions about the same row — does it exist, which node is it, take
+// it — and a delete landing between them would alias onto a row that no
+// longer exists or bind one that has just been re-created.
+//
+// The binding is set once. A row already bound to a different node is a
+// row whose address has moved on, which is what IP reuse after a device
+// is deleted looks like; folding onto it would hand the new node the old
+// device's profile, so the fold is refused instead.
+//
+// An unbound row — one written before ts_node_id existed — has no such
+// protection on its first observation: it is bound to whichever node
+// the caller's WhoIs names holding canonical, and after a
+// delete-and-reuse that is a different node. This inherits what the
+// devices table already assumes, that the row's IP is the device, and
+// it is the same statement the row's profile was already being served
+// on. Every observation after the first is guarded.
+func (r *onboardRegistry) FoldAliasOntoDevice(alias, canonical, nodeID string) bool {
+	if alias == "" || canonical == "" || alias == canonical {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.knownDeviceIPs[canonical] {
+		return false
+	}
+	if bound := r.nodeIDByIP[canonical]; bound != "" && bound != nodeID {
+		return false
+	}
+	if nodeID != "" {
+		r.setNodeIDLocked(canonical, nodeID)
+	}
+	r.registerIPAliasLocked(alias, canonical)
+	return true
+}
+
+// NodeIDForIP returns the Tailscale node bound to a device IP, or ""
+// when none is recorded.
+func (r *onboardRegistry) NodeIDForIP(ip string) string {
+	if ip == "" {
+		return ""
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.nodeIDByIP[ip]
+}
+
+// FoldAliasOntoNode records alias as another address of the one device
+// bound to nodeID, and reports whether it did. Returns false when no row
+// is bound to the node, when more than one is, or when the only match is
+// alias itself.
+//
+// One critical section for the same reason FoldAliasOntoDevice has one:
+// looking the row up and then aliasing onto it are two questions about
+// the same row, and a delete landing between them would install an alias
+// pointing at a row that no longer exists.
+func (r *onboardRegistry) FoldAliasOntoNode(alias, nodeID string) string {
+	if alias == "" || nodeID == "" {
+		return ""
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	canonical := r.uniqueIPForNodeIDLocked(nodeID)
+	if canonical == "" || canonical == alias {
+		return ""
+	}
+	r.registerIPAliasLocked(alias, canonical)
+	return canonical
+}
+
+// UniqueIPForNodeID returns a device IP iff exactly one devices row is
+// bound to this Tailscale node. Used to coalesce a tailnet peer that
+// reaches the gateway from an address its device row does not carry —
+// the control plane reassigned the node's address, or it arrived on a
+// family the row never recorded — back onto that row.
+//
+// The identity is deliberately the node and not its name: a hostname is
+// whatever the node claims (`tailscale set --hostname`), and an
+// ephemeral node frees its name when it goes offline, so a name match
+// would let any tailnet member that can route through the gateway take
+// over a privileged device's profile and the credentials bound to it.
+//
+// A row with no node recorded matches nothing, which is also what makes
+// rows written before ts_node_id existed safe to read: they cannot
+// absorb a peer until the node behind them is observed.
+//
+// Returns "" on collisions, so two rows that somehow share a node are
+// never merged into one another.
+func (r *onboardRegistry) UniqueIPForNodeID(nodeID string) string {
+	if nodeID == "" {
+		return ""
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.uniqueIPForNodeIDLocked(nodeID)
+}
+
+func (r *onboardRegistry) uniqueIPForNodeIDLocked(nodeID string) string {
+	if nodeID == "" {
+		return ""
+	}
+	found := ""
+	for ip, id := range r.nodeIDByIP {
+		if id != nodeID {
+			continue
+		}
+		if !r.knownDeviceIPs[ip] {
+			continue
+		}
+		if found != "" && found != ip {
+			return ""
+		}
+		found = ip
+	}
+	return found
+}
+
+// ClaimAliasResolve returns true if we should run a WhoIs lookup for ip
+// to try to map it onto a known device, and false if a recent attempt
+// already settled the question (positive or negative). The first caller
+// in a `within` window wins; subsequent callers skip the lookup so a
+// peer with no matching device doesn't trigger one WhoIs round-trip per
+// packet. Stamping the time inside the same critical section makes the
+// check-and-claim atomic across concurrent callers.
+func (r *onboardRegistry) ClaimAliasResolve(ip string, within time.Duration) bool {
+	if ip == "" {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.knownDeviceIPs[ip] {
+		return false
+	}
+	if _, ok := r.canonicalByAlias[ip]; ok {
+		return false
+	}
+	if t, ok := r.resolveTriedAt[ip]; ok && time.Since(t) < within {
+		return false
+	}
+	r.resolveTriedAt[ip] = time.Now()
+	return true
+}
+
+func (r *onboardRegistry) ForgetIP(ip string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.forgetMemoryLocked(ip)
+	if r.db != nil {
+		_, _ = r.db.Exec("DELETE FROM devices WHERE id = ?", ip)
+	}
+}
+
+func (r *onboardRegistry) forgetMemoryLocked(ip string) {
+	delete(r.ownerByIP, ip)
+	delete(r.hostnameByIP, ip)
+	delete(r.profileByIP, ip)
+	delete(r.extV4ByIP, ip)
+	delete(r.extV6ByIP, ip)
+	delete(r.nodeIDByIP, ip)
+	delete(r.knownDeviceIPs, ip)
+	// Drop the IP from the alias graph too — both as an alias and as a
+	// canonical. Otherwise a stale alias outlives the device and, after
+	// IP reuse, AssignProfile's alias fan-out could re-stamp a profile
+	// onto an address now belonging to a different peer.
+	delete(r.canonicalByAlias, ip)
+	for alias, canonical := range r.canonicalByAlias {
+		if canonical == ip {
+			delete(r.canonicalByAlias, alias)
+			delete(r.profileByIP, alias)
+		}
+	}
+}
+
+func (r *onboardRegistry) start() *onboardSession {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.gcLocked()
+	s := &onboardSession{
+		deviceCode: randomString(48),
+		userCode:   randomUserCode(),
+		created:    time.Now(),
+	}
+	r.byDevice[s.deviceCode] = s
+	r.byUser[s.userCode] = s
+	return s
+}
+
+func (r *onboardRegistry) byUserCode(code string) *onboardSession {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.gcLocked()
+	return r.byUser[strings.ToUpper(strings.TrimSpace(code))]
+}
+
+func (r *onboardRegistry) byDeviceCode(code string) *onboardSession {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.gcLocked()
+	return r.byDevice[code]
+}
+
+func (r *onboardRegistry) gcLocked() {
+	cutoff := time.Now().Add(-10 * time.Minute)
+	for k, s := range r.byDevice {
+		if s.created.Before(cutoff) {
+			delete(r.byDevice, k)
+			delete(r.byUser, s.userCode)
+		}
+	}
+}
+
+// randomUserCode returns a friendly 8-char code "ABCD-1234".
+func randomUserCode() string {
+	const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ" // no I/O for legibility
+	const digits = "23456789"
+	var b [4]byte
+	rand.Read(b[:])
+	out := make([]byte, 0, 9)
+	for i := 0; i < 4; i++ {
+		out = append(out, letters[int(b[i])%len(letters)])
+	}
+	out = append(out, '-')
+	rand.Read(b[:])
+	for i := 0; i < 4; i++ {
+		out = append(out, digits[int(b[i])%len(digits)])
+	}
+	return string(out)
+}
+
+// Onboarder mints a single-use auth artefact + tells the client which
+// control-plane to register against. Implementations:
+//   - tailscaleOnboarder — Tailscale Inc OAuth
+//   - wireguardOnboarder — plain self-hosted WireGuard, no SaaS
+type Onboarder interface {
+	// MintKey provisions a fresh client. authKey is the secret material
+	// handed to the device (Tailscale auth-key, or a wg-quick conf for
+	// the WG path). loginServer prefixes the CLI branch select
+	// ("wireguard://…" or empty for Tailscale Inc). peerIP, when
+	// non-empty, is the IP the server allocated for this peer — the
+	// caller registers it in the onboard registry so per-user OAuth
+	// lookup works without a separate claim round-trip from the CLI.
+	MintKey(ctx context.Context, reuseIP string, wholeMachine bool) (authKey, loginServer, peerIP string, err error)
+}
+
+// newOnboarder picks the transport branch the gateway should use to
+// mint a peer identity for a joining device. When both transports
+// are enabled, WireGuard wins — its onboarding flow yields a
+// wg-quick conf the device can apply without needing a Tailscale
+// account, which is the more permissive path. Operators who want
+// every device to land on Tailscale should disable the `wireguard
+// {}` block.
+func newOnboarder(ts JoinConfig) Onboarder {
+	if ts.WGEnabled {
+		return &wireguardOnboarder{ts: ts}
+	}
+	return &tailscaleOnboarder{ts: ts}
+}
+
+type tailscaleOnboarder struct{ ts JoinConfig }
+
+func (t *tailscaleOnboarder) MintKey(ctx context.Context, _ string, _ bool) (string, string, string, error) {
+	// One persistent (non-ephemeral) auth key per device. The Linux
+	// daemon (cmd/nebprx daemon_linux.go) holds one stable tsnet identity
+	// shared across every `nebprx run` on the host, so the
+	// per-process ephemeral model is gone. Whole-machine joins on
+	// Linux also want a persistent node so the host survives reboots.
+	k, err := mintTailscaleAuthKey(ctx, t.ts, false)
+	return k, "", "", err
+}
+
+// mintTailscaleAuthKey calls Tailscale's OAuth + auth-key API to mint
+// a single-use auth key. ephemeral=true makes the registered node
+// auto-disappear on disconnect (used by per-process tsnet runs);
+// ephemeral=false keeps the node registered across reconnects (used
+// by whole-machine joins and the per-host daemon).
+//
+// The key is non-reusable: it authenticates exactly one node
+// registration, then becomes inert. Daemon respawns and reboots reuse
+// the persisted tsnet state dir (no key needed — tsnet ignores the
+// AuthKey field once the local state is past NeedsLogin). Limits the
+// blast radius if the on-disk auth-key file leaks: an attacker can
+// register at most one extra tailnet node before the key is burned.
+func mintTailscaleAuthKey(ctx context.Context, ts JoinConfig, ephemeral bool) (string, error) {
+	clientID := resolveTemplate(ts.OAuthClientID)
+	clientSecret := resolveTemplate(ts.OAuthClientSecret)
+	if clientID == "" || clientSecret == "" {
+		return "", fmt.Errorf("tailscale oauth not configured (set tailscale.oauth_client_id/oauth_client_secret)")
+	}
+	// 1. exchange client_credentials for short-lived bearer token.
+	form := url.Values{}
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_id", clientID)
+	form.Set("client_secret", clientSecret)
+	tokReq, _ := http.NewRequestWithContext(ctx, "POST",
+		"https://api.tailscale.com/api/v2/oauth/token",
+		strings.NewReader(form.Encode()))
+	tokReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	tokResp, err := http.DefaultClient.Do(tokReq)
+	if err != nil {
+		return "", fmt.Errorf("tailscale oauth: %w", err)
+	}
+	defer func() { _ = tokResp.Body.Close() }()
+	if tokResp.StatusCode != 200 {
+		body, _ := io.ReadAll(io.LimitReader(tokResp.Body, 1024))
+		return "", fmt.Errorf("tailscale oauth %d: %s", tokResp.StatusCode, string(body))
+	}
+	var tok struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.NewDecoder(io.LimitReader(tokResp.Body, 64<<10)).Decode(&tok); err != nil {
+		return "", fmt.Errorf("tailscale oauth: decode: %w", err)
+	}
+	if tok.AccessToken == "" {
+		return "", fmt.Errorf("tailscale oauth: empty access_token")
+	}
+
+	// 2. mint auth key.
+	//
+	// SECURITY: every minted auth key MUST carry at least one tag.
+	// An untagged auth key produces an "owner-associated" tailnet
+	// node — whois on requests from that node returns the OAuth
+	// client owner's user login, which would then match a
+	// dashboard_operators allowlist entry (e.g. "*@example.com") and
+	// silently bypass the dashboard auth gate. The fallback to
+	// `tag:client` below is load-bearing — do not let an empty
+	// tags slice reach Tailscale's create-key API under any
+	// configuration. If you add a new code path here, re-check
+	// this invariant.
+	tags := ts.TailscaleTags
+	if len(tags) == 0 {
+		tags = []string{"tag:client"}
+	}
+	if len(tags) == 0 {
+		// Belt-and-suspenders: refuse to call the API with an
+		// empty tag list even if the default above is ever
+		// changed in a way that lets the slice stay empty.
+		return "", fmt.Errorf("tailscale auth-key mint: refusing to mint untagged key")
+	}
+	keyReqBody, _ := json.Marshal(map[string]any{
+		"capabilities": map[string]any{
+			"devices": map[string]any{
+				"create": map[string]any{
+					"reusable":      false,
+					"ephemeral":     ephemeral,
+					"preauthorized": true,
+					"tags":          tags,
+				},
+			},
+		},
+		"expirySeconds": 90 * 24 * 3600,
+	})
+	keyReq, _ := http.NewRequestWithContext(ctx, "POST",
+		"https://api.tailscale.com/api/v2/tailnet/-/keys",
+		strings.NewReader(string(keyReqBody)))
+	keyReq.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+	keyReq.Header.Set("Content-Type", "application/json")
+	keyResp, err := http.DefaultClient.Do(keyReq)
+	if err != nil {
+		return "", fmt.Errorf("tailscale key: post: %w", err)
+	}
+	defer func() { _ = keyResp.Body.Close() }()
+	if keyResp.StatusCode != 200 {
+		body, _ := io.ReadAll(io.LimitReader(keyResp.Body, 1024))
+		return "", fmt.Errorf("tailscale key %d: %s", keyResp.StatusCode, string(body))
+	}
+	var key struct {
+		Key string `json:"key"`
+	}
+	if err := json.NewDecoder(io.LimitReader(keyResp.Body, 64<<10)).Decode(&key); err != nil {
+		return "", fmt.Errorf("tailscale key: decode: %w", err)
+	}
+	if key.Key == "" {
+		return "", fmt.Errorf("tailscale key: empty key in response")
+	}
+	return key.Key, nil
+}
+func (w *webMux) apiOnboardStart(rw http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(rw, "POST", http.StatusMethodNotAllowed)
+		return
+	}
+	s := w.onboard.start()
+	// CLI passes its os.Hostname() so the dashboard shows a real
+	// device name instead of just the WG-side IP. Optional — we still
+	// fall back gracefully when missing.
+	hn := strings.TrimSpace(r.URL.Query().Get("hostname"))
+	// `nebprx join --profile X` forwards X here so the approver
+	// doesn't have to pick it manually. Stored as the session-level
+	// suggestion; the dashboard's approve call can still override.
+	prof := strings.TrimSpace(r.URL.Query().Get("profile"))
+	// `nebprx join --whole-machine` → the client installs a
+	// persistent tailnet node (system Tailscale on Linux) rather than
+	// per-process tsnet. It selects which transport
+	// the client sets up; it does not select the key's lifetime. Every
+	// key the Tailscale onboarder mints is non-ephemeral (see
+	// tailscaleOnboarder.MintKey), so no node it registers releases its
+	// MagicDNS name when it goes offline — which is what keeps a
+	// retired node's name from being claimed by another while its
+	// devices row still exists.
+	wm := r.URL.Query().Get("whole_machine") == "1"
+	if hn != "" || prof != "" || wm {
+		w.onboard.mu.Lock()
+		if hn != "" {
+			s.hostname = hn
+		}
+		if prof != "" {
+			s.profile = prof
+		}
+		s.wholeMachine = wm
+		w.onboard.mu.Unlock()
+	}
+	// Build the verify URL that points at the dashboard approval page.
+	// In tsnet mode the approving operator is on the tailnet — use the
+	// tailnet-direct HTTP URL (http://<100.x.x.x>:<info_port>) so they
+	// don't have to go through the Funnel HTTPS relay. Use IP directly
+	// to avoid MagicDNS resolution issues with OS-hostname vs registered name.
+	verifyURL := w.publicURL
+	cfg := w.g.cfg.Load()
+	if w.g != nil && cfg != nil && cfg.PublicURL() != "" {
+		verifyURL = cfg.PublicURL()
+	}
+	if w.g != nil && w.g.tailscaleIP != "" && cfg != nil && cfg.DashboardListen() != "" {
+		port := cfg.DashboardListen()
+		if i := strings.LastIndexByte(port, ':'); i >= 0 {
+			port = port[i+1:]
+		}
+		if port != "" {
+			verifyURL = fmt.Sprintf("http://%s:%s", w.g.tailscaleIP, port)
+		}
+	}
+	if verifyURL == "" {
+		scheme := "http"
+		if strings.HasSuffix(r.Host, ".ts.net") || r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			scheme = "https"
+		}
+		verifyURL = scheme + "://" + r.Host
+	}
+	verifyURL = strings.TrimRight(verifyURL, "/") + "/#/onboard/" + s.userCode
+	writeJSON(rw, map[string]any{
+		"device_code": s.deviceCode,
+		"user_code":   s.userCode,
+		"verify_url":  verifyURL,
+		"interval":    3,
+		"expires_in":  600,
+	})
+}
+
+// apiOnboardLookup returns user_code session info for the dashboard
+// approval page. No secrets exposed (just code + age). Includes the
+// gateway's CA SHA-256 fingerprint so the approving operator can
+// compare it against what the CLI prints on the new device — out-
+// of-band confirmation that no on-path attacker substituted the CA
+// the CLI just fetched over plain HTTP.
+func (w *webMux) apiOnboardLookup(rw http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	s := w.onboard.byUserCode(code)
+	if s == nil {
+		http.Error(rw, "unknown or expired code", 404)
+		return
+	}
+	w.onboard.mu.Lock()
+	userCode := s.userCode
+	approved := s.approved
+	created := s.created
+	stored := s.profile
+	w.onboard.mu.Unlock()
+
+	// Profile names + the preselection for the approval page's picker.
+	// Before approval the suggestion is the CLI's `join --profile`
+	// value when it names a real profile, else the same fallback
+	// apiOnboardApprove uses — so the picker shows exactly what an
+	// unmodified approve would assign. After approval s.profile holds
+	// the final choice; report it verbatim so the page renders the
+	// real assignment even if that profile was since removed from the
+	// policy.
+	profiles := orderedProfileNames(w.g.cfg.Load().Policy)
+	suggested := stored
+	if !approved {
+		suggested = resolveProfileFromList(profiles, stored)
+	}
+	writeJSON(rw, map[string]any{
+		"user_code":         userCode,
+		"approved":          approved,
+		"created_at":        created.Unix(),
+		"ca_fingerprint":    w.caFingerprint(),
+		"profiles":          profiles,
+		"suggested_profile": suggested,
+	})
+}
+
+// onboardApproveBody is the JSON body /api/onboard/approve accepts.
+// Both fields are optional: an absent field falls back to the query
+// parameter of the same name.
+type onboardApproveBody struct {
+	Code    string `json:"code"`
+	Profile string `json:"profile"`
+}
+
+// decodeOnboardApproveBody reads the approve request's JSON body. An
+// empty body is valid and yields the zero value — the CLI self-
+// approve posts no body at all.
+func decodeOnboardApproveBody(r *http.Request) (onboardApproveBody, error) {
+	var body onboardApproveBody
+	if r.Body == nil {
+		return body, nil
+	}
+	raw, err := io.ReadAll(io.LimitReader(r.Body, 4<<10))
+	if err != nil {
+		return body, fmt.Errorf("read body: %w", err)
+	}
+	if len(strings.TrimSpace(string(raw))) == 0 {
+		return body, nil
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return body, fmt.Errorf("body must be JSON: %w", err)
+	}
+	return body, nil
+}
+
+// apiOnboardApprove is hit by the dashboard "approve" button.
+// Approval is an operator action: dashboardAuthGate must authenticate
+// the request (root password or tailnet allowlist) before this handler
+// can approve a pending device.
+func (w *webMux) apiOnboardApprove(rw http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(rw, "POST", http.StatusMethodNotAllowed)
+		return
+	}
+	if _, ok := principalFromContext(r.Context()); !ok {
+		http.Error(rw, "approval requires an authenticated operator", http.StatusForbidden)
+		return
+	}
+	body, err := decodeOnboardApproveBody(r)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// The body is the documented place for both parameters — a
+	// state-changing call whose inputs ride in the URL is reachable by
+	// navigation and lands in logs and history. The query string stays
+	// accepted for the `nebprx join --login` self-approve, which
+	// builds its URL that way.
+	code := body.Code
+	if code == "" {
+		code = r.URL.Query().Get("code")
+	}
+	requested := body.Profile
+	if requested == "" {
+		requested = r.URL.Query().Get("profile")
+	}
+	// An explicitly named profile is also the owner key, matching what
+	// selectedProfileForRequest resolves from the query parameter.
+	owner := requested
+	if owner == "" {
+		owner, _ = w.selectedProfileForRequest(r)
+	}
+	if owner == "" {
+		http.Error(rw, "approval requires a profile", http.StatusForbidden)
+		return
+	}
+	s := w.onboard.byUserCode(code)
+	if s == nil {
+		http.Error(rw, "unknown or expired code", 404)
+		return
+	}
+	// Operator picks which profile this device joins. Priority:
+	// profile named on the request → CLI suggestion stashed at /start
+	// time → profile named "default" → first profile in source order.
+	// An explicitly named profile that does not exist is a hard error
+	// (a typo'd `join --profile` auto-approve should fall back to
+	// browser approval, not land the device in a ghost profile); a
+	// bogus stashed suggestion just degrades to the default.
+	profiles := orderedProfileNames(w.g.cfg.Load().Policy)
+	profile := requested
+	if profile != "" {
+		// An explicitly named profile that does not exist is a hard
+		// error: a typo'd `join --profile` auto-approve should fall
+		// back to browser approval, not land the device in a ghost
+		// profile. (A policy with zero profiles has nothing to
+		// validate against — accept whatever the caller sent.)
+		if len(profiles) > 0 && !slices.Contains(profiles, profile) {
+			http.Error(rw, fmt.Sprintf("unknown profile %q", profile), http.StatusBadRequest)
+			return
+		}
+	} else {
+		// No operator override — fall back to the CLI's stashed
+		// suggestion when it names a real profile, else the default.
+		// A bogus suggestion degrades to the default rather than
+		// failing. With zero profiles this stays the raw suggestion.
+		profile = resolveProfileFromList(profiles, s.profile)
+	}
+	w.onboard.mu.Lock()
+	if s.approved {
+		w.onboard.mu.Unlock()
+		writeJSON(rw, map[string]any{"already": true, "profile": s.profile})
+		return
+	}
+	s.approved = true
+	s.owner = owner
+	s.profile = profile
+	hostname := s.hostname
+	wholeMachine := s.wholeMachine
+	w.onboard.mu.Unlock()
+
+	// Recycle the wg /32 already bound to (owner, hostname) so a rejoin
+	// from the same machine doesn't spawn a duplicate device row.
+	reuseIP := w.onboard.IPForHostname(owner, hostname)
+
+	// Mint key in background so the approve click returns fast.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		key, loginServer, peerIP, err := newOnboarder(w.ts).MintKey(ctx, reuseIP, wholeMachine)
+		w.onboard.mu.Lock()
+		if err != nil {
+			s.err = err.Error()
+			w.onboard.mu.Unlock()
+			return
+		}
+		dc := s.deviceCode
+		w.onboard.mu.Unlock()
+		// Publish the key last, after the peer is claimed and its api
+		// token minted below. The poll hands the material out exactly
+		// once; a poll landing between key and token would deliver a
+		// key with no token, and the client would have to re-join.
+		defer func() {
+			w.onboard.mu.Lock()
+			s.authKey = key
+			s.loginServer = loginServer
+			w.onboard.mu.Unlock()
+		}()
+		// WG path: server allocated peerIP and knows the approver, so
+		// register the (ip → owner) mapping right here. Saves the CLI
+		// from making a /api/onboard/claim round-trip after wg-quick
+		// (which is racy: the default route is now the tunnel and the
+		// public gateway URL becomes unreachable).
+		if peerIP != "" {
+			w.onboard.ClaimIP(dc, peerIP, "")
+			if profile != "" {
+				w.onboard.AssignProfile(peerIP, profile)
+			}
+			// Seed the agents registry so the dashboard shows the
+			// device immediately, before it sends any traffic.
+			if w.g.agents != nil {
+				w.g.agents.Seed(peerIP)
+			}
+			// Mint the per-peer bearer the client uses for gated
+			// API calls (currently /api/env-pushdown). Stored hashed
+			// in `peer_api_tokens`; raw token is returned exactly
+			// once via /api/onboard/poll.
+			if token, perr := mintAndPersistPeerAPIToken(w.g.db, peerIP); perr == nil {
+				w.onboard.mu.Lock()
+				s.apiToken = token
+				w.onboard.mu.Unlock()
+			} else {
+				log.Printf("api-token mint for %s: %v", peerIP, perr)
+			}
+		} else if loginServer == "" && !wholeMachine {
+			// Tsnet daemon mode: no devices row yet — the tailnet IP
+			// only exists once the per-host daemon joins, which happens
+			// later when the operator runs `nebprx run`. Hold the
+			// profile in memory only against a synthetic placeholder
+			// and bind the api-token to it; both get repointed by
+			// /api/peer/tsnet/register on the daemon's first boot.
+			s2 := w.onboard.byDeviceCode(dc)
+			parentID := tsnetPlaceholderPrefix + dc
+			hostname := ""
+			if s2 != nil && s2.hostname != "" {
+				hostname = s2.hostname
+				parentID = tsnetPlaceholderPrefix + hostname
+			}
+			w.onboard.seedPlaceholder(parentID, hostname, owner, profile)
+			// Seed the agents registry under the placeholder so the
+			// dashboard shows the just-approved device (and lets the
+			// operator re-assign its profile) before the daemon's
+			// first register call. The register promotion deletes this
+			// entry and re-seeds under the real tailnet IP. Seed BEFORE
+			// minting the token: /api/peer/tsnet/register authenticates
+			// with that token, so doing it first guarantees a register
+			// can't slip in and promote between mint and Seed, which
+			// would leave the re-seeded placeholder as an orphan ghost.
+			if w.g.agents != nil {
+				w.g.agents.Seed(parentID)
+			}
+			if token, perr := mintAndPersistPeerAPIToken(w.g.db, parentID); perr == nil {
+				w.onboard.mu.Lock()
+				s.apiToken = token
+				w.onboard.mu.Unlock()
+			} else {
+				log.Printf("api-token mint for %s: %v", parentID, perr)
+			}
+		}
+	}()
+	writeJSON(rw, map[string]any{"approved": true, "profile": profile})
+}
+
+// apiOnboardClaim is hit by the CLI right after `tailscale up`
+// finishes. The peer IP (the new device's tailnet IP) gets associated
+// with the approver email. Subsequent agent traffic from that IP
+// resolves to the approver in lieu of the useless "tagged-devices"
+// whois result.
+func (w *webMux) apiOnboardClaim(rw http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(rw, "POST", http.StatusMethodNotAllowed)
+		return
+	}
+	dc := r.URL.Query().Get("device_code")
+	if dc == "" {
+		http.Error(rw, "missing device_code", 400)
+		return
+	}
+	// CLI passes its own tailnet IP via ?ip=. We can't trust
+	// r.RemoteAddr because tailscale funnel proxies through localhost
+	// and the device_code already binds this to a specific approval —
+	// you can't claim someone else's IP without their device_code.
+	host := r.URL.Query().Get("ip")
+	if host == "" {
+		host = r.RemoteAddr
+		if i := strings.LastIndex(host, ":"); i >= 0 {
+			host = host[:i]
+		}
+	}
+	hostname := strings.TrimSpace(r.URL.Query().Get("hostname"))
+	owner, ok := w.onboard.ClaimIP(dc, host, hostname)
+	if !ok {
+		log.Printf("onboard claim: unknown/unapproved device_code=%s ip=%s", truncate(dc, 16), host)
+		http.Error(rw, "unknown or unapproved device_code", 404)
+		return
+	}
+	log.Printf("onboard claim: %s → %s (hostname=%q)", host, owner, hostname)
+	// Seed the agents registry so the dashboard shows the device as
+	// soon as the claim lands, before it sends any traffic.
+	if w.g.agents != nil {
+		w.g.agents.Seed(host)
+	}
+	// Mirror profile mapping onto the peer's IPv6 ULA — whole-machine
+	// tsnet traffic frequently arrives on fd7a:115c:a1e0::/48 not the
+	// 100.x IPv4 that claim() registered.
+	w.g.seedTsnetIPv6Alias(host)
+	resp := map[string]string{"owner": owner, "ip": host}
+	// Mint the per-peer bearer the client uses for gated API calls
+	// (env-pushdown, ephemeral tsnet key). In Tailscale mode the peer IP
+	// isn't known at approve time, so we mint it here instead.
+	//
+	// A mint failure used to be dropped on the floor: the claim still
+	// returned 200, just without api_token, and the operator only found
+	// out hours later via the daemon's "peer api token not persisted".
+	// Log it here and hand the reason back so the CLI can name it.
+	if token, err := mintAndPersistPeerAPIToken(w.g.db, host); err == nil {
+		resp["api_token"] = token
+		// The per-process path seeded a tsnet-<hostname> placeholder
+		// (device row + placeholder-bound token) at approve time. The
+		// daemon will now present this claim's real-IP token, so the
+		// placeholder promotion in apiPeerTsnetRegister never fires and
+		// the placeholder would linger as a ghost device + orphaned
+		// token row. Retire it now — only on a successful mint, so a
+		// mint failure still leaves the placeholder token as the
+		// daemon's fallback.
+		w.retirePlaceholderForClaim(dc, host)
+	} else {
+		log.Printf("onboard claim: mint peer api-token for %s: %v", host, err)
+		resp["api_token_error"] = err.Error()
+	}
+	writeJSON(rw, resp)
+}
+
+// retirePlaceholderForClaim drops the tsnet-<hostname> placeholder that
+// apiOnboardApprove seeded for device_code dc, once a claim has bound a
+// real-IP token (realIP). No-op when there was no placeholder (e.g. the
+// whole-machine path, which never seeds one). Mirrors the placeholder
+// teardown in apiPeerTsnetRegister.
+func (w *webMux) retirePlaceholderForClaim(dc, realIP string) {
+	s := w.onboard.byDeviceCode(dc)
+	if s == nil {
+		return
+	}
+	placeholderID := tsnetPlaceholderPrefix + dc
+	if s.hostname != "" {
+		placeholderID = tsnetPlaceholderPrefix + s.hostname
+	}
+	if placeholderID == realIP {
+		return
+	}
+	w.onboard.ForgetIP(placeholderID)
+	if w.g.agents != nil {
+		w.g.agents.Delete(placeholderID)
+	}
+	if w.g.db != nil {
+		_, _ = w.g.db.Exec("DELETE FROM peer_api_tokens WHERE peer_ip = ?", placeholderID)
+	}
+}
+
+// apiPeerTsnetRegister is the daemon's one-shot self-registration on
+// first boot after `nebprx join`: the api-token minted at approve
+// time is bound to a synthetic "tsnet-<host>" placeholder; the daemon
+// now has its real tailnet IP and asks the gateway to rebind the
+// token + create the real devices row. Subsequent calls (later daemon
+// boots, gateway restarts) reach the no-op branch — the token's
+// peer_ip is already the real IP, nothing to do.
+//
+// Auth: bearer api-token in the Authorization header. The path is
+// /api/peer/tsnet/register — no "ephemeral" in the name because the
+// daemon model has one persistent peer per host, not a pool of
+// short-lived ones.
+func (w *webMux) apiPeerTsnetRegister(rw http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(rw, "POST", http.StatusMethodNotAllowed)
+		return
+	}
+	token := bearerFromAuthHeader(r.Header.Get("Authorization"))
+	parentIP := peerIPForAPIToken(w.g.db, token)
+	if parentIP == "" {
+		http.Error(rw, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	tsnetIP := strings.TrimSpace(r.URL.Query().Get("ip"))
+	if tsnetIP == "" {
+		http.Error(rw, "missing ip", http.StatusBadRequest)
+		return
+	}
+	if ip, err := netip.ParseAddr(tsnetIP); err != nil || !ip.IsValid() {
+		http.Error(rw, "invalid ip", http.StatusBadRequest)
+		return
+	}
+	if w.g.onboard == nil {
+		rw.WriteHeader(http.StatusNoContent)
+		return
+	}
+	hostname := strings.TrimSpace(r.URL.Query().Get("hostname"))
+	// The token proves an approval, not ownership of the address in the
+	// query string. Promotion is the one case where the two differ
+	// legitimately: the token is still bound to the placeholder, and
+	// tsnetIP is the real address the daemon is reporting for itself.
+	// On every later call the token already carries the real address, so
+	// a tsnetIP that disagrees with it is somebody naming an address
+	// that is not theirs — and seedTsnetIPv6Alias records a node
+	// binding, which would write a devices row for it.
+	promoting := strings.HasPrefix(parentIP, tsnetPlaceholderPrefix)
+	if promoting {
+		// First call — promote the synthetic placeholder to a real
+		// devices row keyed on the tailnet IP. Rebind the api-token,
+		// drop the placeholder from in-memory state, carry across the
+		// per-IP state seeded at approve time (profile, owner, and the
+		// hostname unless the daemon supplied a fresher one). Capture
+		// before ForgetIP clears the placeholder entries.
+		profile := w.g.onboard.ProfileForIP(parentIP)
+		owner := w.g.onboard.OwnerForIP(parentIP)
+		if hostname == "" {
+			hostname = w.g.onboard.HostnameForIP(parentIP)
+		}
+		_, _ = w.g.db.Exec("UPDATE peer_api_tokens SET peer_ip=? WHERE peer_ip=?", tsnetIP, parentIP)
+		w.g.onboard.ForgetIP(parentIP)
+		if w.g.agents != nil {
+			w.g.agents.Delete(parentIP)
+		}
+		if profile != "" {
+			w.g.onboard.AssignProfile(tsnetIP, profile)
+		}
+		if owner != "" {
+			w.g.onboard.SetOwner(tsnetIP, owner)
+		}
+		if hostname != "" {
+			w.g.onboard.SetHostname(tsnetIP, hostname)
+		}
+		if w.g.agents != nil {
+			w.g.agents.Seed(tsnetIP)
+		}
+	}
+	// Map the daemon's IPv6 ULA too — tsnet traffic from this peer
+	// frequently arrives on fd7a:115c:a1e0::/48 rather than the 100.x.
+	//
+	// Outside promotion the devices row must still exist: a token that
+	// outlived a deleted row (the daemon keeps re-registering after the
+	// operator removed the device) must not re-create it through the
+	// node binding seedTsnetIPv6Alias records. SetNodeID re-checks
+	// under its own lock, which is what holds against a delete landing
+	// during the WhoIs; this gate is the cheap early exit with a log
+	// line.
+	switch {
+	case promoting:
+		w.g.seedTsnetIPv6Alias(tsnetIP)
+	case tsnetIP != parentIP:
+		log.Printf("peer tsnet register: ignoring ip=%s for token bound to %s", tsnetIP, parentIP)
+	case !w.g.onboard.HasDevice(tsnetIP):
+		log.Printf("peer tsnet register: ignoring ip=%s, device row was deleted", tsnetIP)
+	default:
+		w.g.seedTsnetIPv6Alias(tsnetIP)
+	}
+	rw.WriteHeader(http.StatusNoContent)
+}
+
+// apiOnboardPoll is hit by the CLI to retrieve the auth key once
+// approved. Uses standard device-flow status codes via JSON.
+func (w *webMux) apiOnboardPoll(rw http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(rw, "POST", http.StatusMethodNotAllowed)
+		return
+	}
+	dc := r.URL.Query().Get("device_code")
+	s := w.onboard.byDeviceCode(dc)
+	if s == nil {
+		writeJSON(rw, map[string]string{"error": "expired_token"})
+		return
+	}
+	w.onboard.mu.Lock()
+	defer w.onboard.mu.Unlock()
+	if s.err != "" {
+		writeJSON(rw, map[string]string{"error": "server_error", "detail": s.err})
+		return
+	}
+	if !s.approved {
+		writeJSON(rw, map[string]string{"error": "authorization_pending"})
+		return
+	}
+	if s.authKey == "" {
+		writeJSON(rw, map[string]string{"error": "slow_down"})
+		return
+	}
+	if s.delivered {
+		writeJSON(rw, map[string]string{"error": "expired_token", "detail": "auth material already delivered; re-run nebprx join"})
+		return
+	}
+	s.delivered = true
+	resp := map[string]any{
+		"auth_key":     s.authKey,
+		"api_token":    s.apiToken,
+		"approved_by":  s.owner,
+		"login_server": s.loginServer, // empty = Tailscale Inc default
+	}
+	// In Tailscale mode include gateway_host, gateway_ip, and control_url
+	// so the client can write mode marker files for `nebprx run`.
+	// gateway_ip (100.x.x.x) lets the client write tailnet-url directly
+	// without a fragile peer-name lookup.
+	if s.loginServer == "" {
+		gwHost := w.ts.Hostname
+		if gwHost == "" {
+			gwHost = "nebprx-gateway"
+		}
+		// Prefer the actual registered node name (may differ from the
+		// configured hostname when tsnet resolved a conflict, e.g.
+		// "nebprx-gateway-1" vs "nebprx-gateway").
+		if w.g != nil && w.g.tailscaleHostname != "" {
+			gwHost = w.g.tailscaleHostname
+		}
+		resp["gateway_host"] = gwHost
+		resp["control_url"] = w.ts.ControlURL
+		if w.g != nil && w.g.tailscaleIP != "" {
+			resp["gateway_ip"] = w.g.tailscaleIP
+		}
+		// CA cert delivered over the approved Funnel/onboard channel —
+		// the gateway's /ca.crt is intentionally not exposed publicly
+		// in tsnet mode (CA fetched after approval, inside the
+		// Let's-Encrypt-authenticated Funnel TLS).
+		if w.g != nil && w.g.certs != nil {
+			if pem := w.g.certs.CertPEM(); len(pem) > 0 {
+				resp["ca_pem"] = string(pem)
+			}
+		}
+	}
+	writeJSON(rw, resp)
+}

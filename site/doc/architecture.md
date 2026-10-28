@@ -6,20 +6,25 @@
 
 ## Overview — actors
 
-Five actors take part in a clawpatrol deployment:
+PRX runs as a server/service on Linux, macOS, and Windows.
+
+Five actors take part in a PRX deployment:
 
 - **Agent.** The AI client the operator wants to gate (Claude,
   Codex, …). The agent runs as an ordinary process on the
   operator’s workstation and dials upstream hostnames directly; it
-  has no awareness that clawpatrol is in the path. clawpatrol also
+  has no awareness that PRX is in the path. PRX also
   covers the non-AI CLIs the agent shells out to (the GitHub CLI,
   kubectl, psql, ssh, …): those aren’t agents themselves but tools
   the agent uses, and the gateway applies the same policy gates to
   whichever flows the agent kicks off through them.
 - **Device.** The machine the agent runs on. The device hosts a
-  small clawpatrol client (CLI binary on Linux; system extension
-  inside `Clawpatrol.app` on macOS) that captures the agent’s
-  outbound flows and feeds them into the transport.
+  PRX client that captures outbound flows and feeds them into the
+  transport. On macOS, `nebprx gateway` runs the service. `nebprx join --whole-machine`
+  routes host traffic through a WireGuard gateway using `wg-quick` (requires
+  `wireguard-tools` and `wireguard-go`). Plain `join` saves the configuration
+  without routing. Per-command `nebprx run` is Linux-only. Tailscale client
+  routing is not supported on macOS.
 - **Transport.** A WireGuard or Tailscale connection between the
   device and the gateway, configured by the `gateway { wireguard
   { ... } }` or `gateway { tailscale { ... } }` block (see
@@ -27,7 +32,7 @@ Five actors take part in a clawpatrol deployment:
   The transport carries L3 packets — every byte the agent emits
   travels inside it. The agent never sees a proxy URL or a CA
   bundle.
-- **Gateway.** The clawpatrol process. A single Go binary that
+- **Gateway.** The PRX gateway process. A single Go binary that
   terminates the transport, decides per flow whether to intercept or
   pass through, and runs the policy plugins that inject real
   credentials, gate requests, and emit events. The diagram below
@@ -48,7 +53,7 @@ The gateway is drawn on a separate machine; the device runs only
 the client — it does not run policy logic, does not hold
 credentials, and does not know upstream secrets.
 
-<svg viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="clawpatrol process diagram: device captures agent flows, transports them via WireGuard or Tailscale to the gateway, which either runs them through endpoint, rule, and credential plugins or splices them transparently to the upstream">
+<svg viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="nebprx process diagram: device captures agent flows, transports them via WireGuard or Tailscale to the gateway, which either runs them through endpoint, rule, and credential plugins or splices them transparently to the upstream">
   <defs>
     <marker id="ar-proc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
       <path d="M0,0 L10,5 L0,10 z" fill="#2a342f"/>
@@ -133,7 +138,7 @@ The gateway pulls in three plugin families:
 
 ## Connection modes
 
-`clawpatrol join <gateway>` enrolls the device. What the gateway
+`nebprx join <gateway>` enrolls the device. What the gateway
 mints + what the client installs depends on the gateway’s
 `control` mode.
 
@@ -147,56 +152,33 @@ for per-process; `ephemeral=false` for `--whole-machine`) via OAuth
 and the CA + api-token are delivered inside the approved Funnel
 response.
 
-**`clawpatrol run -- <cmd>` (Linux + macOS).** Each invocation is
-its own ephemeral tailnet node. On Linux a new user + net + mnt
-namespace runs userspace wireguard-go inside `tsnet.Server` with
-`MkdirTemp` state (`Ephemeral: true`); on macOS the
-`NETransparentProxyProvider` extension hosts the tsnet stack and
-PPID-filters flows. Concurrent runs on one host don’t share state.
-Reference: `run_tsnet_linux.go`, `run_tsnet_darwin.go`,
-`macos/netstack/wgnetstack.go`.
+**`nebprx run -- <cmd>` (Linux).** Each invocation is its own
+ephemeral tailnet node in a new user + net + mnt namespace.
 
 The persisted tsnet auth key is hidden from agent processes:
-- **Linux** — parent reads `~/.clawpatrol/tsnet-auth-key` from the
+- **Linux** — parent reads `~/.nebprx/tsnet-auth-key` from the
   host mnt ns; the child ns overlays an empty tmpfs on the dir
   before exec'ing the agent, re-creating only `ca.crt` inside the
   overlay. Agent sees no key, no api-token.
-- **macOS** — key is not written under `$HOME` at all. `clawpatrol
-  join` hands it to the container app, which stores it in
-  `NETransparentProxyManager` providerConfiguration (system VPN
-  prefs). Subsequent `clawpatrol run` invocations pass an empty
-  authKey arg; the container app reuses the stored value.
-
-Net effect: the bearer is bound to "code running on this physical
-machine," not "anyone who can copy the file off-box."
-
-**`clawpatrol join --whole-machine` (Linux).** Installs system
+**`nebprx join --whole-machine` (Linux).** Installs system
 Tailscale (`tailscale up --authkey=...`), sets the gateway as the
 exit node, and routes the whole host through. The auth key for
 this path is minted with `ephemeral=false` so the node persists.
 Reference: `setup.go:runLogin`.
-
-**`clawpatrol join --whole-machine` (macOS).** The NE owns whole-
-host routing — no system Tailscale touched. macOS never runs
-system tailscaled.
 
 ### WireGuard mode
 
 The gateway runs an in-process WireGuard server (wireguard-go +
 gVisor netstack). At onboard it mints a keypair, allocates a `/32`
 from `gateway.wireguard.subnet_cidr`, and persists the wg-quick config at
-`~/.config/clawpatrol/wg.conf`.
+`~/.config/nebprx/wg.conf`.
 
-**`clawpatrol run -- <cmd>` (Linux).** Per-process ephemeral WG
+**`nebprx run -- <cmd>` (Linux).** Per-process ephemeral WG
 peer in a fresh netns. Reference: `run_linux.go`.
 
-**`clawpatrol join --whole-machine` (Linux).** Kernel WireGuard via
+**`nebprx join --whole-machine` (Linux).** Kernel WireGuard via
 `wg-quick up`. Default route flips to the WG tunnel. Reference:
 `setup.go:wgQuickUp`, `wireguard.go`.
-
-**`clawpatrol run -- <cmd>` (macOS).** WG userspace inside the NE,
-PPID-filtered. Reference: `run_darwin.go`,
-`macos/ClawpatrolExtension/Provider.swift`.
 
 ## Network traffic processing
 

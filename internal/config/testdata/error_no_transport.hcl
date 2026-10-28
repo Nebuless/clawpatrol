@@ -4,6 +4,6 @@
 # way for clients to connect.
 
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
 }

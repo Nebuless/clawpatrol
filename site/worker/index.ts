@@ -1,9 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
-// Cloudflare Worker for clawpatrol.dev. Three responsibilities:
+// Cloudflare Worker for prx.nebuless.cloud. Three responsibilities:
 //
 //   1. Serve the static landing site (env.ASSETS, built into ./dist
 //      by `npm run build`).
-//   2. Accept telemetry pings from clawpatrol gateways at
+//   2. Accept telemetry pings from PRX gateways at
 //      POST /api/telemetry/v1/check, upsert into D1, and return the
 //      latest GitHub release as the update-checker response.
 //   3. Daily cron (see wrangler.jsonc) that rolls up the `gateways`
@@ -19,7 +19,7 @@ interface Env {
 
 const MAX_BODY_BYTES = 4096;
 const RELEASES_URL =
-  "https://api.github.com/repos/denoland/clawpatrol/releases/latest";
+  "https://api.github.com/repos/Nebuless/clawpatrol/releases/latest";
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -201,7 +201,7 @@ type Release = {
 async function fetchLatestRelease(): Promise<Release> {
   const r = await fetch(RELEASES_URL, {
     headers: {
-      "User-Agent": "clawpatrol-telemetry-worker",
+      "User-Agent": "nebprx-telemetry-worker",
       Accept: "application/vnd.github+json",
     },
     cf: { cacheTtl: 1800, cacheEverything: true },

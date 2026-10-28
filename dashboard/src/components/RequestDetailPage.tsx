@@ -44,7 +44,15 @@ function approverKindLabel(type?: string): string {
   }
 }
 
-export function RequestDetailPage({ id, agents }: { id: string; agents: Agent[] }) {
+export function RequestDetailPage({
+  id,
+  agents,
+  support = false,
+}: {
+  id: string;
+  agents: Agent[];
+  support?: boolean;
+}) {
   const [ev, setEv] = useState<EventRecord | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const { byFamily } = useFacets();
@@ -128,7 +136,7 @@ export function RequestDetailPage({ id, agents }: { id: string; agents: Agent[] 
             {fullUrl}
           </span>
           <span className="ml-auto">
-            <ActionButtons ev={ev} />
+            <ActionButtons ev={ev} support={support} />
           </span>
         </div>
         <div className="flex items-center gap-4 text-xs text-text-muted flex-wrap">
@@ -227,7 +235,7 @@ export function RequestDetailPage({ id, agents }: { id: string; agents: Agent[] 
   );
 }
 
-function ActionButtons({ ev }: { ev: EventRecord }) {
+function ActionButtons({ ev, support }: { ev: EventRecord; support: boolean }) {
   const [ruleOpen, setRuleOpen] = useState(false);
   const canBlock = !!ev.id && ev.action !== "in_flight" && (!!ev.endpoint || ev.mode === "splice");
   return (
@@ -237,17 +245,17 @@ function ActionButtons({ ev }: { ev: EventRecord }) {
           Block requests like this
         </Button>
       )}
-      <DownloadActionButton ev={ev} />
+      {!support && <DownloadActionButton ev={ev} />}
       {ruleOpen && <RulePreviewModal ev={ev} onClose={() => setRuleOpen(false)} />}
     </div>
   );
 }
 
 // DownloadActionButton triggers a server-side reshape of this event
-// into a `clawpatrol test` fixture and saves it as a .json file. The
+// into a `nebprx test` fixture and saves it as a .json file. The
 // runner reads files in this exact format — drop the download into a
-// fixtures/ directory and `clawpatrol test config.hcl fixtures/` will
-// replay it against a candidate policy. See site/doc/clawpatrol-test.md.
+// fixtures/ directory and `nebprx test config.hcl fixtures/` will
+// replay it against a candidate policy. See site/doc/nebprx-test.md.
 function DownloadActionButton({ ev }: { ev: EventRecord }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -271,7 +279,7 @@ function DownloadActionButton({ ev }: { ev: EventRecord }) {
             setBusy(false);
           }
         }}
-        title="Download as a Claw Patrol test fixture"
+        title="Download as a PRX test fixture"
       >
         {busy ? "Downloading…" : "Download action"}
       </Button>
@@ -366,8 +374,8 @@ function RulePreviewModal({ ev, onClose }: { ev: EventRecord; onClose: () => voi
         ) : (
           <p className="text-sm text-text-muted">
             {passthrough
-              ? "This request was passed through without MITM inspection because no endpoint matched it. Claw Patrol generated HCL that creates an endpoint for the observed host, claims it from existing profiles via a passthrough credential, and denies future matching requests before they pass through."
-              : "Claw Patrol generated a narrow deny rule from this inspected action. Edit the condition if you want to broaden it."}
+              ? "This request was passed through without MITM inspection because no endpoint matched it. PRX generated HCL that creates an endpoint for the observed host, claims it from existing profiles via a passthrough credential, and denies future matching requests before they pass through."
+              : "PRX generated a narrow deny rule from this inspected action. Edit the condition if you want to broaden it."}
           </p>
         )}
         {!applied && busy ? (
@@ -381,7 +389,7 @@ function RulePreviewModal({ ev, onClose }: { ev: EventRecord; onClose: () => voi
                 Dashboard config writes are disabled for this gateway. Set{" "}
                 <code>dashboard_config_writes = true</code> in the{" "}
                 <a
-                  href="https://clawpatrol.dev/docs/config-reference/#gateway--"
+                  href="https://prx.nebuless.cloud/docs/config-reference/#gateway--"
                   target="_blank"
                   rel="noreferrer"
                   className="underline"

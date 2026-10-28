@@ -125,7 +125,7 @@ write the condition against `sql.statement` with a regex
 ### `k8s` family
 
 Bound to `kubernetes` endpoints. The condition sees the
-`(verb, resource, namespace, name, params)` tuple Claw Patrol parses
+`(verb, resource, namespace, name, params)` tuple PRX parses
 out of the kubernetes API path.
 
 Example: deny Kubernetes Secret reads.
@@ -402,8 +402,8 @@ After a rule matches:
 LLM approvers call the configured model via its bound credential and
 judge the request against the approver's policy. Human approvers park
 the request on the dashboard's pending-approvals page. If the approver
-block has a `credential` reference to a `slack_tokens` credential, Claw
-Patrol also posts an approval message to the configured Slack channel.
+block has a `credential` reference to a `slack_tokens` credential, PRX
+also posts an approval message to the configured Slack channel.
 By default the message carries a link back to the dashboard; setting
 `interactive = true` on the approver embeds in-channel "approve" and
 "deny" buttons so the reviewer can decide without leaving Slack.
@@ -417,13 +417,13 @@ per endpoint to invert this.
 ### Synchronous human approval and timeouts
 
 Human approval is synchronous in the transparent proxy path. When a
-matched rule declares `approve = [...]`, Claw Patrol pauses the original
+matched rule declares `approve = [...]`, PRX pauses the original
 request before contacting upstream and waits for the approver chain to
 allow or deny.
 
-If every approver allows, Claw Patrol forwards the request upstream. If
+If every approver allows, PRX forwards the request upstream. If
 any approver denies, an approver times out, or the client disconnects
-before a final allow decision, Claw Patrol does **not** call upstream.
+before a final allow decision, PRX does **not** call upstream.
 Deny and timeout responses are gateway-generated failures, not upstream
 responses.
 
@@ -441,17 +441,17 @@ quota as 429 looks like an outage, so under `"open"` an unpaid judge
 account allows everything until it is topped up. Watch the journal
 line.
 
-For `human_approver`, [set `timeout` to the maximum time Claw Patrol
+For `human_approver`, [set `timeout` to the maximum time PRX
 should wait for a human decision](/docs/config-reference/#approver-human_approver-name).
 
 #### Recommended timeout values
 
 Recommended starting configuration:
 
-- Claw Patrol human approval timeout: `90` seconds
+- PRX human approval timeout: `90` seconds
 - Agent or tool caller timeout: `240` seconds
 
-The caller timeout must exceed Claw Patrol's approval timeout — otherwise
+The caller timeout must exceed PRX's approval timeout — otherwise
 the caller gives up locally before the gateway can return its allow/deny
 result. The absolute minimum margin is the network round-trip plus a
 small buffer (60 seconds is plenty); the example above leaves ~150
@@ -472,10 +472,10 @@ openclaw config set tools.exec.timeoutSec 240
 ```
 
 We also recommend adding guidance to `AGENTS.md` or the agent's system
-instructions telling the agent to keep inner HTTP timeouts above Claw
-Patrol's approval timeout when it writes `curl`, HTTP client, or script
+instructions telling the agent to keep inner HTTP timeouts above PRX's
+approval timeout when it writes `curl`, HTTP client, or script
 code. Otherwise the inner client times out locally and the agent never
-sees the deny response Claw Patrol synthesizes on approval timeout.
+sees the deny response PRX synthesizes on approval timeout.
 
 
 ## Unevaluable conditions fail closed

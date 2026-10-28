@@ -9,7 +9,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // buildPending lifts an ApproveRequest into the dashboard-pool's

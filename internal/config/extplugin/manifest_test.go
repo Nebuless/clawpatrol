@@ -9,8 +9,8 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
 // staticManifestJSON builds the protojson a plugin's --print-manifest

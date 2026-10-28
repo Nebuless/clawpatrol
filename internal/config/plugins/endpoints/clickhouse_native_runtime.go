@@ -20,10 +20,10 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2/lib/cityhash102"
 	chproto "github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	sqlfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	sqlfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // chMaxCompressionBuffer caps the per-frame compressed-payload size the
@@ -137,7 +137,7 @@ func (ClickhouseNativeEndpointRuntime) HandleConn(ctx context.Context, ch *runti
 	// against the real upstream; we terminate here using a leaf
 	// minted off the gateway CA so the SAN matches whatever SNI the
 	// agent sent. Agents already trust the gateway CA via the
-	// SSL_CERT_FILE env-var pushdown that `clawpatrol run` stamps,
+	// SSL_CERT_FILE env-var pushdown that `nebprx run` stamps,
 	// so verification passes without any client-side opt-out.
 	if chEp.TLS && ch.MintCert != nil {
 		fallback := ch.UpstreamHost

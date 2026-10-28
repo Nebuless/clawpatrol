@@ -1,0 +1,385 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"tailscale.com/ipn"
+
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/plugins/tailscaleproto"
+)
+
+func TestCredentialsInProfileWalksTunnelCredential(t *testing.T) {
+	credEntity := &config.Entity{Symbol: &config.Symbol{Name: "corp-tailnet"}}
+	tun := &config.CompiledTunnel{Name: "corp", Credential: credEntity}
+	ep := &config.CompiledEndpoint{Name: "grafana", Tunnel: tun}
+	policy := &config.CompiledPolicy{
+		Profiles: map[string]*config.CompiledProfile{
+			"default": {
+				Endpoints: map[string]*config.CompiledEndpoint{"grafana": ep},
+			},
+		},
+	}
+	got := credentialsInProfile(policy, "default")
+	if !got["corp-tailnet"] {
+		t.Fatalf("credentialsInProfile = %v, expected tunnel credential surfaced", got)
+	}
+}
+
+func TestCredentialsInProfileWalksTransitivelyViaTunnelChain(t *testing.T) {
+	tailnetCred := &config.Entity{Symbol: &config.Symbol{Name: "corp-tailnet"}}
+	endpointCred := &config.Entity{Symbol: &config.Symbol{Name: "grafana-bearer"}}
+	innerTun := &config.CompiledTunnel{Name: "corp-inner", Credential: tailnetCred}
+	outerTun := &config.CompiledTunnel{Name: "corp", Via: innerTun}
+	ep := &config.CompiledEndpoint{
+		Name:        "grafana",
+		Tunnel:      outerTun,
+		Credentials: []*config.Entity{endpointCred},
+	}
+	policy := &config.CompiledPolicy{
+		Profiles: map[string]*config.CompiledProfile{
+			"default": {
+				Credentials: []*config.Entity{endpointCred},
+				Endpoints:   map[string]*config.CompiledEndpoint{"grafana": ep},
+			},
+		},
+	}
+	got := credentialsInProfile(policy, "default")
+	if !got["corp-tailnet"] {
+		t.Errorf("expected tailnet credential via tunnel.Via chain in %v", got)
+	}
+	if !got["grafana-bearer"] {
+		t.Errorf("expected endpoint credential in %v", got)
+	}
+}
+
+// Profiles that share an endpoint must NOT see each other's credentials.
+// Regression for cl-lgwg: the dashboard previously walked ep.Credentials
+// (the global endpoint→credentials list) and leaked credentials from
+// sibling profiles. The postgres "pg" endpoint binds both pg-readonly
+// and pg-writer; profile "data" declares only pg-readonly and must
+// see exactly that, not the writer credential bound to "platform".
+func TestCredentialsInProfileDoesNotLeakSiblingProfileCredentials(t *testing.T) {
+	readonly := &config.Entity{Symbol: &config.Symbol{Name: "pg-readonly"}}
+	writer := &config.Entity{Symbol: &config.Symbol{Name: "pg-writer"}}
+	ep := &config.CompiledEndpoint{
+		Name:        "pg",
+		Credentials: []*config.Entity{readonly, writer},
+	}
+	policy := &config.CompiledPolicy{
+		Profiles: map[string]*config.CompiledProfile{
+			"data": {
+				Credentials: []*config.Entity{readonly},
+				Endpoints:   map[string]*config.CompiledEndpoint{"pg": ep},
+			},
+			"platform": {
+				Credentials: []*config.Entity{writer},
+				Endpoints:   map[string]*config.CompiledEndpoint{"pg": ep},
+			},
+		},
+	}
+	data := credentialsInProfile(policy, "data")
+	if !data["pg-readonly"] {
+		t.Errorf("profile data: missing own credential pg-readonly in %v", data)
+	}
+	if data["pg-writer"] {
+		t.Errorf("profile data: leaked sibling credential pg-writer in %v", data)
+	}
+	platform := credentialsInProfile(policy, "platform")
+	if !platform["pg-writer"] {
+		t.Errorf("profile platform: missing own credential pg-writer in %v", platform)
+	}
+	if platform["pg-readonly"] {
+		t.Errorf("profile platform: leaked sibling credential pg-readonly in %v", platform)
+	}
+}
+
+func TestApiTailscaleConnectUnknownCredential(t *testing.T) {
+	g := &Gateway{}
+	g.policy.Store(&config.CompiledPolicy{Credentials: map[string]*config.Entity{}})
+	w := &webMux{g: g}
+	r := httptest.NewRequest(http.MethodPost, "/api/tailscale/connect?id=nope", nil)
+	rw := httptest.NewRecorder()
+	w.apiTailscaleConnect(rw, r)
+	if rw.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 for unknown credential", rw.Code)
+	}
+}
+
+func TestApiTailscaleConnectMissingID(t *testing.T) {
+	g := &Gateway{}
+	g.policy.Store(&config.CompiledPolicy{Credentials: map[string]*config.Entity{}})
+	w := &webMux{g: g}
+	r := httptest.NewRequest(http.MethodPost, "/api/tailscale/connect", nil)
+	rw := httptest.NewRecorder()
+	w.apiTailscaleConnect(rw, r)
+	if rw.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 when id is missing", rw.Code)
+	}
+}
+
+func TestFirstTunnelByCredentialPicksMatchingTunnel(t *testing.T) {
+	credA := &config.Entity{Symbol: &config.Symbol{Name: "tailnet-a"}}
+	credB := &config.Entity{Symbol: &config.Symbol{Name: "tailnet-b"}}
+	policy := &config.CompiledPolicy{
+		Tunnels: map[string]*config.CompiledTunnel{
+			"alpha": {Name: "alpha", Credential: credA},
+			"bravo": {Name: "bravo", Credential: credB},
+			"plain": {Name: "plain"},
+		},
+	}
+	got := firstTunnelByCredential(policy, "tailnet-b")
+	if got == nil || got.Name != "bravo" {
+		t.Fatalf("firstTunnelByCredential(tailnet-b) = %v, want tunnel bravo", got)
+	}
+	if firstTunnelByCredential(policy, "missing") != nil {
+		t.Fatalf("expected nil for credential with no bound tunnel")
+	}
+	if firstTunnelByCredential(nil, "tailnet-a") != nil {
+		t.Fatalf("expected nil for nil policy")
+	}
+}
+
+func TestFirstTunnelByCredentialIsDeterministic(t *testing.T) {
+	cred := &config.Entity{Symbol: &config.Symbol{Name: "tailnet"}}
+	policy := &config.CompiledPolicy{
+		Tunnels: map[string]*config.CompiledTunnel{
+			"zeta":  {Name: "zeta", Credential: cred},
+			"alpha": {Name: "alpha", Credential: cred},
+			"mike":  {Name: "mike", Credential: cred},
+		},
+	}
+	for range 16 {
+		got := firstTunnelByCredential(policy, "tailnet")
+		if got == nil || got.Name != "alpha" {
+			t.Fatalf("firstTunnelByCredential = %v, want lexicographically-first 'alpha'", got)
+		}
+	}
+}
+
+func TestPendingNodeAuthWaitReturnsExistingURL(t *testing.T) {
+	p := &tailscaleproto.PendingNodeAuth{}
+	p.Set("c", "https://login.example/x")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if got := p.Wait(ctx, "c"); got != "https://login.example/x" {
+		t.Fatalf("Wait returned %q, want already-parked URL", got)
+	}
+}
+
+func TestPendingNodeAuthWaitWakesOnSet(t *testing.T) {
+	p := &tailscaleproto.PendingNodeAuth{}
+	got := make(chan string, 1)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		got <- p.Wait(ctx, "c")
+	}()
+	// Give the waiter a moment to register before parking.
+	time.Sleep(20 * time.Millisecond)
+	p.Set("c", "https://login.example/y")
+	select {
+	case u := <-got:
+		if u != "https://login.example/y" {
+			t.Fatalf("Wait returned %q, want URL parked after subscribe", u)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Wait did not wake after Set parked the URL")
+	}
+}
+
+func TestPendingNodeAuthWaitCtxDone(t *testing.T) {
+	p := &tailscaleproto.PendingNodeAuth{}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	if got := p.Wait(ctx, "c"); got != "" {
+		t.Fatalf("Wait returned %q, want empty string when ctx expires before Set", got)
+	}
+}
+
+func TestDashboardTailscaleStateRespectsLive(t *testing.T) {
+	cases := []struct {
+		name      string
+		label     tailscaleproto.NodeStateLabel
+		slots     bool
+		want      tailscaleproto.NodeStateLabel
+		connected bool
+	}{
+		// Live Running: always connected. State label is the live one.
+		{"running with slots", tailscaleproto.NodeStateRunning, true, tailscaleproto.NodeStateRunning, true},
+		{"running no slots", tailscaleproto.NodeStateRunning, false, tailscaleproto.NodeStateRunning, true},
+
+		// Starting with persisted identity: not yet joined, but auth is
+		// good (cached). Credential reads as connected; state surfaces
+		// the live "starting" so the tunnel signal is still visible.
+		{"starting with slots", tailscaleproto.NodeStateStarting, true, tailscaleproto.NodeStateStarting, true},
+		{"starting no slots", tailscaleproto.NodeStateStarting, false, tailscaleproto.NodeStateStarting, false},
+
+		// NeedsLogin is the tailnet actively rejecting the persisted
+		// identity — cached slots are stale, credential is not valid.
+		{"needs login with slots", tailscaleproto.NodeStateNeedsLogin, true, tailscaleproto.NodeStateNeedsLogin, false},
+		{"needs login no slots", tailscaleproto.NodeStateNeedsLogin, false, tailscaleproto.NodeStateNeedsLogin, false},
+		{"needs machine auth with slots", tailscaleproto.NodeStateNeedsMachAuth, true, tailscaleproto.NodeStateNeedsMachAuth, false},
+		{"in use other user with slots", tailscaleproto.NodeStateInUseOtherUser, true, tailscaleproto.NodeStateInUseOtherUser, false},
+
+		// Idle / torn-down tunnel: tsnet was Close()'d so DefaultStates
+		// is cleared (Unknown). Auth is still valid via persisted slots
+		// — this is the bug-fix case (cl-eh83). State label flips to
+		// "stopped" to keep the tunnel signal honest.
+		{"unknown with slots → connected (idle tunnel)", tailscaleproto.NodeStateUnknown, true, tailscaleproto.NodeStateStopped, true},
+		{"unknown no slots stays unknown", tailscaleproto.NodeStateUnknown, false, tailscaleproto.NodeStateUnknown, false},
+		{"stopped with slots → connected", tailscaleproto.NodeStateStopped, true, tailscaleproto.NodeStateStopped, true},
+		{"stopped no slots → not connected", tailscaleproto.NodeStateStopped, false, tailscaleproto.NodeStateStopped, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := dashboardTailscaleState(tc.label, tc.slots)
+			if got != tc.want {
+				t.Fatalf("dashboardTailscaleState(%q, slots=%v) = %q, want %q", tc.label, tc.slots, got, tc.want)
+			}
+			if connected := tailscaleCredentialAuthValid(tc.label, tc.slots); connected != tc.connected {
+				t.Fatalf("tailscaleCredentialAuthValid(%q, slots=%v) = %v, want %v", tc.label, tc.slots, connected, tc.connected)
+			}
+		})
+	}
+}
+
+func TestLabelFromIPNStateMapping(t *testing.T) {
+	cases := []struct {
+		in   ipn.State
+		want tailscaleproto.NodeStateLabel
+	}{
+		{ipn.NoState, tailscaleproto.NodeStateUnknown},
+		{ipn.InUseOtherUser, tailscaleproto.NodeStateInUseOtherUser},
+		{ipn.NeedsLogin, tailscaleproto.NodeStateNeedsLogin},
+		{ipn.NeedsMachineAuth, tailscaleproto.NodeStateNeedsMachAuth},
+		{ipn.Stopped, tailscaleproto.NodeStateStopped},
+		{ipn.Starting, tailscaleproto.NodeStateStarting},
+		{ipn.Running, tailscaleproto.NodeStateRunning},
+	}
+	for _, tc := range cases {
+		if got := tailscaleproto.LabelFromIPNState(tc.in); got != tc.want {
+			t.Fatalf("LabelFromIPNState(%v) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestNodeStatesSetGet(t *testing.T) {
+	r := &tailscaleproto.NodeStates{}
+	if got := r.Get("c"); got != tailscaleproto.NodeStateUnknown {
+		t.Fatalf("Get before Set = %q, want unknown", got)
+	}
+	r.Set("c", tailscaleproto.NodeStateStarting)
+	if got := r.Get("c"); got != tailscaleproto.NodeStateStarting {
+		t.Fatalf("Get after Set = %q, want starting", got)
+	}
+	r.Set("c", tailscaleproto.NodeStateRunning)
+	if got := r.Get("c"); got != tailscaleproto.NodeStateRunning {
+		t.Fatalf("Get after second Set = %q, want running", got)
+	}
+	r.Set("c", tailscaleproto.NodeStateUnknown)
+	if got := r.Get("c"); got != tailscaleproto.NodeStateUnknown {
+		t.Fatalf("Get after clearing = %q, want unknown", got)
+	}
+}
+
+func TestApiTailscaleConnectRunningStateMarksConnected(t *testing.T) {
+	// A credential whose live tsnet state is Running should drive the
+	// connect endpoint into the "connected" branch — no auth URL fetch
+	// is attempted, the operator doesn't have anything to click.
+	defer tailscaleproto.DefaultStates.Set("live-cred", tailscaleproto.NodeStateUnknown)
+	tailscaleproto.DefaultStates.Set("live-cred", tailscaleproto.NodeStateRunning)
+
+	g := &Gateway{}
+	credEnt := &config.Entity{
+		Plugin: &config.Plugin{Type: "tailscale_credential"},
+		Body:   stubTailscaleCred{},
+	}
+	g.policy.Store(&config.CompiledPolicy{
+		Credentials: map[string]*config.Entity{"live-cred": credEnt},
+	})
+	w := &webMux{g: g}
+	r := httptest.NewRequest(http.MethodPost, "/api/tailscale/connect?id=live-cred", nil)
+	rw := httptest.NewRecorder()
+	w.apiTailscaleConnect(rw, r)
+	if rw.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %q, want 200", rw.Code, rw.Body.String())
+	}
+	var resp tailscaleAuthResponse
+	if err := json.NewDecoder(rw.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !resp.Connected || resp.Status != "connected" {
+		t.Fatalf("response = %+v, want Connected=true Status=connected", resp)
+	}
+	if resp.State != tailscaleproto.NodeStateRunning {
+		t.Fatalf("response.State = %q, want running", resp.State)
+	}
+}
+
+// Regression for cl-eh83: when a tailscale tunnel closes due to
+// inactivity it calls DefaultStates.Set(name, NodeStateUnknown) — the
+// pre-fix /api/tailscale/connect handler keyed strictly off the live
+// BackendState and reported the credential as not-connected (status
+// "awaiting_url" or attempting to force-acquire a tunnel just to mint
+// a URL). The OAuth grant and persisted node identity are still
+// valid; the tunnel cycling is a separate concern. The handler must
+// fall through to the persisted-slots signal and report "connected".
+func TestApiTailscaleConnectIdleTunnelWithPersistedAuthReadsConnected(t *testing.T) {
+	const credName = "idle-cred"
+	defer tailscaleproto.DefaultStates.Set(credName, tailscaleproto.NodeStateUnknown)
+	// Simulate the tunnel having been Close()'d on idle: DefaultStates
+	// has the entry cleared, no parked URL.
+	tailscaleproto.DefaultStates.Set(credName, tailscaleproto.NodeStateUnknown)
+	tailscaleproto.Default.Set(credName, "")
+
+	db := newSessionTestDB(t)
+	// Persisted node identity from a prior successful auth. The exact
+	// slot name doesn't matter for credentialSlotPresence — any row is
+	// the "auth succeeded at some point" signal.
+	if err := setCredentialSlot(db, credName, "_machinekey", "stub-machine-key-bytes"); err != nil {
+		t.Fatalf("setCredentialSlot: %v", err)
+	}
+
+	g := &Gateway{db: db}
+	credEnt := &config.Entity{
+		Plugin: &config.Plugin{Type: "tailscale_credential"},
+		Body:   stubTailscaleCred{},
+	}
+	g.policy.Store(&config.CompiledPolicy{
+		Credentials: map[string]*config.Entity{credName: credEnt},
+	})
+	w := &webMux{g: g}
+
+	r := httptest.NewRequest(http.MethodPost, "/api/tailscale/connect?id="+credName, nil)
+	rw := httptest.NewRecorder()
+	w.apiTailscaleConnect(rw, r)
+	if rw.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %q, want 200", rw.Code, rw.Body.String())
+	}
+	var resp tailscaleAuthResponse
+	if err := json.NewDecoder(rw.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !resp.Connected || resp.Status != "connected" {
+		t.Fatalf("response = %+v, want Connected=true Status=connected (idle tunnel must not flip credential to disconnected)", resp)
+	}
+	if resp.AuthURL != "" || resp.PendingURL != "" {
+		t.Fatalf("response.AuthURL/PendingURL = %q/%q, want empty (no operator action required)", resp.AuthURL, resp.PendingURL)
+	}
+}
+
+// stubTailscaleCred satisfies tailscaleproto.TailscaleAuthProvider so
+// lookupTailscaleAuth's type assertion succeeds without dragging in the
+// real credential plugin (which would pull the gateway's full secret-
+// store wiring).
+type stubTailscaleCred struct{}
+
+func (stubTailscaleCred) TailscaleAuth() *tailscaleproto.TailscaleAuthIntegration {
+	return &tailscaleproto.TailscaleAuthIntegration{}
+}

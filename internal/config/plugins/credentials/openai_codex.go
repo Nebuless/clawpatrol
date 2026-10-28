@@ -10,11 +10,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// OpenAICodexOAuth is part of the clawpatrol plugin API.
+// OpenAICodexOAuth is part of the PRX plugin API.
 type OpenAICodexOAuth struct{}
 
 // codexAuthAPIHost is OpenAI's accounts/auth host. The openai_codex_https
@@ -24,7 +24,7 @@ type OpenAICodexOAuth struct{}
 // those would clobber it and break login, so InjectHTTP skips this host.
 const codexAuthAPIHost = "auth.openai.com"
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (a *OpenAICodexOAuth) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if len(sec.Bytes) == 0 {
 		return nil
@@ -99,7 +99,7 @@ func chatgptAccountID(jwt string) string {
 //	}
 func (*OpenAICodexOAuth) EnvVars() []config.EnvVar { return nil }
 
-// OAuthFlow is part of the clawpatrol plugin API.
+// OAuthFlow is part of the PRX plugin API.
 func (a *OpenAICodexOAuth) OAuthFlow() *config.OAuthIntegration {
 	return &config.OAuthIntegration{
 		Type:   "oauth2",

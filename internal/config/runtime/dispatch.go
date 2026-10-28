@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/match"
 )
 
 // HostEndpoint resolves a profile + SNI/authority host to the endpoint

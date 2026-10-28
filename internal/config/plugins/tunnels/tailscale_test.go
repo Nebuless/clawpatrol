@@ -12,7 +12,7 @@ import (
 
 	"tailscale.com/tsnet"
 
-	cruntime "github.com/denoland/clawpatrol/internal/config/runtime"
+	cruntime "github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 func TestTunnelStateDir_HostStateDir(t *testing.T) {
@@ -76,14 +76,14 @@ func TestOAuthSecretWithDefaults(t *testing.T) {
 }
 
 func TestEnvOAuthClientSecret(t *testing.T) {
-	if got, want := envOAuthClientSecret("deno-tailnet-tunnel"), "CLAWPATROL_TUNNEL_DENO_TAILNET_TUNNEL_OAUTH_CLIENT_SECRET"; got != want {
+	if got, want := envOAuthClientSecret("deno-tailnet-tunnel"), "NEBPRX_TUNNEL_DENO_TAILNET_TUNNEL_OAUTH_CLIENT_SECRET"; got != want {
 		t.Errorf("envOAuthClientSecret = %q, want %q", got, want)
 	}
 }
 
 func TestOAuthClientSecretResolution(t *testing.T) {
 	// HCL field wins over the env fallback.
-	t.Setenv("CLAWPATROL_TUNNEL_CORP_OAUTH_CLIENT_SECRET", "from-env")
+	t.Setenv("NEBPRX_TUNNEL_CORP_OAUTH_CLIENT_SECRET", "from-env")
 	tn := &TailscaleTunnel{OAuthClientSecret: "from-hcl"}
 	if got := tn.oauthClientSecret("corp"); got != "from-hcl" {
 		t.Fatalf("oauthClientSecret = %q, want from-hcl", got)

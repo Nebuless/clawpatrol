@@ -21,9 +21,9 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	sqlfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	sqlfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // ClickhouseNativeEndpoint addresses one ClickHouse server reachable
@@ -36,7 +36,7 @@ import (
 // TLS using a leaf minted off the gateway CA, parses the Hello in
 // plaintext, then re-wraps to upstream. The wrapped client therefore
 // keeps speaking native-over-TLS exactly as it would against the
-// real cloud ClickHouse — `clawpatrol run` is transparent to its
+// real cloud ClickHouse — `nebprx run` is transparent to its
 // TLS posture. Default false: WG-only deployments where the operator
 // wants plaintext on the inner hop (typical self-hosted ClickHouse
 // on 9000 behind a private network) leave it off.

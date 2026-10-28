@@ -40,13 +40,13 @@ the same shape as `credential = <name>`:
 ```hcl
 tunnel "local_command" "csql-staging" {
   command = ["cloud-sql-proxy", "--auto-iam-authn",
-    "denosr-staging:us-east4:main-pg14?port=5433"]
+    "example-staging:us-east4:main-pg14?port=5433"]
   listen      = "127.0.0.1:5433"
   ready_probe = "tcp"
 }
 
 endpoint "postgres" "pg-staging" {
-  host   = "main-pg14.denosr-staging.internal:5432"
+  host   = "main-pg14.example-staging.internal:5432"
   tunnel = local_command.csql-staging
 }
 ```
@@ -91,8 +91,8 @@ fit for cloud-sql-proxy, AWS SSM port forwarding, or any
 tunnel "local_command" "csql-staging" {
   command = [
     "/usr/local/bin/cloud-sql-proxy", "--auto-iam-authn",
-    "--credentials-file", "/opt/clawpatrol/secrets/avocet.json",
-    "denosr-staging:us-east4:main-pg14?port=5433",
+    "--credentials-file", "/opt/nebprx/secrets/avocet.json",
+    "example-staging:us-east4:main-pg14?port=5433",
   ]
   listen        = "127.0.0.1:5433"
   ready_probe   = "tcp"
@@ -125,7 +125,7 @@ tunnel "kubernetes_port_forward" "pg-deployng-dev-jump" {
   template     = <<-EOT
     apiVersion: v1
     kind: Pod
-    metadata: { generateName: clawpatrol-rds-jump- }
+    metadata: { generateName: nebprx-rds-jump- }
     spec:
       restartPolicy: Never
       containers:
@@ -148,8 +148,8 @@ the bound credential. The second mode is the right one for EKS:
 pair it with an `aws_credential` and the plugin re-mints the
 short-lived STS-presigned bearer on every kubectl call.
 
-Template-created pods are stamped with `clawpatrol.dev/managed-by`
-and `clawpatrol.dev/tunnel=<name>` labels. A startup sweep
+Template-created pods are stamped with `prx.nebuless.cloud/managed-by`
+and `prx.nebuless.cloud/tunnel=<name>` labels. A startup sweep
 deletes any leftover pods carrying those labels (a previous
 daemon crash that skipped graceful teardown), so jump pods don't
 accumulate. Set `cleanup = "keep"` to opt out.
@@ -191,16 +191,16 @@ published on the tailnet that the gateway can't reach from its
 host netns.
 
 ```hcl
-credential "tailscale_auth" "deno-tailnet" {}
+credential "tailscale_auth" "example-tailnet" {}
 
-tunnel "tailscale" "deno-tailnet-tunnel" {
-  credential = tailscale_auth.deno-tailnet
+tunnel "tailscale" "example-tailnet-tunnel" {
+  credential = tailscale_auth.example-tailnet
 }
 
 endpoint "clickhouse_native" "clickhouse-o11y" {
   hosts  = ["clickhouse-o11y.tail9a48e.ts.net"]
   tls    = true
-  tunnel = tailscale.deno-tailnet-tunnel
+  tunnel = tailscale.example-tailnet-tunnel
 }
 ```
 
@@ -209,7 +209,7 @@ Three auth shapes are supported. A bound `credential
 store and surfaces a one-time interactive login URL on the
 dashboard's Connect button — best fit when you want the tsnet
 node to show up under a real user identity. An inline
-`authkey = "..."` (with `CLAWPATROL_TUNNEL_<NAME>_AUTHKEY` env
+`authkey = "..."` (with `NEBPRX_TUNNEL_<NAME>_AUTHKEY` env
 fallback) is the pre-minted-key path. `oauth_client_secret = "..."`
 mints fresh short-lived device keys on every join, so nothing
 expires out from under you.

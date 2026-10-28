@@ -8,15 +8,15 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/all"
+	"github.com/Nebuless/nebprx/internal/config"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all"
 )
 
 func TestHITLAsyncConfigLoadsProfileApproverAndNormalizesPublicURL(t *testing.T) {
 	src := `
 gateway {
-  state_dir  = "/opt/clawpatrol"
-  public_url = "https://clawpatrol.example.test/"
+  state_dir  = "/opt/nebprx"
+  public_url = "https://nebprx.example.test/"
 
   wireguard {
     subnet_cidr = "10.55.0.0/24"
@@ -52,7 +52,7 @@ rule "writes" {
 	if diags.HasErrors() {
 		t.Fatalf("load: %v", diags)
 	}
-	if gw.PublicURL() != "https://clawpatrol.example.test" {
+	if gw.PublicURL() != "https://nebprx.example.test" {
 		t.Fatalf("PublicURL = %q, want trailing slash stripped", gw.PublicURL())
 	}
 	if !gw.Policy.Profiles["agent"].HITLAsyncGrants {
@@ -108,7 +108,7 @@ func TestHITLAsyncConfigRequiresValidPublicURLWhenEffective(t *testing.T) {
 		{name: "missing", publicURL: "", want: "Async HITL public_url not configured"},
 		{name: "relative", publicURL: "not-a-url", want: "Invalid async HITL public_url"},
 		{name: "hostless", publicURL: "https://", want: "Invalid async HITL public_url"},
-		{name: "unsupported scheme", publicURL: "ftp://clawpatrol.example.test", want: "Invalid async HITL public_url"},
+		{name: "unsupported scheme", publicURL: "ftp://nebprx.example.test", want: "Invalid async HITL public_url"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			src := hitlAsyncConfigSource(tc.publicURL, true, true, "90s", `enabled = true`)
@@ -185,7 +185,7 @@ func TestHITLAsyncConfigReaderDefaultsWithoutAsyncGrant(t *testing.T) {
 }
 
 func TestHITLAsyncConfigAllowsOmittedSyncWaitTimeoutWhenEnabled(t *testing.T) {
-	src := hitlAsyncConfigSource("https://clawpatrol.example.test", true, true, "", `enabled = true`)
+	src := hitlAsyncConfigSource("https://nebprx.example.test", true, true, "", `enabled = true`)
 	gw, diags := config.LoadBytes([]byte(src), "omitted_sync_wait_timeout.hcl")
 	if diags.HasErrors() {
 		t.Fatalf("load: %v", diags)
@@ -210,8 +210,8 @@ func TestHITLAsyncConfigAllowsOmittedSyncWaitTimeoutWhenEnabled(t *testing.T) {
 func TestHITLAsyncConfigRejectsInvalidApproverValues(t *testing.T) {
 	src := `
 gateway {
-  state_dir  = "/opt/clawpatrol"
-  public_url = "https://clawpatrol.example.test"
+  state_dir  = "/opt/nebprx"
+  public_url = "https://nebprx.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
 
@@ -261,7 +261,7 @@ rule "writes" {
 // must be rejected so the redundant knob can't silently drift.
 func TestHITLAsyncConfigRejectsRemovedApprovalTTL(t *testing.T) {
 	src := hitlAsyncConfigSource(
-		"https://clawpatrol.example.test",
+		"https://nebprx.example.test",
 		true,
 		true,
 		"90s",
@@ -278,7 +278,7 @@ func TestHITLAsyncConfigRejectsRemovedApprovalTTL(t *testing.T) {
 
 func TestHITLAsyncConfigRejectsMaxBodyBytesAboveHardLimit(t *testing.T) {
 	src := hitlAsyncConfigSource(
-		"https://clawpatrol.example.test",
+		"https://nebprx.example.test",
 		true,
 		true,
 		"90s",
@@ -295,7 +295,7 @@ func TestHITLAsyncConfigRejectsMaxBodyBytesAboveHardLimit(t *testing.T) {
 
 func hitlAsyncConfigSource(publicURL string, profileOptIn, includeAsyncGrant bool, syncWaitTimeout, asyncGrantBody string) string {
 	var b strings.Builder
-	b.WriteString("gateway {\n  state_dir = \"/opt/clawpatrol\"\n")
+	b.WriteString("gateway {\n  state_dir = \"/opt/nebprx\"\n")
 	if publicURL != "" {
 		fmt.Fprintf(&b, "  public_url = %q\n", publicURL)
 	}

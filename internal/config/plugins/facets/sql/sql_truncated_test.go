@@ -3,7 +3,7 @@ package sql_test
 import (
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/facet"
 )
 
 // TestSQLMatcherInspectsTruncatableFacet pins which CEL conditions

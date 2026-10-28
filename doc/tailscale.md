@@ -1,8 +1,8 @@
-# clawpatrol — Tailscale mode
+# PRX — Tailscale mode
 
 Tailscale as the primary control plane. The gateway joins your existing
 tailnet as an exit-node via an embedded **tsnet.Server**; devices onboard
-through the same `clawpatrol join <gateway-url>` device-flow that
+through the same `nebprx join <gateway-url>` device-flow that
 WireGuard mode uses. No public UDP port, no WireGuard keypair management,
 no subnet allocation — Tailscale's control plane handles all of that.
 
@@ -11,18 +11,18 @@ no subnet allocation — Tailscale's control plane handles all of that.
 1. Gateway starts a `tsnet.Server` (embedded Tailscale node, no
    `tailscaled` required) using an auth key from the top-level
    `authkey` field or `$TS_AUTHKEY`. It joins the tailnet under the configured hostname
-   (default: `clawpatrol-gateway`) and binds the MITM + dashboard on
+   (default: `nebprx-gateway`) and binds the MITM + dashboard on
    the resulting tailnet IP.
-2. When a device runs `clawpatrol join <gateway-url>`, the dashboard
+2. When a device runs `nebprx join <gateway-url>`, the dashboard
    mints a single-use Tailscale auth key by exchanging OAuth client
    credentials for a short-lived bearer token and calling the
    Tailscale key API (`reusable: false`, `preauthorized: true`,
    10-minute TTL) and ships it back over the device-flow poll.
 3. The per-process tsnet daemon picks up that auth key on first
-   `clawpatrol run` and joins the tailnet under the operator-chosen
+   `nebprx run` and joins the tailnet under the operator-chosen
    hostname. With `--whole-machine` (Linux), the join flow also runs
    `tailscale up --authkey=<key>`, installs a fwmark policy-route to
-   keep SSH alive, and sets `--exit-node=clawpatrol-gateway` on the
+   keep SSH alive, and sets `--exit-node=nebprx-gateway` on the
    system tailscaled. The CA is fetched over the tailnet and
    installed into the system trust store.
 4. All outbound traffic now exits through the gateway. The gateway
@@ -32,7 +32,7 @@ no subnet allocation — Tailscale's control plane handles all of that.
    mode even on the tsnet exit-node path: a catch-all on tsnet's netstack
    (`GetUDPHandlerForFlow`) sends UDP/53 to any resolver IP to `dnsvip`
    and relays other UDP from onboarded peers via `relayUDP` — so a
-   tsnet-mode `clawpatrol run` child gets arbitrary UDP (NTP, custom
+   tsnet-mode `nebprx run` child gets arbitrary UDP (NTP, custom
    protocols) without a UDP-over-TCP shim, since the userspace exit node
    already receives the datagrams. **QUIC / HTTP-3 (UDP/443) is refused for every
    destination** in both modes, so HTTPS can't ride UDP past the
@@ -47,7 +47,7 @@ no subnet allocation — Tailscale's control plane handles all of that.
    anything else on UDP/443, such as DTLS or TURN on that port). The
    port decision itself is one helper, `udpPortDisposition`, consumed
    by the WireGuard forwarder, the tsnet catch-all and the Linux
-   `clawpatrol run` daemon (which refuses UDP/443 locally, since its
+   `nebprx run` daemon (which refuses UDP/443 locally, since its
    datagram relay cannot carry the gateway's ICMP back to the wrapped
    process). For the hosts it MITMs, the gateway also strips the
    `Alt-Svc` response header so agents don't try h3 in the first
@@ -66,13 +66,13 @@ no subnet allocation — Tailscale's control plane handles all of that.
 
 ## What works (verified end-to-end)
 
-- `clawpatrol gateway gateway.hcl` boots the tsnet node, no public
+- `nebprx gateway gateway.hcl` boots the tsnet node, no public
   ports needed — only outbound HTTPS to the Tailscale control plane.
-- `clawpatrol join <gateway-url>` is one command on the device:
+- `nebprx join <gateway-url>` is one command on the device:
   device-flow approval against the dashboard, then install CA +
   (with `--whole-machine`) set the gateway as exit-node. Subsequent
   re-runs are idempotent.
-- Agents (`claude`, `gh`, `codex`) run unmodified. `eval "$(clawpatrol
+- Agents (`claude`, `gh`, `codex`) run unmodified. `eval "$(nebprx
   env)"` exports placeholder tokens + CA bundle. HTTPS to
   `api.anthropic.com` routes through the exit-node, gateway intercepts,
   MITM injects real OAuth credentials.
@@ -94,7 +94,7 @@ no subnet allocation — Tailscale's control plane handles all of that.
 | **Auth key source** | OAuth client_credentials → Tailscale API | Self-generated keypair |
 | **Device IP** | Assigned by Tailscale control plane | Allocated from `wireguard.subnet_cidr` |
 | **Dashboard auth** | Bcrypt root password + optional `tailscale.operators` allowlist | Bcrypt root password (no whois identity to allowlist against; combine with a `tailscale {}` block for that) |
-| **Client command** | `clawpatrol join <gw-url>` | `clawpatrol join <gw-url>` |
+| **Client command** | `nebprx join <gw-url>` | `nebprx join <gw-url>` |
 | **State** | `state_dir` — tsnet machine key + ipn state in sqlite | `state_dir` — WG server key, peer map, sessions in sqlite |
 
 ## Required tailnet ACL
@@ -108,7 +108,7 @@ but every outbound dial silently times out.
 
 Besides the two `/0` exit routes, the gateway advertises the dnsvip
 VIP ranges (`10.78.0.0/16` / `fd78::/64` — the per-endpoint virtual
-IPs that `clawpatrol.internal`, SSH hosts, ClickHouse native, etc.
+IPs that `nebprx.internal`, SSH hosts, ClickHouse native, etc.
 resolve to) as plain subnet routes. This is what makes the v4 VIPs
 reachable at all: tailscaled derives its inbound packet filter's
 accept set locally from the advertised routes, and a bare `/0`
@@ -153,17 +153,17 @@ include them.
 
 ```bash
 # gateway VM — no public IP required, just outbound HTTPS
-curl -fsSL https://clawpatrol.dev/install.sh | sh
+curl -fsSL https://prx.nebuless.cloud/install.sh | sh
 
-cat > /opt/clawpatrol/gateway.hcl <<'EOF'
+cat > /opt/nebprx/gateway.hcl <<'EOF'
 gateway {
   dashboard_listen = "127.0.0.1:8080"
-  public_url       = "http://clawpatrol-gateway" # tailnet hostname suffices
-  state_dir        = "/opt/clawpatrol/ts-state"
+  public_url       = "http://nebprx-gateway" # tailnet hostname suffices
+  state_dir        = "/opt/nebprx/ts-state"
 
   tailscale {
     authkey             = "tskey-auth-xxxxx"       # gateway-node key; or set $TS_AUTHKEY and omit
-    hostname            = "clawpatrol-gateway"     # gateway's name on the tailnet
+    hostname            = "nebprx-gateway"     # gateway's name on the tailnet
     tags                = ["tag:client"]           # applied to minted client keys
     oauth_client_id     = "{{secret:TS_OAUTH_CLIENT_ID}}"
     oauth_client_secret = "{{secret:TS_OAUTH_CLIENT_SECRET}}"
@@ -171,8 +171,8 @@ gateway {
 }
 EOF
 
-mkdir -p /opt/clawpatrol
-clawpatrol init-ca /opt/clawpatrol/ca
+mkdir -p /opt/nebprx
+nebprx init-ca /opt/nebprx/ca
 
 # OAuth client: create at https://login.tailscale.com/admin/settings/oauth
 # Grant: write:auth_keys (to mint device keys), read:devices
@@ -184,24 +184,24 @@ export TS_OAUTH_CLIENT_SECRET=<secret>
 # Tag: tag:gateway (or any ACL-gated tag)
 export TS_AUTHKEY=tskey-auth-...
 
-clawpatrol gateway /opt/clawpatrol/gateway.hcl
+nebprx gateway /opt/nebprx/gateway.hcl
 ```
 
-Dashboard is reachable at `http://clawpatrol-gateway:8080` from any
+Dashboard is reachable at `http://nebprx-gateway:8080` from any
 device on the tailnet once the gateway is up.
 
 ## Client setup
 
 ```bash
-curl -fsSL https://clawpatrol.dev/install.sh | sh
-clawpatrol join <gateway-url>   # prints a user_code; approve on the
+curl -fsSL https://prx.nebuless.cloud/install.sh | sh
+nebprx join <gateway-url>   # prints a user_code; approve on the
                                 # dashboard from any trusted device
-# done — clawpatrol run claude (or gh/codex) just works
+# done — nebprx run claude (or gh/codex) just works
 ```
 
 The gateway mints a single-use Tailscale auth key as part of the
 approval; the local tsnet daemon joins the tailnet on first
-`clawpatrol run`. Add `--whole-machine` to additionally install
+`nebprx run`. Add `--whole-machine` to additionally install
 system Tailscale and pin the gateway as the host-wide exit-node.
 
 ## Tunnel plugin — reach internal tailnet services
@@ -223,7 +223,7 @@ credential "tailscale_auth" "corp-tailnet" {}
 
 tunnel "tailscale" "corp" {
   credential = tailscale_auth.corp-tailnet
-  hostname   = "clawpatrol-tunnel-corp"
+  hostname   = "nebprx-tunnel-corp"
   tags       = ["tag:client"]
 }
 
@@ -286,7 +286,7 @@ credential "tailscale_auth" "corp-tailnet" {}
 
 tunnel "tailscale" "corp" {
   credential          = tailscale_auth.corp-tailnet
-  oauth_client_secret = "tskey-client-xxxxx"  # or env CLAWPATROL_TUNNEL_CORP_OAUTH_CLIENT_SECRET
+  oauth_client_secret = "tskey-client-xxxxx"  # or env NEBPRX_TUNNEL_CORP_OAUTH_CLIENT_SECRET
   tags                = ["tag:bot"]            # required — untagged OAuth keys are rejected
   keepalive           = "always"              # keep the node joined; avoid lazy cold-starts
 }
@@ -295,7 +295,7 @@ tunnel "tailscale" "corp" {
 Notes:
 
 - The secret comes from the HCL field or the per-tunnel env fallback
-  `CLAWPATROL_TUNNEL_<UPPER_NAME>_OAUTH_CLIENT_SECRET` (hyphens folded
+  `NEBPRX_TUNNEL_<UPPER_NAME>_OAUTH_CLIENT_SECRET` (hyphens folded
   to underscores), mirroring `authkey`.
 - `tags` are mandatory here. Tailscale refuses to mint untagged keys,
   and an untagged node would be owner-associated (its `whois` returns
@@ -304,7 +304,7 @@ Notes:
   mode — with a static `authkey` or the interactive credential login the
   node's tags come from the key itself or your tailnet's autoApprovers
   ACL, and the tunnel's `tags` field is ignored.
-- clawpatrol appends `?ephemeral=false&preauthorized=true` to the secret
+- PRX appends `?ephemeral=false&preauthorized=true` to the secret
   so the node persists across restarts and joins without manual
   approval. Supplying your own `?...` query string replaces **both**
   defaults — tsnet falls back to `ephemeral=true`, `preauthorized=false`
@@ -320,15 +320,15 @@ Notes:
 ### Legacy — literal authkey / env-var fallback
 
 Pre-credential deployments keep working unchanged. The literal
-`authkey = ...` form (and its `CLAWPATROL_TUNNEL_<UPPER_NAME>_AUTHKEY`
+`authkey = ...` form (and its `NEBPRX_TUNNEL_<UPPER_NAME>_AUTHKEY`
 env-var fallback) stays supported for one iteration so existing
 configs don't have to migrate in a hurry:
 
 ```hcl
 tunnel "tailscale" "corp" {
-  authkey   = "tskey-auth-xxxxx"  # or env CLAWPATROL_TUNNEL_CORP_AUTHKEY
-  hostname  = "clawpatrol-tunnel-corp"
-  state_dir = "/opt/clawpatrol/ts-tunnel-corp"
+  authkey   = "tskey-auth-xxxxx"  # or env NEBPRX_TUNNEL_CORP_AUTHKEY
+  hostname  = "nebprx-tunnel-corp"
+  state_dir = "/opt/nebprx/ts-tunnel-corp"
 }
 
 endpoint "https" "grafana-internal" {
@@ -343,8 +343,8 @@ integration OAuth credentials — never on any Tailscale `authkey`
 (gateway or tunnel) or a tunnel's `oauth_client_secret`. A
 `{{secret:...}}` placeholder in one of those would reach tsnet
 verbatim. To keep the value out of the HCL, use the env fallback
-instead: `CLAWPATROL_TUNNEL_<UPPER_NAME>_AUTHKEY` /
-`CLAWPATROL_TUNNEL_<UPPER_NAME>_OAUTH_CLIENT_SECRET` for tunnels, or
+instead: `NEBPRX_TUNNEL_<UPPER_NAME>_AUTHKEY` /
+`NEBPRX_TUNNEL_<UPPER_NAME>_OAUTH_CLIENT_SECRET` for tunnels, or
 `$TS_AUTHKEY` for the gateway node.
 
 In this mode the tunnel node joins synchronously at gateway startup

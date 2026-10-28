@@ -70,10 +70,10 @@ jobs:
       - run: make test
       - name: validate HCL examples
         run: |
-          go build -o /tmp/clawpatrol ./cmd/clawpatrol
+          go build -o /tmp/nebprx ./cmd/nebprx
           for f in examples/*.hcl; do
             echo "validating $f"
-            /tmp/clawpatrol validate "$f"
+            /tmp/nebprx validate "$f"
           done
 
   # Exercise the Landlock fallback backend: keep AppArmor's userns
@@ -82,7 +82,7 @@ jobs:
   test-sandbox-landlock:
     runs-on: ubuntu-latest
     env:
-      CLAWPATROL_SANDBOX_BACKEND: landlock
+      NEBPRX_SANDBOX_BACKEND: landlock
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -101,10 +101,10 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      # cmd/clawpatrol go:embed's dashboard/dist; build it first.
+      # cmd/nebprx go:embed's dashboard/dist; build it first.
       - run: make dashboard
       - run: go test ./internal/sandbox/... ./internal/config/extplugin/... -run 'Sandbox|Dial|Nosy|Plugin|ExternalCredential'
-      - run: go test ./cmd/clawpatrol/ -run 'Sandbox|Dial|Nosy|Plugin|ExternalCredential'
+      - run: go test ./cmd/nebprx/ -run 'Sandbox|Dial|Nosy|Plugin|ExternalCredential'
 
   # Exercise the macOS seatbelt backend.
   test-sandbox-macos:
@@ -127,7 +127,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      # cmd/clawpatrol go:embed's dashboard/dist; build it first.
+      # cmd/nebprx go:embed's dashboard/dist; build it first.
       - run: make dashboard
       - run: go test ./internal/sandbox/...
-      - run: go test ./cmd/clawpatrol/ -run 'Sandbox|Dial|Nosy|Plugin|ExternalCredential'
+      - run: go test ./cmd/nebprx/ -run 'Sandbox|Dial|Nosy|Plugin|ExternalCredential'

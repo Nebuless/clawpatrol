@@ -238,8 +238,8 @@ func TestCodexRespondHTTP(t *testing.T) {
 		handled bool
 	}{
 		{"jwks", "GET", "https://chatgpt.com/backend-api/wham/agent-identities/jwks", 200, true},
-		{"register legacy wham (<=0.141)", "POST", "https://chatgpt.com/backend-api/wham/v1/agent/clawpatrol-codex/task/register", 200, true},
-		{"register 0.142 auth.openai.com", "POST", "https://auth.openai.com/api/accounts/v1/agent/clawpatrol-codex/task/register", 200, true},
+		{"register legacy wham (<=0.141)", "POST", "https://chatgpt.com/backend-api/wham/v1/agent/nebprx-codex/task/register", 200, true},
+		{"register 0.142 auth.openai.com", "POST", "https://auth.openai.com/api/accounts/v1/agent/nebprx-codex/task/register", 200, true},
 		{"auth login passthrough", "POST", "https://auth.openai.com/api/accounts/deviceauth/token", 0, false},
 		{"auth oauth token passthrough", "POST", "https://auth.openai.com/oauth/token", 0, false},
 		{"agent-register not stubbed", "POST", "https://auth.openai.com/api/accounts/v1/agent/register", 0, false},

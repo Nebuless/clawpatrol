@@ -1,56 +1,15 @@
 import { Button } from "./Button";
 
+const links = [["Product", "/"], ["How it works", "/how-it-works/"], ["Security", "/security/"], ["Deployment", "/deployment/"], ["Docs", "/docs/"], ["Demo", "/demo/"]];
+function Links() {
+  return <>{links.map(([label, href]) => <a href={href} key={href}>{label}</a>)}</>;
+}
 export function Header() {
-  return (
-    <header class="frosted-header w-full py-5">
-      <nav className="max-w-6xl mx-auto px-6 sm:px-8 flex flex-wrap sm:justify-between gap-y-2 items-center justify-center gap-16">
-        <a
-          href="/"
-          aria-label="Claw Patrol home"
-          class="text-2xl
-        font-black font-display hover:text-rust"
-        >
-          <img src="/claw-patrol-logo.svg" alt="" class="h-9 sm:h-10 w-auto" />
-        </a>
-        <div class="flex flex-wrap items-center gap-4 sm:gap-8 text-sm justify-center sm:justify-start">
-          <a
-            href="/docs/"
-            class="transition-colors font-mono uppercase
-          underline underline-offset-4 hover:text-rust"
-          >
-            Docs
-          </a>
-          <a
-            href="https://github.com/denoland/clawpatrol"
-            class="transition-colors font-mono uppercase
-          underline underline-offset-4 hover:text-rust"
-          >
-            GitHub
-          </a>
-          <Button
-            href="/docs/getting-started/"
-            size="sm"
-            class="inline-flex items-center gap-2 !outline-navy-900"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 14 14"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M7 1.5v7.25m0 0L4 5.75m3 3 3-3M2.25 12h9.5"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            Download
-          </Button>
-        </div>
-      </nav>
-    </header>
-  );
+  return <header class="frosted-header w-full py-5">
+    <nav aria-label="Main" class="site-nav max-w-6xl mx-auto px-6 sm:px-8">
+      <a href="/" aria-label="PRX home" class="prx-wordmark"><img src="/prx-icon.svg" alt="" /><span class="prx-wm-name">PRX</span><span class="prx-wm-by">Nebuless</span></a>
+      <div class="site-nav-desktop"><Links /><Button href="/pilot/" size="sm">Book a pilot</Button></div>
+      <details class="site-nav-mobile"><summary>Menu</summary><div class="site-nav-disclosure"><Links /><Button href="/pilot/" size="sm">Book a pilot</Button></div></details>
+    </nav>
+  </header>;
 }

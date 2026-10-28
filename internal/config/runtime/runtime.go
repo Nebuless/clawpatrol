@@ -14,15 +14,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/match"
 )
 
 // HTTPCredentialRuntime is the credential-plugin contract for HTTP
 // auth shapes (bearer / cookie / header / mtls / OAuth-with-bearer).
 // Inject mutates req.Header (and maybe req.URL if cookies involve a
 // path); the secret string is fetched out-of-band by the host (e.g.
-// via clawpatrol's existing OAuthRegistry) and passed in as Secret.
+// via nebprx's existing OAuthRegistry) and passed in as Secret.
 //
 // Implementations live next to their config plugin so the schema and
 // runtime stay co-located, mirroring unclaw's plugin layout.
@@ -94,7 +94,7 @@ type WebSocketCredentialRuntime interface {
 // plugin's runtime implements when it needs to short-circuit certain
 // matched requests and return a synthetic response without forwarding
 // upstream. The openai_codex_https endpoint uses it to serve a
-// clawpatrol-controlled JWKS at chatgpt.com's agent-identity URL (so
+// nebprx-controlled JWKS at chatgpt.com's agent-identity URL (so
 // a JWT we minted ourselves validates) and to stub out the agent-task
 // registration POST.
 //
@@ -145,7 +145,7 @@ type ClickhouseAuthCredential interface {
 //
 // Implementations mutate cfg in place. Secret.Extras typically holds
 // "cert" / "key" / "ca" PEM blobs; the env-var store populates them
-// from CLAWPATROL_SECRET_<NAME>_{CERT,KEY,CA} (with @path/to/file
+// from NEBPRX_SECRET_<NAME>_{CERT,KEY,CA} (with @path/to/file
 // shorthand for reading PEM bundles off disk).
 type TLSCredentialRuntime interface {
 	ConfigureUpstreamTLS(cfg *tls.Config, sec Secret) error
@@ -309,7 +309,7 @@ type ConnEvent struct {
 	// Rule is the matched CompiledRule.Name, "" when no rule fired.
 	// The host's Emit closure copies it onto the dashboard Event so
 	// the action-fixture exporter can pin a downloaded action to a
-	// specific rule (site/doc/clawpatrol-test.md).
+	// specific rule (site/doc/nebprx-test.md).
 	Rule string
 	// Credential is the bare name of the credential the runtime
 	// resolved for this connection (the value it put on
@@ -359,7 +359,7 @@ type ConnEvent struct {
 // Secret is what credential plugins receive at injection time. The
 // Bytes are the actual secret material; Kind disambiguates what shape
 // the credential expects (bearer / api-key / cookie / mTLS bundle /
-// postgres password / ...). The host (clawpatrol) fetches the value
+// postgres password / ...). The host (nebprx) fetches the value
 // from its existing oauth.go store before calling the plugin.
 type Secret struct {
 	Kind  string
@@ -801,7 +801,7 @@ func HITLApprovalMessage(state HITLOperationState, effect HITLApprovalEffect, up
 	}
 	switch state {
 	case HITLOperationStatePendingApproval:
-		return "The original synchronous wait ended and Claw Patrol returned an async polling response to the client.\nUpstream has not been called.\nApprove will not send the request upstream now.\nApprove will allow the client to retry the same request once."
+		return "The original synchronous wait ended and PRX returned an async polling response to the client.\nUpstream has not been called.\nApprove will not send the request upstream now.\nApprove will allow the client to retry the same request once."
 	case HITLOperationStateApproved:
 		// Stage-neutral on purpose: a later stage of an approve chain
 		// can still deny, so this must not promise the upstream call.
@@ -818,7 +818,7 @@ func HITLApprovalMessage(state HITLOperationState, effect HITLApprovalEffect, up
 	if effect == HITLApprovalEffectCreateRetryGrant {
 		return "Upstream has not been called.\nApprove will not send the request upstream now.\nApprove will allow the client to retry the same request once."
 	}
-	return "Pending human approval.\nIf approved soon, Claw Patrol will send this request upstream immediately and return the real upstream response to the client."
+	return "Pending human approval.\nIf approved soon, PRX will send this request upstream immediately and return the real upstream response to the client."
 }
 
 // HITLDecision is what the pool delivers when an operator approves
@@ -879,10 +879,10 @@ type PlaceholderDetector interface {
 // runtime implements so a host that received a raw SQL string (rather
 // than a live wire-protocol frame) can populate `match.Request.Meta`
 // using the same parser the live dispatch path uses. The fixture
-// loader behind `clawpatrol test` reads only `"statement": "..."`
+// loader behind `nebprx test` reads only `"statement": "..."`
 // from each fixture and calls this to recover verb / tables /
 // functions before running rule matching, so the format stays
-// operator-friendly (site/doc/clawpatrol-test.md).
+// operator-friendly (site/doc/nebprx-test.md).
 //
 // Implementations return the per-family `*sqlfacet.Meta` value the
 // SQL matcher expects on `match.Request.Meta`, plus a bool reporting

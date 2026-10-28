@@ -46,11 +46,11 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// OpenAICodexHTTPSEndpoint is part of the clawpatrol plugin API.
+// OpenAICodexHTTPSEndpoint is part of the PRX plugin API.
 type OpenAICodexHTTPSEndpoint struct {
 	// Hosts is the chatgpt.com host list intercepted for Codex
 	// subscription-auth traffic.
@@ -59,7 +59,7 @@ type OpenAICodexHTTPSEndpoint struct {
 
 // codexAuthAPIHost is OpenAI's accounts/auth host. codex >= 0.142
 // hardcodes agent task-registration to https://auth.openai.com/api/accounts
-// (the env override clawpatrol used on <= 0.141 was removed upstream), so
+// (the env override nebprx used on <= 0.141 was removed upstream), so
 // the gateway must MITM this host to keep stubbing task-register. We claim
 // it unconditionally (see EndpointHosts) and stub only the task-register
 // path (see RespondHTTP); every other auth.openai.com path — codex login,
@@ -72,9 +72,9 @@ const codexAuthAPIHost = "auth.openai.com"
 // only forge a task_id for OUR synthetic identity — a real OpenAI Agent
 // Identity (e.g. the JWT-mint-failure fallback to ~/.codex/auth.json)
 // registers a different runtime id and is forwarded upstream untouched.
-const codexSyntheticRuntimeID = "clawpatrol-codex"
+const codexSyntheticRuntimeID = "nebprx-codex"
 
-// EndpointHosts is part of the clawpatrol plugin API. It always includes
+// EndpointHosts is part of the PRX plugin API. It always includes
 // codexAuthAPIHost so the codex >= 0.142 registration host is MITM'd
 // without an HCL edit on upgrade.
 func (e *OpenAICodexHTTPSEndpoint) EndpointHosts() []string {
@@ -90,19 +90,19 @@ func (e *OpenAICodexHTTPSEndpoint) EndpointHosts() []string {
 // from the older env-var name.
 //
 // CODEX_AGENT_IDENTITY_AUTHAPI_BASE_URL is load-bearing only for codex
-// <= 0.141: it redirected per-task registration onto a host clawpatrol
+// <= 0.141: it redirected per-task registration onto a host nebprx
 // MITMs (chatgpt.com/backend-api/wham). codex 0.142 REMOVED this
 // override and hardcoded registration to auth.openai.com, so for 0.142+
 // the gateway instead MITMs auth.openai.com directly (see
 // codexAuthAPIHost / RespondHTTP). The var is kept here because it's
 // harmless on 0.142 (ignored) and still required on <= 0.141. We do NOT
 // push the 0.142 replacement CODEX_AUTHAPI_BASE_URL: codex host-restricts
-// it to OpenAI hosts, so it can't be pointed at a clawpatrol host anyway.
+// it to OpenAI hosts, so it can't be pointed at a nebprx host anyway.
 func (e *OpenAICodexHTTPSEndpoint) EnvVars() []config.EnvVar {
 	jwt, err := mintCodexAccessToken()
 	if err != nil {
 		// Fall back silently — without the JWT codex falls back to its
-		// real ~/.codex/auth.json and clawpatrol's MITM still works
+		// real ~/.codex/auth.json and nebprx's MITM still works
 		// for users who already ran `codex login`.
 		return nil
 	}
@@ -120,12 +120,12 @@ func (e *OpenAICodexHTTPSEndpoint) EnvVars() []config.EnvVar {
 		{
 			Name:        "CODEX_AGENT_IDENTITY_AUTHAPI_BASE_URL",
 			Value:       "https://chatgpt.com/backend-api/wham",
-			Description: "keeps agent-task registration on a host clawpatrol MITMs",
+			Description: "keeps agent-task registration on a host nebprx MITMs",
 		},
 	}
 }
 
-// OpenAICodexHTTPSEndpointRuntime is part of the clawpatrol plugin API.
+// OpenAICodexHTTPSEndpointRuntime is part of the PRX plugin API.
 type OpenAICodexHTTPSEndpointRuntime struct{}
 
 // DetectPlaceholder mirrors the default https endpoint — agent
@@ -147,7 +147,7 @@ func (OpenAICodexHTTPSEndpointRuntime) DetectPlaceholder(req *runtime.Request, c
 // RespondHTTP intercepts the two paths codex hits during Agent
 // Identity load: the JWKS that validates the JWT we minted, and the
 // agent-task registration POST that returns a task_id. Both are
-// served from clawpatrol-controlled state — neither reaches real
+// served from nebprx-controlled state — neither reaches real
 // OpenAI. The JWKS is on chatgpt.com; the registration host moved to
 // auth.openai.com in codex 0.142 (was chatgpt.com/backend-api/wham on
 // <= 0.141), so the register matcher is deliberately host-agnostic and
@@ -165,14 +165,14 @@ func (OpenAICodexHTTPSEndpointRuntime) RespondHTTP(_ context.Context, req *http.
 		return jsonResp(req, http.StatusOK, body), true, nil
 	// Agent task-register for OUR synthetic identity only. The suffix
 	// match covers both the <= 0.141 path
-	// (/backend-api/wham/v1/agent/clawpatrol-codex/task/register) and the
-	// 0.142+ path (/api/accounts/v1/agent/clawpatrol-codex/task/register)
+	// (/backend-api/wham/v1/agent/nebprx-codex/task/register) and the
+	// 0.142+ path (/api/accounts/v1/agent/nebprx-codex/task/register)
 	// while scoping to codexSyntheticRuntimeID — a real Agent Identity
 	// (different runtime id) is forwarded upstream untouched, and
 	// /v1/agent/register (agent bootstrap) never matches.
 	case req.Method == http.MethodPost &&
 		strings.HasSuffix(req.URL.Path, "/v1/agent/"+codexSyntheticRuntimeID+"/task/register"):
-		return jsonResp(req, http.StatusOK, []byte(`{"task_id":"clawpatrol-task"}`)), true, nil
+		return jsonResp(req, http.StatusOK, []byte(`{"task_id":"nebprx-task"}`)), true, nil
 	}
 	return nil, false, nil
 }
@@ -233,14 +233,14 @@ const CodexJWTKeysKind = "codex_jwt_keys"
 
 var blobs runtime.BlobStore
 
-// SetBlobStore is part of the clawpatrol plugin API.
+// SetBlobStore is part of the PRX plugin API.
 func SetBlobStore(b runtime.BlobStore) { blobs = b }
 
 // codexJWTKeys is the persisted keypair set. RSA signs the JWT
 // envelope (codex enforces RS256). Ed25519 lives inside the JWT as
 // `agent_private_key` — codex uses it to sign per-task AgentAssertion
 // headers, but those headers get overwritten by the bound credential's
-// InjectHTTP before they leave clawpatrol, so the key is effectively
+// InjectHTTP before they leave nebprx, so the key is effectively
 // decorative. Persisted so the same JWT validates across CLI
 // invocations.
 type codexJWTKeys struct {
@@ -359,9 +359,9 @@ func mintCodexAccessToken() (string, error) {
 		"exp":                        now + int64(10*365*24*60*60),
 		"agent_runtime_id":           codexSyntheticRuntimeID,
 		"agent_private_key":          k.Ed25519PKCS8B64,
-		"account_id":                 "clawpatrol",
-		"chatgpt_user_id":            "clawpatrol",
-		"email":                      "clawpatrol@local",
+		"account_id":                 "nebprx",
+		"chatgpt_user_id":            "nebprx",
+		"email":                      "nebprx@local",
 		"plan_type":                  "pro",
 		"chatgpt_account_is_fedramp": false,
 	}

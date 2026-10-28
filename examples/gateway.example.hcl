@@ -1,9 +1,9 @@
-# clawpatrol gateway config.
+# nebprx gateway config.
 #
 # Copy this file somewhere on the gateway host (e.g.
-# /opt/clawpatrol/gateway.hcl), edit the fields below, run:
+# /opt/nebprx/gateway.hcl), edit the fields below, run:
 #
-#     clawpatrol gateway /opt/clawpatrol/gateway.hcl
+#     nebprx gateway /opt/nebprx/gateway.hcl
 #
 # Hot-reloadable: every policy block. The `gateway` block (listen
 # ports, state_dir, transport sub-blocks) needs a restart.
@@ -44,7 +44,7 @@ schema_version = 1
 gateway {
   dashboard_listen = "127.0.0.1:8080"
   public_url       = "https://gw.example.com"
-  state_dir        = "/opt/clawpatrol"
+  state_dir        = "/opt/nebprx"
 
   # Demo mode: allow the dashboard's "Block requests like this"
   # flow to append generated deny rules to this file after previewing
@@ -55,11 +55,11 @@ gateway {
 
   # Dashboard auth: there is no HCL field for the root password. The
   # first time you open the dashboard you set a "root" password; it
-  # lives bcrypt-hashed in clawpatrol.db. To skip the web first-run
+  # lives bcrypt-hashed in nebprx.db. To skip the web first-run
   # or rotate later, run:
   #
-  #   clawpatrol gateway --set-dashboard-password '<password>' gateway.hcl
-  #   clawpatrol gateway --reset-dashboard-password gateway.hcl
+  #   nebprx gateway --set-dashboard-password '<password>' gateway.hcl
+  #   nebprx gateway --reset-dashboard-password gateway.hcl
   #
   # With the `tailscale {}` block you can additionally allowlist
   # operator tailnet logins so they get in without typing the
@@ -87,7 +87,7 @@ gateway {
   #
   # tailscale {
   #   authkey  = "tskey-..."
-  #   hostname = "clawpatrol-gateway"
+  #   hostname = "nebprx-gateway"
   #   tags     = ["tag:client"]
   #   # operators allowlists tailnet logins for password-less
   #   # dashboard access. Lives under tailscale {} because matching
@@ -235,8 +235,8 @@ endpoint "kubernetes" "k8s-prod" { server = "198.51.100.11" }
 #   anthropic_oauth_subscription — Claude Pro/Max subscription. The
 #     binary handles the OAuth flow at first dashboard visit. For the
 #     `claude` CLI, OAuth-only features like `/remote-control` need a
-#     local OAuth credential; `clawpatrol run` can shim one in, but only
-#     when you opt in with CLAWPATROL_CLAUDE_OAUTH_SHIM=1 (off by default
+#     local OAuth credential; `nebprx run` can shim one in, but only
+#     when you opt in with NEBPRX_CLAUDE_OAUTH_SHIM=1 (off by default
 #     since it shadows ~/.claude) — see doc/claude-code-oauth.md.
 #   anthropic_manual_key         — raw API key from console.anthropic.com.
 #     Use this when you also need to call the API from your own
@@ -495,7 +495,7 @@ rule "k8s-default" {
 #   command = [
 #     "/usr/local/bin/cloud-sql-proxy",
 #     "--auto-iam-authn",
-#     "--credentials-file", "/opt/clawpatrol/secrets/sa.json",
+#     "--credentials-file", "/opt/nebprx/secrets/sa.json",
 #     "project:region:instance?port=5433",
 #   ]
 #   listen        = "127.0.0.1:5433"
@@ -556,8 +556,8 @@ profile "platform" {
 # Two bearer credentials at one endpoint → placeholder dispatch.
 # The agent's process env decides which token gets sent:
 #
-#   ORB_API_KEY=PH_orb_test  clawpatrol run ./test-job
-#   ORB_API_KEY=PH_orb_prod  clawpatrol run ./prod-job
+#   ORB_API_KEY=PH_orb_test  nebprx run ./test-job
+#   ORB_API_KEY=PH_orb_prod  nebprx run ./prod-job
 #
 # The agent's SDK reads ORB_API_KEY normally and puts the value in
 # the Authorization header. The gateway scans the auth slot, sees

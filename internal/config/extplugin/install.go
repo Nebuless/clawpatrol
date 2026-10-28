@@ -8,11 +8,11 @@ import (
 
 	version "github.com/hashicorp/go-version"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
-// This file backs the `clawpatrol plugins install|update|lock`
+// This file backs the `nebprx plugins install|update|lock`
 // subcommands: the operator-driven, network-touching half of the
 // distribution flow. The running gateway never resolves or upgrades —
 // it only loads the version these commands pin into the lockfile.
@@ -83,7 +83,7 @@ func (m *Manager) Install(ctx context.Context, specs []config.PluginSource, name
 			return nil, fmt.Errorf("plugin %q: %w", sp.Name, err)
 		}
 		// A version (or re-download) that loses provenance is blocked until
-		// the operator accepts it with `clawpatrol plugins approve`. A new
+		// the operator accepts it with `nebprx plugins approve`. A new
 		// version's changed commit is not a re-point (r.TagName != the locked
 		// version), so an explicit upgrade is re-pinned, not blocked.
 		if err := checkProvenanceNotDowngraded(sp.Name, mode, entry, res, r.TagName); err != nil {
@@ -119,7 +119,7 @@ func (m *Manager) Install(ctx context.Context, specs []config.PluginSource, name
 		// onto this binary. Unless this exact binary was already an
 		// approved-privileged hash (a re-download of the same approved
 		// binary), clear the grant — the plugin then fails closed at load
-		// until `clawpatrol plugins approve` (which probes the binary) grants
+		// until `nebprx plugins approve` (which probes the binary) grants
 		// it. This errs toward the sandboxed, more-restricted side and never
 		// grants privilege silently.
 		switch {
@@ -179,7 +179,7 @@ func (m *Manager) LockPlatforms(ctx context.Context, specs []config.PluginSource
 		}
 		entry, have := m.lock.get(sp.Name)
 		if !have || entry.Version == "" {
-			return nil, fmt.Errorf("plugin %q is not pinned; run `clawpatrol plugins install` first", sp.Name)
+			return nil, fmt.Errorf("plugin %q is not pinned; run `nebprx plugins install` first", sp.Name)
 		}
 		r, err := f.gh.releaseByTag(ctx, p.Owner, p.Repo, entry.Version)
 		if err != nil {

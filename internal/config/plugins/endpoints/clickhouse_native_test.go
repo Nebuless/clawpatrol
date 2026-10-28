@@ -15,12 +15,12 @@ import (
 	chproto "github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
 )
 
 // chBuildHelloWire produces the byte-for-byte ClientHello packet a
@@ -70,8 +70,8 @@ func TestChHelloPlaceholderInjection(t *testing.T) {
 		VersionMinor:     0,
 		ProtocolRevision: 54448,
 		Database:         "default",
-		Username:         "CLAWPATROL_PH_user",
-		Password:         "CLAWPATROL_PH_pass",
+		Username:         "NEBPRX_PH_user",
+		Password:         "NEBPRX_PH_pass",
 	}
 	wire := chBuildHelloWire(t, original)
 

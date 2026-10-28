@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/match"
-	sqlfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	sqlfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
 )
 
 // TestClickhouseNativeDetectPlaceholderScansHelloFields confirms the

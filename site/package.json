@@ -1,12 +1,13 @@
 {
-  "name": "clawpatrol-site",
+  "name": "nebprx-site",
   "private": true,
   "type": "module",
   "scripts": {
     "predev": "node scripts/gen-examples.mjs",
     "dev": "vite",
     "prebuild": "node scripts/gen-examples.mjs",
-    "build": "vite build && tsx build-docs.ts",
+    "build": "vite build && tsx build-docs.ts && bash scripts/build-demo.sh",
+    "build:demo": "bash scripts/build-demo.sh",
     "deploy": "npm run build && wrangler deploy",
     "test": "tsx --test worker/**/*.test.ts",
     "telemetry": "tsx scripts/telemetry.ts"

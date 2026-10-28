@@ -14,7 +14,7 @@ package runtime
 import (
 	"net/http"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // WebhookProvider is the optional interface a credential body

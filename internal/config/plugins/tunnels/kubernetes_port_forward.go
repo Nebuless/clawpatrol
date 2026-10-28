@@ -74,8 +74,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"go.yaml.in/yaml/v3"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // KubernetesPortForwardTunnel configures the tunnel runtime.
@@ -105,7 +105,7 @@ type KubernetesPortForwardTunnel struct {
 	// Cleanup controls whether a template-created pod is deleted on tunnel
 	// teardown. "delete" (default) is right for the common create-on-demand
 	// case; "keep" disables deletion. Created pods are stamped with
-	// `clawpatrol.dev/managed-by=clawpatrol` and `clawpatrol.dev/tunnel=<name>`
+	// `prx.nebuless.cloud/managed-by=nebprx` and `prx.nebuless.cloud/tunnel=<name>`
 	// labels; unless cleanup is "keep", a startup sweep deletes any pod
 	// carrying those labels that a previous daemon lifetime left behind
 	// (e.g. after a crash skipped graceful teardown).
@@ -543,7 +543,7 @@ func (t *kubernetesPortForwardTunnel) removeKubeconfig() {
 // --for=condition=Ready`. Returns the resolved pod name (which may
 // differ from doc.name when `generateName` is used).
 func (t *kubernetesPortForwardTunnel) applyAndWait(ctx context.Context, doc *podDoc) (string, error) {
-	// Stamp the Clawpatrol-managed labels so the startup reconcile sweep
+	// Stamp the Nebprx-managed labels so the startup reconcile sweep
 	// can find and delete pods orphaned by a previous daemon lifetime.
 	raw, err := injectManagedLabels(doc.raw, t.name)
 	if err != nil {
@@ -695,13 +695,13 @@ func (t *kubernetesPortForwardTunnel) cleanupCreatedPod(ctx context.Context) err
 // template-created pod so a freshly-started gateway can find and delete
 // pods orphaned by a previous lifetime (a SIGKILL / OOM / panic skips
 // the SIGTERM-driven CloseAll, leaving the pod behind with no live
-// owner). managedByLabelKey scopes the sweep to Clawpatrol; tunnelLabel
+// owner). managedByLabelKey scopes the sweep to Nebprx; tunnelLabel
 // scopes it to one tunnel so a sweep only ever touches pods its own
 // config declares.
 const (
-	managedByLabelKey = "clawpatrol.dev/managed-by"
-	managedByLabelVal = "clawpatrol"
-	tunnelLabelKey    = "clawpatrol.dev/tunnel"
+	managedByLabelKey = "prx.nebuless.cloud/managed-by"
+	managedByLabelVal = "nebprx"
+	tunnelLabelKey    = "prx.nebuless.cloud/tunnel"
 )
 
 // managedBySelector renders the label selector matching pods this

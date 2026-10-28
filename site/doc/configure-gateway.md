@@ -15,7 +15,7 @@ The example config uses WireGuard:
 ```hcl
 gateway {
   public_url = "https://gw.example.com"
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
 
   wireguard {
     subnet_cidr = "10.55.0.0/24"
@@ -28,12 +28,12 @@ If your fleet already lives on a tailnet, swap (or add) embedded tsnet:
 ```hcl
 gateway {
   public_url = "https://gw.example.com"
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
 
   tailscale {
     authkey             = "{{secret:TS_AUTHKEY}}"
     funnel              = true
-    tags                = ["tag:clawpatrol"]
+    tags                = ["tag:nebprx"]
     oauth_client_id     = "<tailscale oauth client id>"
     oauth_client_secret = "<tailscale oauth client secret>"
   }
@@ -61,10 +61,10 @@ In your tailnet's ACL JSON, add (or extend) `autoApprovers`:
 ```jsonc
 {
   "autoApprovers": {
-    "exitNode": ["tag:clawpatrol"]   // matches tailscale.tags above
+    "exitNode": ["tag:nebprx"]   // matches tailscale.tags above
   },
   "tagOwners": {
-    "tag:clawpatrol": ["autogroup:admin"]
+    "tag:nebprx": ["autogroup:admin"]
   }
 }
 ```
@@ -73,7 +73,7 @@ The tag must be the one you set in `tailscale.tags` on the
 gateway config. If you skip this step, the daemon logs a
 `tsnet probe: gateway unreachable via exit-node routing — check
 autoApprovers.exitNode in your tailnet ACL` warning on first
-boot, and every `clawpatrol run` hangs at "joining tailnet".
+boot, and every `nebprx run` hangs at "joining tailnet".
 
 ### WireGuard endpoint
 
@@ -106,7 +106,7 @@ about 16 KiB that never finished.
 
 ### Single-host (loopback) WireGuard
 
-Running the gateway and `clawpatrol run` on the same machine — the
+Running the gateway and `nebprx run` on the same machine — the
 gateway under one user account, agents launched from another — is a
 supported deployment, not a debug mode. Pin the advertised endpoint
 to loopback so onboarded clients dial the gateway over the loopback
@@ -114,7 +114,7 @@ interface:
 
 ```hcl
 gateway {
-  state_dir = "/opt/clawpatrol"
+  state_dir = "/opt/nebprx"
 
   wireguard {
     subnet_cidr = "10.55.0.0/24"
@@ -133,12 +133,12 @@ and inspect live traffic, so it requires a password on every
 request.**
 
 The first time you open the dashboard you set a `root` password.
-It lives bcrypt-hashed in `clawpatrol.db` and is checked on every
+It lives bcrypt-hashed in `nebprx.db` and is checked on every
 subsequent request. You can also manage the password from the CLI:
 
 ```bash
-clawpatrol gateway --set-dashboard-password '<password>' gateway.hcl
-clawpatrol gateway --reset-dashboard-password gateway.hcl
+nebprx gateway --set-dashboard-password '<password>' gateway.hcl
+nebprx gateway --reset-dashboard-password gateway.hcl
 ```
 
 ### Where to bind the dashboard
@@ -258,27 +258,27 @@ service user so its state directory isn't readable by any
 non-root user on the box:
 
 ```bash
-useradd --system --home /opt/clawpatrol --shell /usr/sbin/nologin clawpatrol
-chown -R clawpatrol:clawpatrol /opt/clawpatrol
-chmod 700 /opt/clawpatrol
+useradd --system --home /opt/nebprx --shell /usr/sbin/nologin nebprx
+chown -R nebprx:nebprx /opt/nebprx
+chmod 700 /opt/nebprx
 ```
 
 Drop the following at
-`/etc/systemd/system/clawpatrol-gateway.service`, adjusting the
+`/etc/systemd/system/nebprx-gateway.service`, adjusting the
 three paths to wherever you put the binary and config:
 
 ```ini
 [Unit]
-Description=clawpatrol gateway
+Description=nebprx gateway
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=clawpatrol
-Group=clawpatrol
-WorkingDirectory=/opt/clawpatrol
-ExecStart=/usr/local/bin/clawpatrol gateway /opt/clawpatrol/gateway.hcl
+User=nebprx
+Group=nebprx
+WorkingDirectory=/opt/nebprx
+ExecStart=/usr/local/bin/nebprx gateway /opt/nebprx/gateway.hcl
 Restart=on-failure
 RestartSec=2
 LimitNOFILE=65536
@@ -291,41 +291,41 @@ Then:
 
 ```bash
 systemctl daemon-reload
-systemctl enable --now clawpatrol-gateway
-journalctl -u clawpatrol-gateway -f       # tail the gateway log
+systemctl enable --now nebprx-gateway
+journalctl -u nebprx-gateway -f       # tail the gateway log
 ```
 
 If you skip the dedicated-user step, the gateway logs a warning
-at startup when `state_dir` or `clawpatrol.db` is readable beyond
+at startup when `state_dir` or `nebprx.db` is readable beyond
 owner.
 
 ## Security notes
 
 A few footguns worth knowing about before you point an agent at a
-production Claw Patrol gateway:
+production PRX gateway:
 
-- **Don't run agents on the gateway host.** `clawpatrol run` is
+- **Don't run agents on the gateway host.** `nebprx run` is
   for client devices — the gateway's `state_dir` holds every
   credential the gateway mints plus the audit log. An agent running on
   the gateway host can read those directly, with or without
-  `clawpatrol run` in front. The correct shape is: gateway on
+  `nebprx run` in front. The correct shape is: gateway on
   one box (small VPS, no human logins, no developer tools); your
-  laptop / CI runner joins it over WireGuard. `clawpatrol run`
+  laptop / CI runner joins it over WireGuard. `nebprx run`
   prints a heads-up if it detects a gateway state db in a common
   location.
 
 - **Lock down `state_dir`.** The systemd snippet above creates a
-  dedicated `clawpatrol` service user with mode-700 ownership; if
+  dedicated `nebprx` service user with mode-700 ownership; if
   you skip that, anyone with shell access to the gateway host can
   read every credential. The gateway warns at startup when
-  `state_dir` or `clawpatrol.db` is readable beyond owner.
+  `state_dir` or `nebprx.db` is readable beyond owner.
 
-- **`clawpatrol join --whole-machine` is for client devices
+- **`nebprx join --whole-machine` is for client devices
   only.** Running it on the gateway host itself routes the host's
   own traffic through its own WireGuard endpoint — a loop that
   breaks DNS, outbound traffic from the gateway daemon, and the
   dashboard's reachability. Per-process routing (the default
-  `clawpatrol join` + `clawpatrol run` shape) is also what most
+  `nebprx join` + `nebprx run` shape) is also what most
   people actually want on a multi-purpose laptop, so they don't
   accidentally route every browser tab through the gateway.
 
@@ -333,17 +333,17 @@ production Claw Patrol gateway:
 
 Released binaries are the supported path. To build from source
 instead — for example to track an unreleased branch — set
-`CLAWPATROL_FROM_SOURCE=1` on the installer (requires Go):
+`NEBPRX_FROM_SOURCE=1` on the installer (requires Go):
 
 ```bash
-curl -fsSL https://clawpatrol.dev/install.sh | CLAWPATROL_FROM_SOURCE=1 sh
+curl -fsSL https://prx.nebuless.cloud/install.sh | NEBPRX_FROM_SOURCE=1 sh
 ```
 
-Set `CLAWPATROL_REF` to install a non-`main` ref.
+Set `NEBPRX_REF` to install a non-`main` ref.
 
 ## What's next
 
 - [Config reference](/docs/config-reference/) — every HCL field, in detail
 - [Rules](/docs/rules/) — gating writes behind a human or LLM
 - [Architecture](/docs/architecture/) — how interception works
-- [Security model](/docs/security-model/) — what Claw Patrol does and doesn't protect against
+- [Security model](/docs/security-model/) — what PRX does and doesn't protect against

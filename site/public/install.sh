@@ -1,23 +1,51 @@
 #!/bin/sh
-# clawpatrol installer. Downloads a prebuilt binary from GitHub Releases.
-# Falls back to source build when CLAWPATROL_FROM_SOURCE=1 (requires Go).
+# nebprx installer. Downloads a prebuilt binary from GitHub Releases.
+# Falls back to source build when NEBPRX_FROM_SOURCE=1 (requires Go).
 #
 # Usage:
-#   curl -fsSL https://clawpatrol.dev/install.sh | sh
+#   curl -fsSL https://prx.nebuless.cloud/install.sh | sh
 #
 # Options (env vars):
-#   CLAWPATROL_VERSION       — release tag (default: latest)
-#   CLAWPATROL_PREFIX        — install dir (default: $HOME/.local/bin)
-#   CLAWPATROL_FROM_SOURCE   — 1 to build from source (Go required)
-#   CLAWPATROL_REF           — git ref when building from source (default: main)
+#   NEBPRX_VERSION       — release tag (default: latest)
+#   NEBPRX_PREFIX        — install dir (default: $HOME/.local/bin)
+#   NEBPRX_FROM_SOURCE   — 1 to build from source (Go required)
+#   NEBPRX_REF           — git ref when building from source (default: main)
+#   NEBPRX_NO_TELEMETRY  — 1 to skip the anonymous install-event ping
 #
 # POSIX sh.
 
 set -eu
 
-REPO="denoland/clawpatrol"
-VERSION="${CLAWPATROL_VERSION:-latest}"
-PREFIX="${CLAWPATROL_PREFIX:-$HOME/.local/bin}"
+REPO="Nebuless/clawpatrol"
+VERSION="${NEBPRX_VERSION:-latest}"
+PREFIX="${NEBPRX_PREFIX:-$HOME/.local/bin}"
+
+# Anonymous install telemetry. Pings prx.nebuless.cloud with os/arch/
+# version and a generated per-run id so we can count installs and
+# debug failures. Opt out with NEBPRX_NO_TELEMETRY=1.
+TELEMETRY_URL="https://prx.nebuless.cloud/api/telemetry/v1/install"
+INSTALL_ID=""
+
+telemetry() {
+  [ "${NEBPRX_NO_TELEMETRY:-0}" = "1" ] && return 0
+  command -v curl >/dev/null 2>&1 || return 0
+  if [ -z "$INSTALL_ID" ]; then
+    INSTALL_ID=$(
+      od -An -N16 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n' \
+        || date +%s%N 2>/dev/null \
+        || date +%s
+    )
+  fi
+  event="$1"
+  reason="${2:-}"
+  body=$(printf '{"install_id":"%s","event":"%s","os":"%s","arch":"%s","version":"%s","from_source":"%s","reason":"%s"}' \
+    "$INSTALL_ID" "$event" \
+    "${OS:-}" "${ARCH:-}" "$VERSION" \
+    "${NEBPRX_FROM_SOURCE:-0}" "$reason")
+  (curl -fsS --max-time 3 -X POST \
+     -H 'Content-Type: application/json' \
+     -d "$body" "$TELEMETRY_URL" >/dev/null 2>&1 || true) &
+}
 
 if [ "$VERSION" = "latest" ]; then
   BASE="https://github.com/${REPO}/releases/latest/download"
@@ -26,7 +54,7 @@ else
 fi
 
 say()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
-fail() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+fail() { telemetry failed "$*"; printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -44,8 +72,8 @@ command -v curl >/dev/null 2>&1 || fail "curl required"
 mkdir -p "$PREFIX"
 
 # source-build branch
-if [ "${CLAWPATROL_FROM_SOURCE:-0}" = "1" ]; then
-  REF="${CLAWPATROL_REF:-main}"
+if [ "${NEBPRX_FROM_SOURCE:-0}" = "1" ]; then
+  REF="${NEBPRX_REF:-main}"
   command -v go  >/dev/null 2>&1 || fail "go toolchain required for source build"
   command -v git >/dev/null 2>&1 || fail "git required"
   SRC=$(mktemp -d)
@@ -63,16 +91,17 @@ if [ "${CLAWPATROL_FROM_SOURCE:-0}" = "1" ]; then
   if [ -z "$(ls -A "$SRC/dashboard/dist" 2>/dev/null)" ]; then
     printf '<!doctype html><html><body><pre>dashboard not built</pre></body></html>' > "$SRC/dashboard/dist/index.html"
   fi
-  say "building clawpatrol"
-  ( cd "$SRC" && go build -ldflags "-s -w" -trimpath -o clawpatrol ./cmd/clawpatrol ) || fail "go build failed"
-  mv "$SRC/clawpatrol" "$PREFIX/clawpatrol"
-  chmod +x "$PREFIX/clawpatrol"
-  say "installed: $PREFIX/clawpatrol"
+  say "building nebprx"
+  ( cd "$SRC" && go build -ldflags "-s -w" -trimpath -o nebprx ./cmd/nebprx ) || fail "go build failed"
+  mv "$SRC/nebprx" "$PREFIX/nebprx"
+  chmod +x "$PREFIX/nebprx"
+  say "installed: $PREFIX/nebprx"
+  telemetry completed
   exit 0
 fi
 
 # binary download (default)
-URL="${BASE}/clawpatrol-${OS}-${ARCH}"
+URL="${BASE}/nebprx-${OS}-${ARCH}"
 TMP=$(mktemp)
 trap 'rm -f "$TMP"' EXIT INT TERM
 say "downloading ${URL}"
@@ -81,7 +110,7 @@ curl -fsSL -o "$TMP" "$URL" || fail "download failed (no release for ${OS}-${ARC
 # optional sha256 verify
 SUMS=$(curl -fsSL "${BASE}/SHA256SUMS" 2>/dev/null || true)
 if [ -n "$SUMS" ]; then
-  EXPECTED=$(printf '%s\n' "$SUMS" | awk -v f="clawpatrol-${OS}-${ARCH}" '$2==f{print $1}')
+  EXPECTED=$(printf '%s\n' "$SUMS" | awk -v f="nebprx-${OS}-${ARCH}" '$2==f{print $1}')
   if [ -n "$EXPECTED" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
       ACTUAL=$(sha256sum "$TMP" | awk '{print $1}')
@@ -97,39 +126,17 @@ if [ -n "$SUMS" ]; then
   fi
 fi
 
-mv "$TMP" "$PREFIX/clawpatrol"
-chmod +x "$PREFIX/clawpatrol"
-say "installed: $PREFIX/clawpatrol"
+mv "$TMP" "$PREFIX/nebprx"
+chmod +x "$PREFIX/nebprx"
+say "installed: $PREFIX/nebprx"
 
 case ":$PATH:" in
   *":$PREFIX:"*) ;;
   *) printf '\n  add to PATH:  export PATH="%s:$PATH"\n\n' "$PREFIX" ;;
 esac
 
-"$PREFIX/clawpatrol" version 2>/dev/null || true
+"$PREFIX/nebprx" version 2>/dev/null || true
 echo
 
-# macOS: install Clawpatrol.app for `clawpatrol run`
-# The .app holds the system extension that intercepts per-process
-# flows. Without it `clawpatrol run` errors. Pulled from the same
-# release as the Go binary, expanded to /Applications. Skip silently
-# if the artifact isn't present (older releases or unsigned dev runs).
-if [ "$OS" = "darwin" ]; then
-  APP_URL="${BASE}/Clawpatrol.app.tar.gz"
-  APP_TMP=$(mktemp -d)
-  if curl -fsSL -o "$APP_TMP/app.tgz" "$APP_URL" 2>/dev/null; then
-    say "installing Clawpatrol.app to /Applications"
-    rm -rf /Applications/Clawpatrol.app 2>/dev/null \
-      || sudo rm -rf /Applications/Clawpatrol.app 2>/dev/null \
-      || fail "couldn't remove old /Applications/Clawpatrol.app (need sudo?)"
-    if ! tar -xzf "$APP_TMP/app.tgz" -C /Applications 2>/dev/null; then
-      sudo tar -xzf "$APP_TMP/app.tgz" -C /Applications \
-        || fail "extract Clawpatrol.app failed"
-    fi
-  else
-    say "Clawpatrol.app not in this release; skipping (run \`clawpatrol run\` won't work on macOS until you install the .app)"
-  fi
-  rm -rf "$APP_TMP"
-fi
-
-echo "next: clawpatrol join <gateway-url>"
+telemetry completed
+echo "next: nebprx join <gateway-url>"

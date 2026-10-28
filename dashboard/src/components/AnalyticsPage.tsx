@@ -5,6 +5,7 @@ import { statusClass } from "../lib/format";
 import { Main } from "./Main";
 import { PageTitle, type Crumb } from "./PageTitle";
 import { Tag } from "./Tag";
+import { safeView } from "../lib/dashboardContext";
 
 const RANGES = ["1m", "5m", "15m", "30m", "1h", "6h", "24h"] as const;
 type Range = (typeof RANGES)[number];
@@ -23,14 +24,6 @@ const RANGE_MS: Record<Range, number> = {
 
 // --- query string helpers ---
 
-function qsGet(key: string, fallback: string): string {
-  const h = window.location.hash;
-  const qi = h.indexOf("?");
-  if (qi < 0) return fallback;
-  const p = new URLSearchParams(h.slice(qi));
-  return p.get(key) ?? fallback;
-}
-
 function qsSet(key: string, value: string) {
   const h = window.location.hash;
   const qi = h.indexOf("?");
@@ -45,13 +38,38 @@ function useQS<T extends string>(
   fallback: T,
   valid: readonly T[],
 ): [T, (v: T) => void] {
-  const init = qsGet(key, fallback) as T;
-  const [val, setVal] = useState(valid.includes(init) ? init : fallback);
-  const set = (v: T) => {
-    setVal(v);
-    qsSet(key, v);
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const changed = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", changed);
+    return () => window.removeEventListener("hashchange", changed);
+  }, []);
+  const value = new URLSearchParams(hash.split("?")[1]).get(key) as T;
+  return [valid.includes(value) ? value : fallback, (v) => qsSet(key, v)];
+}
+
+function useChartFilters() {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const changed = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", changed);
+    return () => window.removeEventListener("hashchange", changed);
+  }, []);
+  const filters = safeView(hash)?.filters;
+  const set = (key: string, value: string | null) => {
+    const [base, query] = window.location.hash.split("?");
+    const q = new URLSearchParams(query);
+    q.delete("device");
+    q.delete("host");
+    if (value) q.set(key, value);
+    window.location.hash = base + (q.size ? "?" + q : "");
   };
-  return [val, set];
+  return {
+    filterDevice: filters?.device_ip ?? null,
+    filterHost: filters?.host ?? null,
+    setFilterDevice: (v: string | null) => set("device", v),
+    setFilterHost: (v: string | null) => set("host", v),
+  };
 }
 
 // --- page ---
@@ -65,8 +83,7 @@ export function AnalyticsPage({ ip, agents }: { ip?: string; agents: Agent[] }) 
   const [byDevice, setByDevice] = useState<Counts>([]);
   const [byHost, setByHost] = useState<Counts>([]);
   const [range, setRange] = useQS("range", "1h" as Range, RANGES);
-  const [filterDevice, setFilterDevice] = useState<string | null>(null);
-  const [filterHost, setFilterHost] = useState<string | null>(null);
+  const { filterDevice, filterHost, setFilterDevice, setFilterHost } = useChartFilters();
   const isGlobal = !ip;
   const agentNames = useMemo(
     () => new Map(agents.map((a) => [a.ip, a.hostname || a.ip])),
@@ -178,7 +195,6 @@ export function AnalyticsPage({ ip, agents }: { ip?: string; agents: Agent[] }) 
                 dismissible
                 onClick={() => {
                   setFilterDevice(null);
-                  setFilterHost(null);
                 }}
                 className="normal-case"
               >
@@ -217,7 +233,6 @@ export function AnalyticsPage({ ip, agents }: { ip?: string; agents: Agent[] }) 
             colorFn={(_, label) => deviceColor(label)}
             onClickFn={(v) => {
               setFilterDevice(filterDevice === v ? null : v);
-              setFilterHost(null);
             }}
           />
         )}
@@ -228,7 +243,6 @@ export function AnalyticsPage({ ip, agents }: { ip?: string; agents: Agent[] }) 
           colorFn={(key) => hostColor(key)}
           onClickFn={(v) => {
             setFilterHost(filterHost === v ? null : v);
-            setFilterDevice(null);
           }}
         />
       </div>
@@ -297,14 +311,14 @@ const deviceColor = (s: string) => PALETTE[(stableIndex(s, PALETTE.length) + 5) 
 // HTTP status families, mapped to the brand semantic tokens. Hex
 // literals because Observable Plot serializes these directly into
 // SVG fill attributes and can't resolve `var(--color-…)`. Keep in
-// sync with --color-success / --color-butter / --color-rust /
-// --color-danger / --color-text-subtle in index.css.
+// sync with --color-success / --color-butter /
+// --color-danger / --color-text-subtle in shared/tokens.css.
 const STATUS_COLORS = {
-  "2xx": "#4a6f30", // success-600
-  "3xx": "#a47208", // butter-700
-  "4xx": "#b6420f", // rust-600
-  "5xx": "#8d2424", // danger-600
-  "—": "#82838c", // text-subtle
+  "2xx": "#187043", // success-600
+  "3xx": "#965c09", // butter-700
+  "4xx": "#965c09", // butter-700
+  "5xx": "#a1262f", // danger-600
+  "—": "#706c88", // text-subtle
 } as const;
 
 // --- chart ---
@@ -445,7 +459,7 @@ function LatencyChart({
       }
     });
     chart.querySelectorAll("a").forEach((a) => {
-      (a as unknown as HTMLElement).style.cursor = "pointer";
+      a.setAttribute("style", "cursor: pointer");
     });
 
     // Hover-to-highlight: dim dots whose `fill` doesn't match the
@@ -523,6 +537,8 @@ function Toggle<T extends string>({
       {options.map((o) => (
         <button
           key={o}
+          aria-label={"Select " + o}
+          aria-pressed={o === value}
           onClick={() => onChange(o)}
           className={
             "px-2 py-0.5 " +
@@ -692,10 +708,13 @@ function BarList({
               ? "var(--color-text)"
               : "var(--color-text-muted)";
           return (
-            <div
+            <button
+              type="button"
+              aria-label={"Filter " + title.toLowerCase() + ": " + item.label}
+              aria-pressed={isActive}
               key={item.key}
               className={
-                "flex items-center gap-2 px-1 py-0.5 rounded cursor-pointer " +
+                "w-full text-left flex items-center gap-2 px-1 py-0.5 rounded cursor-pointer " +
                 (isActive ? "bg-navy-50" : "hover:bg-canvas-muted")
               }
               onClick={onClickFn ? () => onClickFn(item.key) : undefined}
@@ -722,7 +741,7 @@ function BarList({
               <span className="w-8 text-right text-xs text-text-subtle tabular-nums">
                 {item.value}
               </span>
-            </div>
+            </button>
           );
         })}
         {items.length === 0 && (

@@ -25,7 +25,7 @@ import (
 
 // LockfileName is the lockfile's basename, written alongside the
 // gateway config.
-const LockfileName = "clawpatrol.lock.hcl"
+const LockfileName = "nebprx.lock.hcl"
 
 // lockEntry is one plugin's recorded approval. Hashes is a set of
 // approved binary hashes — one per platform build of the approved
@@ -43,7 +43,7 @@ type lockEntry struct {
 	// canonical "github.com/<owner>/<repo>"; Version is the resolved
 	// release tag the gateway is pinned to; Constraints echoes the
 	// operator's version constraint for review. The running gateway
-	// loads exactly Version; `clawpatrol plugins update` rewrites it.
+	// loads exactly Version; `nebprx plugins update` rewrites it.
 	Source      string `hcl:"source,optional"`
 	Version     string `hcl:"version,optional"`
 	Constraints string `hcl:"constraints,optional"`
@@ -68,7 +68,7 @@ type lockEntry struct {
 	// plugin unsandboxed (full host access), in response to the plugin's
 	// manifest-declared privileged capability. Unlike Network and Egress
 	// this is NEVER trust-on-first-use: it is written only by
-	// `clawpatrol plugins approve` (or the dashboard). The grant is gated on
+	// `nebprx plugins approve` (or the dashboard). The grant is gated on
 	// the binary's hash being in Hashes, so an upgrade — whose hash is not
 	// yet recorded — re-pends approval and the plugin fails closed until the
 	// operator re-approves the new binary.
@@ -103,7 +103,7 @@ func newLockStore() *lockStore {
 
 // configure points the store at a lockfile path. readOnly stores
 // resolve and report escalations but never write (used by
-// `clawpatrol validate`).
+// `nebprx validate`).
 func (s *lockStore) configure(path string, readOnly bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -230,7 +230,7 @@ func (s *lockStore) setEgress(name string, egress []string) {
 }
 
 // setPrivileged records (or clears) the operator's explicit approval to run
-// the plugin unsandboxed. Only `clawpatrol plugins approve` calls this — it
+// the plugin unsandboxed. Only `nebprx plugins approve` calls this — it
 // is never set trust-on-first-use. Marks dirty only on change.
 func (s *lockStore) setPrivileged(name string, privileged bool) {
 	s.mu.Lock()
@@ -269,11 +269,11 @@ func (s *lockStore) save() error {
 	f := hclwrite.NewEmptyFile()
 	body := f.Body()
 	body.AppendUnstructuredTokens(commentTokens(
-		"# clawpatrol plugin permission lockfile — generated; commit this file.",
+		"# nebprx plugin permission lockfile — generated; commit this file.",
 		"# Each block records a plugin's approved permissions and the set of",
 		"# approved binary hashes (one per platform build). An upgrade that",
 		"# escalates beyond the recorded permissions fails closed until",
-		"# re-approved (clawpatrol plugins approve <name>).",
+		"# re-approved (nebprx plugins approve <name>).",
 	))
 	body.AppendNewline()
 	for _, n := range names {

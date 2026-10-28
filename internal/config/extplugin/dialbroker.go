@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // Brokered dial: an endpoint plugin asks the gateway to open an

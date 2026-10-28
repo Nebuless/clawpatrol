@@ -1,4 +1,4 @@
-// Package pluginsdk is the author-facing SDK for clawpatrol's
+// Package pluginsdk is the author-facing SDK for nebprx's
 // Terraform-style external plugins.
 //
 // A plugin is an ordinary Go program whose main() builds a *Plugin
@@ -24,7 +24,7 @@ import (
 	"net"
 	"net/http"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
 // Plugin is the top-level declaration a plugin's main() builds and
@@ -84,7 +84,7 @@ type Capabilities struct {
 	// Network and Egress it is NOT trust-on-first-use: handing a plugin
 	// full host access is too dangerous to grant silently, so the gateway
 	// holds the plugin closed until the operator explicitly approves it
-	// (clawpatrol plugins approve, or the dashboard). An upgrade re-pends
+	// (nebprx plugins approve, or the dashboard). An upgrade re-pends
 	// approval. Prefer a narrower capability (Egress, a built-in tunnel)
 	// whenever one fits; reach for this only when the plugin genuinely
 	// must shell out.
@@ -558,7 +558,7 @@ type DialUpstreamOptions struct {
 // hanging; plugins that must support them need their own net.Dial
 // and an operator-granted network = "outbound".
 var ErrDialUpstreamUnsupported = errors.New(
-	"pluginsdk: gateway does not support brokered dial (upgrade clawpatrol, or grant the plugin network = \"outbound\" and dial directly)")
+	"pluginsdk: gateway does not support brokered dial (upgrade nebprx, or grant the plugin network = \"outbound\" and dial directly)")
 
 // DialUpstream asks the gateway to open an upstream connection on
 // the plugin's behalf. The gateway only dials targets the operator's

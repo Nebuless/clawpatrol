@@ -8,10 +8,12 @@ import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import {
   loadDocs,
-  prerenderLandingHtml,
+  prerenderPageHtml,
   renderDocPage,
   SITE_ORIGIN,
 } from "./docs-render.ts";
+
+import { pages } from "./src/pages";
 
 const docsDir = resolve(import.meta.dirname, "doc");
 const distDir = resolve(import.meta.dirname, "dist");
@@ -21,8 +23,11 @@ const docs = loadDocs(docsDir);
 
 // 1) Prerender landing into dist/index.html ─────────────────────────
 const viteIndex = readFileSync(join(distDir, "index.html"), "utf-8");
-const prerendered = prerenderLandingHtml(viteIndex);
-writeFileSync(join(distDir, "index.html"), prerendered);
+for (const page of pages) {
+  const dir = join(distDir, page.path);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "index.html"), prerenderPageHtml(viteIndex, page));
+}
 
 // Extract <link> tags for CSS from vite's output so the doc pages
 // pull in the same hashed bundle as the landing.
@@ -46,7 +51,8 @@ for (const doc of docs) {
 
 // 3) Sitemap, robots, llms.txt ──────────────────────────────────────
 const sitemapUrls = [
-  `${SITE_ORIGIN}/`,
+  ...pages.map((p) => `${SITE_ORIGIN}${p.path}`),
+  `${SITE_ORIGIN}/demo/`,
   ...docs.map((d) => `${SITE_ORIGIN}/docs/${d.slug}/`),
 ];
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
@@ -69,12 +75,16 @@ writeFileSync(join(distDir, "robots.txt"), robots);
 
 // llmstxt.org format: index of pages an LLM can fetch. We point at the
 // raw .md variants so models get clean prose without the page chrome.
-const llmsTxt = `# Claw Patrol
+const llmsTxt = `# PRX
 
 > Open-source security proxy for AI agents. Sits between your agent
 > and the network, injects credentials the agent never sees, and
 > enforces HCL approval rules — with humans or LLM judges in the loop
 > for risky actions.
+
+## Pages
+
+${pages.map((p) => `- [${p.title}](${SITE_ORIGIN}${p.path}): ${p.description}`).join("\n")}
 
 ## Docs
 
@@ -89,7 +99,7 @@ ${
 `;
 writeFileSync(join(distDir, "llms.txt"), llmsTxt);
 
-const llmsFull = `# Claw Patrol — Full Documentation
+const llmsFull = `# PRX — Full Documentation
 
 > Concatenated source of every doc page. The canonical HTML versions
 > live under ${SITE_ORIGIN}/docs/.

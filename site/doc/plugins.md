@@ -1,6 +1,6 @@
 # Plugins
 
-Most of the protocols Claw Patrol gates — HTTPS, Postgres, ClickHouse,
+Most of the protocols PRX gates — HTTPS, Postgres, ClickHouse,
 SSH, Kubernetes — ship as **built-in** plugins compiled into the
 gateway binary. When you need to gate something the binary doesn’t
 know about, you can ship an **external** plugin: a separate Go
@@ -67,14 +67,14 @@ diagnostic.
 ## Installing a plugin from GitHub
 
 `source` can be a local path (above) or a GitHub repository. With a
-repository, clawpatrol resolves a semver constraint against the repo's
+repository, PRX resolves a semver constraint against the repo's
 release tags, downloads the build for this host's OS/arch, verifies it,
 caches it, and pins the resolved version in the lockfile — the same
 model Terraform uses for providers:
 
 ```hcl
 plugin "aws" {
-  source  = "github.com/denoland/clawpatrol-plugin-aws"
+  source  = "github.com/your-org/prx-plugin-aws"
   version = "~> 1.2"   # newest 1.x ≥ 1.2 ; omit for the newest stable
 }
 ```
@@ -93,10 +93,10 @@ The download is an explicit, reviewable step — the running gateway only
 ever loads the **locked** version, and never upgrades on its own:
 
 ```
-clawpatrol plugins install <config.hcl> [name...]   # download + pin
-clawpatrol plugins update  <config.hcl> [name...]   # re-pin to the newest match
-clawpatrol plugins lock    <config.hcl> [name...]   # record all platforms' hashes
-clawpatrol plugins info    <config.hcl> [name...]   # required privileges, no download
+nebprx plugins install <config.hcl> [name...]   # download + pin
+nebprx plugins update  <config.hcl> [name...]   # re-pin to the newest match
+nebprx plugins lock    <config.hcl> [name...]   # record all platforms' hashes
+nebprx plugins info    <config.hcl> [name...]   # required privileges, no download
 ```
 
 `plugins info` reads each GitHub plugin's signed static manifest for the
@@ -107,7 +107,7 @@ review what an install or upgrade would grant before it happens.
 - **install** resolves the constraint (keeping any already-pinned
   version), downloads, caches under `<state_dir>/plugins/…`, and records
   the resolved version, the declared network, and the binary hash in
-  `clawpatrol.lock.hcl` beside the config.
+  `nebprx.lock.hcl` beside the config.
 - **update** re-resolves to the newest release tag satisfying the
   constraint and re-pins it — the one place an upgrade happens. The new
   version shows up as a lockfile diff for review.
@@ -119,14 +119,14 @@ The gateway checks GitHub for newer matching releases in the background
 and surfaces "update available" on the dashboard's Plugins page, but
 **never downloads or upgrades automatically** — you run `update`.
 
-Commit `clawpatrol.lock.hcl`. On a fresh host the gateway downloads
+Commit `nebprx.lock.hcl`. On a fresh host the gateway downloads
 exactly the locked version (verifying it) on first load; if the locked
 version no longer satisfies the constraint, or the source changed, it
 fails closed and tells you to run `install` / `update`.
 
 ### How a plugin must package its releases
 
-So clawpatrol can find and verify the right binary, a plugin's GitHub
+So PRX can find and verify the right binary, a plugin's GitHub
 release must contain, per platform, an archive named with the Go
 `GOOS`/`GOARCH` tokens, plus a checksums file:
 
@@ -136,17 +136,17 @@ release must contain, per platform, an archive named with the Go
 <repo>_<version>_manifest.json        # static manifest (optional)
 ```
 
-Only the trailing `_<os>_<arch>.tar.gz` is load-bearing — clawpatrol
+Only the trailing `_<os>_<arch>.tar.gz` is load-bearing — PRX
 selects the archive by that suffix and reads its checksum from
 `SHA256SUMS` — so the prefix is convention, not a hard requirement.
 
 The optional **static manifest** is the plugin's own manifest emitted by
 its `--print-manifest` mode (the SDK's `pluginsdk.Run` handles the flag).
 Publishing it as a release asset — listed in `SHA256SUMS` and covered by
-the attestation — lets `clawpatrol plugins info` show a plugin's
+the attestation — lets `nebprx plugins info` show a plugin's
 metadata and **required privileges before downloading the binary**.
 
-Add a build-provenance attestation with one workflow step so clawpatrol
+Add a build-provenance attestation with one workflow step so PRX
 can verify the binary (and the manifest) was built by your repo (see the
 trust model below):
 
@@ -187,17 +187,17 @@ Three layers gate a downloaded binary, from least to most powerful:
 1. **Checksum.** The archive's sha256 must match the release's
    `SHA256SUMS`.
 2. **Trust on first use.** The extracted binary's hash is recorded in
-   `clawpatrol.lock.hcl`; every later load re-hashes the cached binary
+   `nebprx.lock.hcl`; every later load re-hashes the cached binary
    and **fails closed** on any mismatch — and a version bump re-runs the
    permission-escalation check (a new release that newly wants `network`
    is blocked until you re-approve it).
 3. **Build provenance.** If the release carries a GitHub
-   [build-provenance attestation][att], clawpatrol verifies (via
+   [build-provenance attestation][att], PRX verifies (via
    Sigstore) that the binary was built by *that repo's* GitHub Actions
    workflow — the `github.com/owner/repo` you already named is the trust
    anchor, so there is no key to manage. This closes the first-download
    gap that checksums alone leave open. The attestation also names the
-   source **commit** the binary was built from; clawpatrol records it in
+   source **commit** the binary was built from; PRX records it in
    the lockfile (`commit = "..."`) — an immutable reference, since tags
    are mutable — and on a later re-download of the pinned version rejects
    an attestation that names a different commit (a re-pointed tag).
@@ -207,7 +207,7 @@ Three layers gate a downloaded binary, from least to most powerful:
 
    ```hcl
    plugin "aws" {
-     source     = "github.com/denoland/clawpatrol-plugin-aws"
+     source     = "github.com/your-org/prx-plugin-aws"
      version    = "~> 1.2"
      provenance = "require"   # "warn" (default) | "require" | "off"
    }
@@ -229,7 +229,7 @@ Three layers gate a downloaded binary, from least to most powerful:
    and a later binary that **loses** provenance — attested before, not
    now — is **blocked** (a re-pointed tag, or an upgrade that drops its
    attestation, looks exactly like a supply-chain attack) until you
-   accept it with `clawpatrol plugins approve <name>`. A plugin that was
+   accept it with `nebprx plugins approve <name>`. A plugin that was
    never attested keeps installing with a warning; only a *downgrade* is
    blocked.
 
@@ -239,7 +239,7 @@ Three layers gate a downloaded binary, from least to most powerful:
 
 Plugins are **untrusted**. A plugin runs in the gateway process tree
 and the gateway holds secrets (the state DB with the CA key and
-credential material, WireGuard / Tailscale keys, `CLAWPATROL_SECRET_*`
+credential material, WireGuard / Tailscale keys, `NEBPRX_SECRET_*`
 environment variables). To contain a malicious or compromised plugin,
 every plugin subprocess runs inside an OS sandbox by default and with
 a scrubbed environment — it inherits **none** of the gateway's
@@ -295,7 +295,7 @@ their own connections, or a credential plugin doing its own token
 exchange.
 
 On first load the gateway records the plugin's declared network in
-**`clawpatrol.lock.hcl`** next to the config (commit it to VCS):
+**`nebprx.lock.hcl`** next to the config (commit it to VCS):
 
 ```hcl
 plugin "ssh_tools" {
@@ -323,7 +323,7 @@ trying to open an exfiltration path looks like. After an intentional
 upgrade, re-approve it:
 
 ```
-clawpatrol plugins approve <config.hcl> ssh_tools
+nebprx plugins approve <config.hcl> ssh_tools
 ```
 
 Or approve it from the **dashboard**: any blocked plugin — an escalated
@@ -357,16 +357,16 @@ pluginsdk.Run(&pluginsdk.Plugin{
 ```
 
 Because privileged hands the plugin full host access — it can read every
-file the gateway user can, including clawpatrol's own secret store, and
+file the gateway user can, including PRX's own secret store, and
 run any command — it is **not** trust-on-first-use like network and
 egress. The gateway holds a privileged plugin **closed** until the
 operator approves it explicitly:
 
 ```
-clawpatrol plugins approve <config.hcl> ssh_tools
+nebprx plugins approve <config.hcl> ssh_tools
 ```
 
-Approval records `privileged = true` in `clawpatrol.lock.hcl`, gated on
+Approval records `privileged = true` in `nebprx.lock.hcl`, gated on
 the binary hash like every other grant, so a later version re-pends
 approval. The dashboard's Plugins page shows the request on the blocked
 card (a red **privileged** badge) and offers the same one-click approve.
@@ -477,15 +477,15 @@ Capabilities: pluginsdk.Capabilities{
 ```
 
 Each entry is `host:port` or `*.suffix.tld:port` (the same shape as
-`dial`). The gateway records the approved set in `clawpatrol.lock.hcl`
+`dial`). The gateway records the approved set in `nebprx.lock.hcl`
 on first load (trust-on-first-use, alongside the network grant) and
 merges it into every one of the plugin's endpoints' dial allow-list.
 An upgrade that **broadens** egress — a new version that wants a
 destination none of the approved entries cover — fails closed until
-the operator re-approves it (`clawpatrol plugins approve`), exactly
+the operator re-approves it (`nebprx plugins approve`), exactly
 like a network-grant escalation; a narrower or equal set loads
 unchanged. The declared set is verified against the signed static
-manifest, so `clawpatrol plugins info` shows a plugin's egress before
+manifest, so `nebprx plugins info` shows a plugin's egress before
 any binary is downloaded. The operator's `dial` list still works and
 composes with the manifest set — use it for site-specific upstreams
 the plugin author can't know.
@@ -542,13 +542,13 @@ just like built-in ones, in either role (parent or child); see
 ## Writing a plugin
 
 Plugins are ordinary Go programs. The author SDK lives at
-`github.com/denoland/clawpatrol/pluginsdk`; the canonical example
-is `pluginsdk/example/` in the Claw Patrol repo.
+`github.com/Nebuless/nebprx/pluginsdk`; the canonical example
+is `pluginsdk/example/` in the PRX repo.
 
 ```go
 package main
 
-import "github.com/denoland/clawpatrol/pluginsdk"
+import "github.com/Nebuless/nebprx/pluginsdk"
 
 func main() {
     pluginsdk.Run(&pluginsdk.Plugin{
@@ -960,7 +960,7 @@ return an error so the plugin can degrade gracefully.
 
 ## Validating a plugin config
 
-`clawpatrol validate` runs the same load path the daemon does, so
+`nebprx validate` runs the same load path the daemon does, so
 every plugin referenced from the HCL is spawned and its manifest
 is checked. Beyond the HCL pipeline the validate command also runs
 a schema-only pass (`Manager.Verify`) that catches plugin
@@ -993,7 +993,7 @@ ok: gateway.hcl — 7 endpoints across 3 profile(s)
 
 ## See also
 
-- [`pluginsdk/example/`](https://github.com/denoland/clawpatrol/tree/main/pluginsdk/example)
+- [`pluginsdk/example/`](https://github.com/Nebuless/clawpatrol/tree/main/pluginsdk/example)
   — fully exercised plugin: `example_magic_token` credential,
   `example_passthrough` tunnel (a no-op tunnel — opens the upstream
   through the gateway's brokered dial), `example_socks` tunnel
@@ -1005,9 +1005,9 @@ ok: gateway.hcl — 7 endpoints across 3 profile(s)
   endpoint + matching `example_smtp` facet (optional + stream
   fields), `example_echo` endpoint + matching `example_echo`
   facet (plain TCP).
-- [`pluginsdk/`](https://github.com/denoland/clawpatrol/tree/main/pluginsdk)
+- [`pluginsdk/`](https://github.com/Nebuless/clawpatrol/tree/main/pluginsdk)
   — the author SDK package.
-- [`config/extplugin/proto/plugin.proto`](https://github.com/denoland/clawpatrol/tree/main/config/extplugin/proto)
+- [`config/extplugin/proto/plugin.proto`](https://github.com/Nebuless/clawpatrol/tree/main/config/extplugin/proto)
   — gRPC service definitions if you want to bypass the SDK.
 - [Rules](rules) — how rule conditions and
   approve chains are evaluated against a request.

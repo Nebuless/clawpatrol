@@ -55,7 +55,7 @@ export function HITLBar({ agentIP }: { agentIP?: string } = {}) {
   return (
     <div className="space-y-1.5">
       {notice && (
-        <div className="px-4 py-2 text-xs text-rust-700 bg-canvas border-1.5 border-rust-200">
+        <div className="px-4 py-2 text-xs text-danger-700 bg-canvas border-1.5 border-danger-200">
           {notice}
         </div>
       )}

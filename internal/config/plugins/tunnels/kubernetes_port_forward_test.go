@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	cruntime "github.com/denoland/clawpatrol/internal/config/runtime"
+	cruntime "github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // stubKubectl swaps the package runKubectl + lookupKubectl vars for the

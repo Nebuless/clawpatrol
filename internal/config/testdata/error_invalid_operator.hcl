@@ -5,7 +5,7 @@
 
 gateway {
   dashboard_listen = "127.0.0.1:8080"
-  state_dir        = "/opt/clawpatrol"
+  state_dir        = "/opt/nebprx"
   public_url       = "https://gw.example.test"
 
   tailscale {

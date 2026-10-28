@@ -4,9 +4,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	k8sfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/k8s"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	k8sfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/k8s"
 )
 
 // TestK8sMatcherVerbCaseInsensitive locks in that a rule written as

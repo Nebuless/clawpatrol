@@ -1,6 +1,6 @@
 # Binary size
 
-Clawpatrol is a single statically-linked Go binary that bundles a
+PRX is a single statically-linked Go binary that bundles a
 gateway, a policy engine, a Tailscale node, a WireGuard server, a
 userspace TCP/IP stack, a CEL evaluator, a SQLite database, and a
 SPA. The build is large by design; this doc records the baseline so
@@ -15,9 +15,9 @@ built SPA, which adds the SPA's own bundle size on top.
 
 | Build                                              | Bytes      | MB    |
 |----------------------------------------------------|-----------:|------:|
-| `go build ./cmd/clawpatrol` (dev / `make build`)   | 88,088,501 | 84.0  |
-| `go build -ldflags="-s -w" ./cmd/clawpatrol`       | 61,634,889 | 58.8  |
-| `go build -ldflags="-s -w" -trimpath ./cmd/clawpatrol` (`make release`, release CI, `install.sh` source build) | 61,366,537 | 58.5  |
+| `go build ./cmd/nebprx` (dev / `make build`)   | 88,088,501 | 84.0  |
+| `go build -ldflags="-s -w" ./cmd/nebprx`       | 61,634,889 | 58.8  |
+| `go build -ldflags="-s -w" -trimpath ./cmd/nebprx` (`make release`, release CI, `install.sh` source build) | 61,366,537 | 58.5  |
 
 `-s -w` removes the symbol table and DWARF debug info. `-trimpath`
 rewrites embedded source paths and saves a few hundred KB on top.
@@ -28,9 +28,9 @@ To reproduce:
 mkdir -p dashboard/dist
 printf '<!doctype html><html><body><pre>placeholder</pre></body></html>' \
   > dashboard/dist/index.html
-go build -o clawpatrol-dev ./cmd/clawpatrol
-go build -ldflags "-s -w" -trimpath -o clawpatrol-release ./cmd/clawpatrol
-ls -la clawpatrol-dev clawpatrol-release
+go build -o nebprx-dev ./cmd/nebprx
+go build -ldflags "-s -w" -trimpath -o nebprx-release ./cmd/nebprx
+ls -la nebprx-dev nebprx-release
 ```
 
 The dev binary's extra ~26 MB is debug info (`-w` removes DWARF
@@ -63,7 +63,7 @@ Top-level groups, summed over the dev binary's `T` symbols:
 | clickhouse-go + ch-go  | 1,662      | `clickhouse_native` endpoint speaks the wire protocol; clients require both   |
 | google.golang.org/{protobuf,grpc} | 1,507 | go-plugin and OTLP exporters need a real gRPC stack                          |
 | github.com/google/cel-go | 1,477    | rule expressions in HCL compile to CEL programs                               |
-| gvisor.dev/gvisor      | 1,321      | userspace TCP/IP stack for `clawpatrol run` (per-process WireGuard)           |
+| gvisor.dev/gvisor      | 1,321      | userspace TCP/IP stack for `nebprx run` (per-process WireGuard)           |
 | github.com/aws/aws-sdk-go-v2 | 1,193 | SigV4 presigner for the EKS bearer-token credential                          |
 | github.com/pgplex/pgparser | 916    | Postgres SQL parser for the `postgres` endpoint matcher                       |
 | github.com/AfterShip/clickhouse-sql-parser | 385 | ClickHouse SQL parser for the same                                |
@@ -106,7 +106,7 @@ pull in solves the same problem. A few common cases that have come up:
 - **Compression readers:** the sampler already speaks gzip, deflate,
   zlib, brotli (`github.com/andybalholm/brotli`), and zstd
   (`github.com/klauspost/compress/zstd`) — extend `maybeDecode` in
-  `cmd/clawpatrol/web.go` rather than adding a fourth decoder.
+  `cmd/nebprx/web.go` rather than adding a fourth decoder.
 
 If a new direct dependency is unavoidable, mention the size impact in
 the PR (`go build -ldflags '-s -w' -trimpath` before and after) so we

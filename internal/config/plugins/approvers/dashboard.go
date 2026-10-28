@@ -9,13 +9,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// DashboardApprover is part of the clawpatrol plugin API.
+// DashboardApprover is part of the PRX plugin API.
 type DashboardApprover struct{}
 
-// Approve is part of the clawpatrol plugin API.
+// Approve is part of the PRX plugin API.
 func (DashboardApprover) Approve(ctx context.Context, req runtime.ApproveRequest) (runtime.ApproveVerdict, error) {
 	if req.Pool == nil {
 		return runtime.ApproveVerdict{}, fmt.Errorf("dashboard approver: no pool")

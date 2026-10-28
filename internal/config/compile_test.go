@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/all"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // testGatewayPrefix wraps inline test fixtures with a minimal valid
 // `gateway {}` block so loader-level operational validation passes;
 // these tests care only about the policy blocks they declare.
 const testGatewayPrefix = `gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

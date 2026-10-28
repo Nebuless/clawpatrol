@@ -86,7 +86,7 @@ export function ShadeGradient({
     ? ["full", "dark", "medium", "light"]
     : ["light", "medium", "dark", "full"];
   return (
-    <div aria-hidden="true" class={cls}>
+    <div aria-hidden="true" class={`prx-shadegrad ${invert ? "prx-invert" : ""} ${color ?? ""} ${cls}`}>
       {order.map((w) => (
         <ShadeBar
           key={w}

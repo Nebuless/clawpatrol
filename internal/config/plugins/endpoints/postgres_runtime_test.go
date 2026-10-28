@@ -12,13 +12,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/credentials"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/rules"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/credentials"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/rules"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // TestParseSQL exercises the AST extractor that feeds the SQL
@@ -416,7 +416,7 @@ func TestPgClientToServerReturnsOnContextCancel(t *testing.T) {
 // to satisfy loader-level operational validation; these runtime
 // tests care only about the policy blocks they declare.
 const testGatewayPrefix = `gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -554,7 +554,7 @@ rule "by-credential" {
 }
 
 // TestParseSQL_Audit143 covers the in-scope (FN, evasion) findings
-// from denoland/clawpatrol#143. Each case fires the audit's payload
+// from denoland/nebprx#143. Each case fires the audit's payload
 // against parseSQL and asserts the matcher input now surfaces the
 // data the evading rule needed.
 //

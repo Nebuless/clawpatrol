@@ -1,0 +1,14 @@
+{
+  "enabled": false,
+  "broker_url": "https://provider.example",
+  "provider_origin": "https://provider.example",
+  "support_domain": "support.example",
+  "organization_id": "example-org",
+  "installation_id": "REPLACE_WITH_EXISTING_GATEWAY_INSTALLATION_ID",
+  "hosting": "customer",
+  "connector_credential_file": "/var/lib/nebprx/connector.secret",
+  "installation_key_file": "/var/lib/nebprx/installation.key",
+  "provider_support_public_key_file": "/var/lib/nebprx/provider-support.pub",
+  "code_pepper_file": "/var/lib/nebprx/support-code-pepper.key",
+  "audit_retention_days": 90
+}

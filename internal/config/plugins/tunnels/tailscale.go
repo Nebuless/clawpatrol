@@ -8,9 +8,9 @@ package tunnels
 // HCL:
 //
 //   tunnel "tailscale" "ts-prod" {
-//     # authkey injected via CLAWPATROL_TUNNEL_TS_PROD_AUTHKEY
+//     # authkey injected via NEBPRX_TUNNEL_TS_PROD_AUTHKEY
 //     # (the literal authkey = "..." HCL form is also accepted)
-//     hostname  = "clawpatrol-tunnel-prod"
+//     hostname  = "nebprx-tunnel-prod"
 //     keepalive = "always"   # default — once joined, stay joined
 //   }
 //
@@ -49,14 +49,14 @@ import (
 	"tailscale.com/ipn"
 	"tailscale.com/tsnet"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/plugins/tailscaleproto"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/plugins/tailscaleproto"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // TailscaleTunnel configures the tunnel runtime.
 type TailscaleTunnel struct {
-	// AuthKey is the Tailscale auth key; env fallback is CLAWPATROL_TUNNEL_<NAME>_AUTHKEY.
+	// AuthKey is the Tailscale auth key; env fallback is NEBPRX_TUNNEL_<NAME>_AUTHKEY.
 	AuthKey string `hcl:"authkey,optional"`
 	// OAuthClientSecret is a Tailscale OAuth client secret
 	// (tskey-client-...). When set, tsnet mints a fresh, short-lived
@@ -64,11 +64,11 @@ type TailscaleTunnel struct {
 	// on a static authkey — so there is no long-lived key that can
 	// expire out from under the tunnel. Requires `tags` (untagged OAuth
 	// keys are rejected by Tailscale). Env fallback is
-	// CLAWPATROL_TUNNEL_<NAME>_OAUTH_CLIENT_SECRET.
+	// NEBPRX_TUNNEL_<NAME>_OAUTH_CLIENT_SECRET.
 	OAuthClientSecret string `hcl:"oauth_client_secret,optional"`
 	// ControlURL overrides the Tailscale control-plane URL.
 	ControlURL string `hcl:"control_url,optional"`
-	// Hostname is the tsnet node name; defaults to clawpatrol-tunnel-<name>.
+	// Hostname is the tsnet node name; defaults to nebprx-tunnel-<name>.
 	Hostname string `hcl:"hostname,optional"`
 	// StateDir stores tsnet node state; defaults under the gateway CA directory.
 	StateDir string `hcl:"state_dir,optional"`
@@ -134,13 +134,13 @@ func tunnelStateDir(t *TailscaleTunnel, host runtime.TunnelHost) (string, error)
 //     connected" until tsnet finishes joining — this keeps the gateway
 //     (and its dashboard) responsive while the operator clicks Connect.
 //   - Literal authkey (existing path, unchanged): the HCL `authkey`
-//     literal — or its `CLAWPATROL_TUNNEL_<NAME>_AUTHKEY` env-var
+//     literal — or its `NEBPRX_TUNNEL_<NAME>_AUTHKEY` env-var
 //     fallback — supplies the auth material, tsnet state lives on disk
 //     under `state_dir`, and Up blocks until joined as before.
 func (t *TailscaleTunnel) Open(ctx context.Context, host runtime.TunnelHost, _ runtime.Tunnel) (runtime.Tunnel, error) {
 	hn := t.Hostname
 	if hn == "" {
-		hn = "clawpatrol-tunnel-" + host.Name
+		hn = "nebprx-tunnel-" + host.Name
 	}
 	logger := host.Logger
 	if logger == nil {
@@ -458,17 +458,17 @@ func (t *tailscaleTunnelConn) watchIPNBus(ctx context.Context) {
 }
 
 // envAuthKey returns the env-var name for this tunnel's auth key
-// fallback. CLAWPATROL_TUNNEL_<UPPER_NAME>_AUTHKEY, with hyphens
+// fallback. NEBPRX_TUNNEL_<UPPER_NAME>_AUTHKEY, with hyphens
 // folded to underscores.
 func envAuthKey(name string) string {
-	return "CLAWPATROL_TUNNEL_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_AUTHKEY"
+	return "NEBPRX_TUNNEL_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_AUTHKEY"
 }
 
 // envOAuthClientSecret returns the env-var name for this tunnel's OAuth
 // client-secret fallback, mirroring envAuthKey:
-// CLAWPATROL_TUNNEL_<UPPER_NAME>_OAUTH_CLIENT_SECRET.
+// NEBPRX_TUNNEL_<UPPER_NAME>_OAUTH_CLIENT_SECRET.
 func envOAuthClientSecret(name string) string {
-	return "CLAWPATROL_TUNNEL_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_OAUTH_CLIENT_SECRET"
+	return "NEBPRX_TUNNEL_" + strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_OAUTH_CLIENT_SECRET"
 }
 
 // oauthClientSecret resolves the tunnel's OAuth client secret from the

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // stubEKSEndpoint satisfies the awsEKSParams contract so SignHTTPRequest
@@ -95,7 +95,7 @@ func TestAWSCredentialReSignsNonEKSRequest(t *testing.T) {
 	// The agent's aws-cli signed with placeholder creds: scope names the
 	// real service (dynamodb) + region (us-west-2), which must win over
 	// the hostname's eu-west-1.
-	req.Header.Set("Authorization", "AWS4-HMAC-SHA256 Credential=AKIACLAWPATROLPLACE0/20260609/us-west-2/dynamodb/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=deadbeef")
+	req.Header.Set("Authorization", "AWS4-HMAC-SHA256 Credential=AKIANEBPRXPLACE00000/20260609/us-west-2/dynamodb/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=deadbeef")
 	req.Header.Set("X-Amz-Content-Sha256", contentHash)
 	req.Header.Set("X-Amz-Security-Token", "placeholder-session-token")
 
@@ -144,7 +144,7 @@ func TestAWSCredentialReSignsNonEKSRequestNoContentHashHeader(t *testing.T) {
 		t.Fatalf("new request: %v", err)
 	}
 	// Scope present, but deliberately NO X-Amz-Content-Sha256 header.
-	req.Header.Set("Authorization", "AWS4-HMAC-SHA256 Credential=AKIACLAWPATROLPLACE0/20260609/us-east-1/sts/aws4_request, SignedHeaders=host;x-amz-date, Signature=deadbeef")
+	req.Header.Set("Authorization", "AWS4-HMAC-SHA256 Credential=AKIANEBPRXPLACE00000/20260609/us-east-1/sts/aws4_request, SignedHeaders=host;x-amz-date, Signature=deadbeef")
 
 	sec := runtime.Secret{Extras: map[string]string{
 		"access_key_id":     "AKIDEXAMPLE",

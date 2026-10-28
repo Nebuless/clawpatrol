@@ -1,0 +1,6 @@
+[
+  {"ecosystem": "npm", "url": "https://storage.googleapis.com/osv-vulnerabilities/npm/all.zip"},
+  {"ecosystem": "PyPI", "url": "https://storage.googleapis.com/osv-vulnerabilities/PyPI/all.zip"},
+  {"ecosystem": "crates.io", "url": "https://storage.googleapis.com/osv-vulnerabilities/crates.io/all.zip"},
+  {"ecosystem": "Go", "url": "https://storage.googleapis.com/osv-vulnerabilities/Go/all.zip"}
+]

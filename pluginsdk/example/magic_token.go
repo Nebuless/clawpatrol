@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/denoland/clawpatrol/pluginsdk"
+	"github.com/Nebuless/nebprx/pluginsdk"
 )
 
 // magicToken is the credential type the example plugin's endpoints

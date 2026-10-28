@@ -12,7 +12,7 @@ export function TerminalBlock() {
           }}
         >
           <div class="whitespace-pre-wrap break-all">
-            <span class="text-crt">curl -fsSL clawpatrol.dev/install.sh | sh</span>
+            <span class="text-crt">curl -fsSL https://prx.nebuless.cloud/install.sh | sh</span>
           </div>
         </div>
       </div>

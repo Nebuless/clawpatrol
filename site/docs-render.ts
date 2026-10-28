@@ -2,17 +2,16 @@
 // and by build-docs.ts to prerender the landing page.
 
 import hljs, { type HLJSApi, type LanguageFn } from "highlight.js";
-import { Marked } from "marked";
+import { Marked, type Token } from "marked";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { h } from "preact";
+import { h, type ComponentType } from "preact";
 import { renderToString } from "preact-render-to-string";
 import { DotField } from "./src/components/DotField";
 import { Footer } from "./src/components/Footer";
 import { Header } from "./src/components/Header";
 import { ShadeGradient } from "./src/components/ShadeBar";
-import { Landing } from "./src/Landing";
-import { SITE_TITLE } from "./src/sections/HeroSection";
+import { pages } from "./src/pages";
 
 // highlight.js doesn't ship an HCL grammar, so docs that use `hcl`
 // fences fall back to plain text. Register a minimal one — enough
@@ -50,14 +49,8 @@ const hclLang: LanguageFn = (h: HLJSApi) => ({
 });
 hljs.registerLanguage("hcl", hclLang);
 
-export const SITE_ORIGIN = "https://clawpatrol.dev";
-export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/clawpatrol.png`;
-
-const LANDING_DESCRIPTION =
-  "Claw Patrol is an open-source security proxy for AI agents. " +
-  "It sits between your agent and the network, injects credentials " +
-  "the agent never sees, and enforces HCL approval rules — with " +
-  "humans or LLM judges in the loop for risky actions.";
+export const SITE_ORIGIN = "https://prx.nebuless.cloud";
+export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/og-image.png`;
 
 function escapeHtml(s: string): string {
   return s
@@ -112,7 +105,7 @@ function extractDescription(raw: string, fallback: string): string {
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   if (plain.length > 200) {
-    plain = plain.slice(0, 197).replace(/\s+\S*$/, "") + "…";
+    plain = `${plain.slice(0, 197).replace(/\s+\S*$/, "")}…`;
   }
   return plain;
 }
@@ -141,13 +134,16 @@ function renderMetaTags(m: PageMeta): string {
   return `
   <meta name="description" content="${desc}" />
   <link rel="canonical" href="${m.url}" />
-  <link rel="icon" type="image/svg+xml" href="/claw-patrol-icon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/svg+xml" href="/prx-icon.svg" />
   <meta property="og:title" content="${title}" />
   <meta property="og:description" content="${desc}" />
   <meta property="og:url" content="${m.url}" />
   <meta property="og:type" content="${type}" />
   <meta property="og:image" content="${img}" />
-  <meta property="og:site_name" content="Claw Patrol" />
+  <meta property="og:site_name" content="PRX" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${title}" />
   <meta name="twitter:description" content="${desc}" />
@@ -166,14 +162,14 @@ const marked = new Marked();
 marked.use({
   renderer: {
     heading(
-      this: { parser: { parseInline: (t: unknown[]) => string } },
+      this: { parser: { parseInline: (t: Token[]) => string } },
       {
         text,
         tokens,
         depth,
       }: {
         text: string;
-        tokens: unknown[];
+        tokens: Token[];
         depth: number;
       },
     ) {
@@ -203,15 +199,15 @@ marked.use({
     // Wrap tables in a horizontally-scrolling div so wide tables don't
     // blow out the page width on narrow viewports.
     table(
-      this: { parser: { parseInline: (t: unknown[]) => string } },
+      this: { parser: { parseInline: (t: Token[]) => string } },
       {
         header,
         align,
         rows,
       }: {
-        header: Array<{ tokens: unknown[] }>;
+        header: Array<{ tokens: Token[] }>;
         align: Array<"left" | "right" | "center" | null>;
-        rows: Array<Array<{ tokens: unknown[] }>>;
+        rows: Array<Array<{ tokens: Token[] }>>;
       },
     ) {
       const alignAttr = (i: number) => (align[i] ? ` align="${align[i]}"` : "");
@@ -271,9 +267,12 @@ function parseFrontmatter(raw: string): {
 }
 
 export function loadDocs(docsDir: string): Doc[] {
-  const toc = JSON.parse(
-    readFileSync(join(docsDir, "toc.json"), "utf-8"),
-  ) as string[];
+  let toc: string[];
+  try {
+    toc = JSON.parse(readFileSync(join(docsDir, "toc.json"), "utf-8"));
+  } catch (cause) {
+    throw new Error(`Cannot load documentation TOC in ${docsDir}`, { cause });
+  }
   return toc.map((slug) => {
     const raw = readFileSync(join(docsDir, `${slug}.md`), "utf-8");
     const { meta, body } = parseFrontmatter(raw);
@@ -282,7 +281,7 @@ export function loadDocs(docsDir: string): Doc[] {
     const html = marked.parse(body, { async: false }) as string;
     const description =
       meta.description ??
-      extractDescription(body, `${title} — Claw Patrol documentation.`);
+      extractDescription(body, `${title} — PRX documentation.`);
     return { slug, title, html, raw, description };
   });
 }
@@ -303,23 +302,20 @@ function sidebar(docs: Doc[], current: string): string {
 }
 
 /** Render a Preact component to an HTML string (server-side). */
-function renderHtml(
-  component: Parameters<typeof h>[0],
-  props: Record<string, unknown> = {},
-): string {
+function renderHtml<P extends object>(component: ComponentType<P>, props: P): string {
   return renderToString(h(component, props));
 }
 
 export function renderDocPage(doc: Doc, docs: Doc[], extraHead = ""): string {
-  const headerHtml = renderHtml(Header);
+  const headerHtml = renderHtml(Header, {});
   const topDotsHtml = renderHtml(DotField, { class: "text-canvas-400" });
   const bottomShadeHtml = renderHtml(ShadeGradient, { color: "text-navy-700" });
-  const footerHtml = renderHtml(Footer);
+  const footerHtml = renderHtml(Footer, {});
 
   const url = `${SITE_ORIGIN}/docs/${doc.slug}/`;
   const mdUrl = `${SITE_ORIGIN}/docs/${doc.slug}.md`;
   const meta = renderMetaTags({
-    title: `${doc.title} — Claw Patrol Docs`,
+    title: `${doc.title} — PRX Docs`,
     description: doc.description,
     url,
     type: "article",
@@ -333,7 +329,7 @@ export function renderDocPage(doc: Doc, docs: Doc[], extraHead = ""): string {
       mainEntityOfPage: url,
       isPartOf: {
         "@type": "WebSite",
-        name: "Claw Patrol",
+        name: "PRX",
         url: SITE_ORIGIN,
       },
     },
@@ -345,7 +341,7 @@ export function renderDocPage(doc: Doc, docs: Doc[], extraHead = ""): string {
   <meta charset="UTF-8" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(doc.title)} — Claw Patrol Docs</title>
+  <title>${escapeHtml(doc.title)} — PRX Docs</title>
   ${meta}
   ${extraHead}
 </head>
@@ -383,21 +379,21 @@ export function renderDocPage(doc: Doc, docs: Doc[], extraHead = ""): string {
  * bundle that vite injected is left untouched and will hydrate the
  * prerendered tree on load.
  */
-export function prerenderLandingHtml(viteIndexHtml: string): string {
-  const landingHtml = renderHtml(Landing);
+export function prerenderPageHtml(viteIndexHtml: string, page: (typeof pages)[number]): string {
+  const landingHtml = renderHtml(page.component, {});
   const meta = renderMetaTags({
-    title: SITE_TITLE,
-    description: LANDING_DESCRIPTION,
-    url: `${SITE_ORIGIN}/`,
+    title: page.title,
+    description: page.description,
+    url: `${SITE_ORIGIN}${page.path}`,
     type: "website",
-    jsonLd: {
+    jsonLd: page.path === "/" ? {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      name: "Claw Patrol",
-      description: LANDING_DESCRIPTION,
+      name: "PRX",
+      description: page.description,
       url: SITE_ORIGIN,
       applicationCategory: "DeveloperApplication",
-      operatingSystem: "macOS, Linux",
+      operatingSystem: "Linux, macOS, and Windows",
       offers: {
         "@type": "Offer",
         price: "0",
@@ -406,13 +402,16 @@ export function prerenderLandingHtml(viteIndexHtml: string): string {
       license: "https://opensource.org/licenses/MIT",
       author: {
         "@type": "Organization",
-        name: "Deno",
-        url: "https://deno.com",
+        name: "Nebuless",
+        url: SITE_ORIGIN,
       },
-    },
+    } : undefined,
   });
 
-  let out = viteIndexHtml;
+  let out = viteIndexHtml
+    .replace(/<title>.*?<\/title>/, `<title>${escapeHtml(page.title)}</title>`)
+    .replace(/\s*<meta (?:property="og:image"|name="twitter:image") content="[^"]*" \/>/g, "")
+    .replace(/\s*<link rel="(?:icon|apple-touch-icon)"[^>]*>/g, "");
   // Inject metadata immediately before </head>. Vite already wrote
   // the title and font preload tags, so we only add what's missing.
   out = out.replace("</head>", `${meta}\n</head>`);
@@ -422,4 +421,8 @@ export function prerenderLandingHtml(viteIndexHtml: string): string {
     `<div id="root">${landingHtml}</div>`,
   );
   return out;
+}
+
+export function prerenderLandingHtml(html: string): string {
+  return prerenderPageHtml(html, pages[0]);
 }

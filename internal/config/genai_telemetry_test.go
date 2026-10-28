@@ -6,7 +6,7 @@ func TestGenAITelemetryAccessorsAbsent(t *testing.T) {
 	// No genai_telemetry block → disabled, content off.
 	gw, diags := LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -26,7 +26,7 @@ func TestGenAITelemetryEnabledNoContent(t *testing.T) {
 	// Empty block → base export on, content still off (the safe default).
 	gw, diags := LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   genai_telemetry {}
@@ -46,7 +46,7 @@ gateway {
 func TestGenAITelemetryContentOptIn(t *testing.T) {
 	gw, diags := LoadBytes([]byte(`
 gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
   genai_telemetry { include_message_content = true }

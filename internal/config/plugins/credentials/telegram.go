@@ -8,7 +8,7 @@ package credentials
 // globally so the token never hits the upstream as the placeholder
 // and never leaks to logs.
 //
-// Telegram doesn't appear in `clawpatrol env` because Telegram SDKs
+// Telegram doesn't appear in `nebprx env` because Telegram SDKs
 // take the token as an explicit argument rather than reading it from
 // the env, so there's nothing to "push down".
 
@@ -19,18 +19,18 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // telegramPlaceholder is the bot-token placeholder operators put in
 // their SDK config / URL when running through the gateway.
-const telegramPlaceholder = "0000000000:clawpatrol-placeholder-do-not-use"
+const telegramPlaceholder = "0000000000:nebprx-placeholder-do-not-use"
 
-// TelegramBotToken is part of the clawpatrol plugin API.
+// TelegramBotToken is part of the PRX plugin API.
 type TelegramBotToken struct{}
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (t *TelegramBotToken) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if len(sec.Bytes) == 0 || req.URL == nil {
 		return nil
@@ -64,7 +64,7 @@ func (t *TelegramBotToken) InjectHTTP(_ context.Context, req *http.Request, sec 
 	return nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*TelegramBotToken) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Telegram bot token"}}
 }

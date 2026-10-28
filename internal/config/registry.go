@@ -118,7 +118,7 @@ func Types(kind Kind) []string {
 }
 
 // AllPlugins returns every registered plugin of the given kind,
-// sorted by Type. Used by `clawpatrol env` to walk credential
+// sorted by Type. Used by `nebprx env` to walk credential
 // plugins and ask each for its env-pushdown lines without having
 // loaded a specific gateway.hcl.
 func AllPlugins(kind Kind) []*Plugin {

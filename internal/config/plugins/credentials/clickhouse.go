@@ -12,11 +12,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// ClickhouseCredential is part of the clawpatrol plugin API.
+// ClickhouseCredential is part of the PRX plugin API.
 //
 // Database, when set, is the discriminator the dispatcher uses to
 // pick this credential when several clickhouse_credential blocks
@@ -52,7 +52,7 @@ func (c *ClickhouseCredential) CredentialDisambiguators() map[string]string {
 	return out
 }
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (c *ClickhouseCredential) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if c.User == "" || len(sec.Bytes) == 0 || req.URL == nil {
 		return nil
@@ -83,7 +83,7 @@ func (c *ClickhouseCredential) ClickhouseAuth(sec runtime.Secret) (string, strin
 	return c.User, string(sec.Bytes)
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*ClickhouseCredential) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "ClickHouse password"}}
 }

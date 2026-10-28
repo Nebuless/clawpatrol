@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/denoland/clawpatrol/internal/config/hostmatch"
-	"github.com/denoland/clawpatrol/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config/hostmatch"
+	"github.com/Nebuless/nebprx/internal/config/match"
 )
 
 // CompiledPolicy is the runtime-friendly view of a loaded gateway:

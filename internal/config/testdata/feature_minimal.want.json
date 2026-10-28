@@ -5,7 +5,7 @@
   },
   "gateway": {
     "public_url": "https://gw.example.test",
-    "state_dir": "/opt/clawpatrol",
+    "state_dir": "/opt/nebprx",
     "wireguard": {
       "subnet_cidr": "10.55.0.0/24"
     }

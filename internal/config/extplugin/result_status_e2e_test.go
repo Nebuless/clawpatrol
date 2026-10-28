@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
-	"github.com/denoland/clawpatrol/pluginsdk"
+	"github.com/Nebuless/nebprx/internal/config"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
+	"github.com/Nebuless/nebprx/pluginsdk"
 	goplugin "github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 )

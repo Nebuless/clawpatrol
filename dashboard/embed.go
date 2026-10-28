@@ -1,6 +1,6 @@
 // Package dashboard ships the SPA + login page that the gateway
 // serves. The Go file sits next to www/ so //go:embed can resolve
-// without crossing package boundaries; the binary in cmd/clawpatrol
+// without crossing package boundaries; the binary in cmd/nebprx
 // imports it.
 package dashboard
 

@@ -19,8 +19,8 @@ import (
 	"github.com/google/cel-go/ext"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
 )
 
 // Fields is the CEL-facing view of an HTTPS request. Exposed

@@ -10,7 +10,7 @@ Render every timestamp in the UI as `yyyy-MM-dd HH:mm:ss.SSS` (24-hour,
 locale-independent, millisecond precision). When only the time-of-day
 is shown, use `HH:mm:ss.SSS`.
 
-Helpers live in `cmd/clawpatrol/www/src/lib/format.ts`:
+Helpers live in `cmd/nebprx/www/src/lib/format.ts`:
 
 - `fmtDateTime(t)` — full timestamp.
 - `fmtTime(t)` — time-of-day only.
@@ -35,9 +35,9 @@ checks the lint job runs:
 Either fail will block the `test` workflow before the actual tests
 run. Cheap to check locally; expensive in CI round-trips.
 
-## `cmd/clawpatrol/testdata/`
+## `cmd/nebprx/testdata/`
 
-The self-test corpus for `clawpatrol test` (see `doc/test.md`).
+The self-test corpus for `nebprx test` (see `doc/test.md`).
 `example.hcl` is the policy under test; the `*.json` files are
 action fixtures. The intent is one fixture per CEL branch in
 `example.hcl` — every rule's `allow` and `deny` arm exercised at
@@ -51,3 +51,22 @@ changes, regenerate.
 
 Scope: keep it minimal and synthetic — public hostnames, no real
 IPs, no production credentials.
+
+## Brand assets
+
+Brand sources live in `shared/branding/` (see its README), with colors
+in `shared/tokens.css`, treatments in `shared/brand.css`, and self-hosted
+fonts in `shared/fonts/`. `site/public/` and `dashboard/public/` reference
+the shared assets through symlinks.
+
+Use `prx-icon.svg` on light surfaces, `prx-icon-light.svg` on dark
+surfaces, and `prx-icon-mono.svg` for one-color/template uses. Use
+`prx-lockup.svg` / `prx-lockup-light.svg` for outlined lockups,
+`prx-app-icon.svg` and its PNG exports for app tiles, the favicon and
+apple-touch exports for browser icons, and `og-image.png` for link previews.
+
+Product prose says "PRX" or "PRX by Nebuless". The CLI is `nebprx`,
+environment variables use `NEBPRX_*`, and the install URL is
+`https://prx.nebuless.cloud/install.sh`. The Go module is
+`github.com/Nebuless/nebprx`. Legacy `claw-patrol-*` assets are
+kept only for compatibility.

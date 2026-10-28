@@ -6,7 +6,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/denoland/clawpatrol/pluginsdk"
+	"github.com/Nebuless/nebprx/pluginsdk"
 )
 
 // passthrough is a no-op tunnel: Dial opens the upstream and pumps bytes

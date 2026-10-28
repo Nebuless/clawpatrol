@@ -4,7 +4,7 @@
 # (subnet) or onboarding clients dial an unknown endpoint.
 
 gateway {
-  state_dir = "/opt/clawpatrol"
+  state_dir = "/opt/nebprx"
 
   wireguard {}
 }

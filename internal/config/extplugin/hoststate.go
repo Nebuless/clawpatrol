@@ -3,9 +3,9 @@ package extplugin
 import (
 	"context"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	"github.com/denoland/clawpatrol/internal/config/extplugin/wire"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config/extplugin/wire"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -25,7 +25,7 @@ import (
 
 // HostServicesBrokerID is the fixed go-plugin broker stream id the
 // gateway serves host services on and the plugin dials. A constant is
-// safe because clawpatrol never calls GRPCBroker.NextId() — the brokered
+// safe because nebprx never calls GRPCBroker.NextId() — the brokered
 // upstream dial multiplexes over the HandleConn stream, not the broker —
 // so nothing else competes for stream ids. Canonical definition in wire.
 const HostServicesBrokerID = wire.HostServicesBrokerID

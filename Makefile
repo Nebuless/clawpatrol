@@ -1,7 +1,7 @@
 .PHONY: build release dashboard test fmt fmt-check lint go-lint dashboard-lint clean install
 
 build: dashboard
-	go build -o clawpatrol ./cmd/clawpatrol
+	go build -o nebprx ./cmd/nebprx
 
 # release mirrors .github/workflows/release.yml: strip the symbol
 # table and DWARF (-s -w) and rewrite source paths (-trimpath). On
@@ -9,7 +9,7 @@ build: dashboard
 # changing runtime behaviour. Use this when packaging for users —
 # `make build` stays unstripped so panics keep file:line info.
 release: dashboard
-	go build -ldflags "-s -w" -trimpath -o clawpatrol ./cmd/clawpatrol
+	go build -ldflags "-s -w" -trimpath -o nebprx ./cmd/nebprx
 
 dashboard:
 	cd dashboard && deno install && deno task build
@@ -42,8 +42,8 @@ dashboard-lint:
 	cd dashboard && deno task lint
 
 clean:
-	rm -f clawpatrol
+	rm -f nebprx
 	rm -rf dashboard/dist dashboard/node_modules
 
 install: build
-	install -m 0755 clawpatrol $${PREFIX:-$$HOME/.local/bin}/clawpatrol
+	install -m 0755 nebprx $${PREFIX:-$$HOME/.local/bin}/nebprx

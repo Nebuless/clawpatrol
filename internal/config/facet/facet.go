@@ -18,7 +18,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/denoland/clawpatrol/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config/match"
 )
 
 // Runtime is the per-facet contract. Implementations live in their

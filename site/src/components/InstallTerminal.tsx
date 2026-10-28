@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 import { TerminalFrame } from "./TerminalFrame";
 
-export const INSTALL_CMD = "curl -fsSL https://clawpatrol.dev/install.sh | sh";
+export const INSTALL_CMD = "curl -fsSL https://prx.nebuless.cloud/install.sh | sh";
 
 type Variant = "compact" | "expanded";
 

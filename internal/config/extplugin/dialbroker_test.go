@@ -3,7 +3,7 @@ package extplugin
 import (
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 func TestValidateBrokeredDialTarget(t *testing.T) {

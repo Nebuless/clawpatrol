@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
 // TestTunnelReservedAttrRejected verifies a plugin tunnel manifest that

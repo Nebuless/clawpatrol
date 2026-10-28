@@ -1,5 +1,5 @@
 {
-	"name": "clawpatrol",
+	"name": "prx-site",
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-05-02",
 	"assets": {
@@ -10,10 +10,12 @@
 	"triggers": {
 		"crons": ["5 0 * * *"]
 	},
+	// Create D1 in the Nebuless Cloudflare account before deploying.
+	// Set database_id to the new database ID at deployment time.
 	"d1_databases": [
 		{
 			"binding": "TELEMETRY_DB",
-			"database_name": "clawpatrol-telemetry",
+			"database_name": "nebprx-telemetry",
 			"database_id": "30ce7fa5-60cb-406b-b077-d38280e080c4",
 			"migrations_dir": "migrations"
 		}

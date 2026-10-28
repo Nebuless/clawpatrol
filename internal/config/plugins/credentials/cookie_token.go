@@ -10,17 +10,17 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// CookieToken is part of the clawpatrol plugin API.
+// CookieToken is part of the PRX plugin API.
 type CookieToken struct {
 	// CookieName is the HTTP cookie name that receives the secret value.
 	CookieName string `hcl:"cookie_name,optional"`
 }
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (c *CookieToken) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if c.CookieName == "" || len(sec.Bytes) == 0 {
 		return nil
@@ -29,7 +29,7 @@ func (c *CookieToken) InjectHTTP(_ context.Context, req *http.Request, sec runti
 	return nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*CookieToken) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Cookie value"}}
 }

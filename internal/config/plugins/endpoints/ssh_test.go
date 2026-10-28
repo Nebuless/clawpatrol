@@ -5,8 +5,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	sshfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/ssh"
+	"github.com/Nebuless/nebprx/internal/config"
+	sshfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/ssh"
 )
 
 // pickSSHCredential covers the multi-credential dispatch contract:

@@ -5,7 +5,7 @@ package sandboxtest
 import (
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/sandbox"
+	"github.com/Nebuless/nebprx/internal/sandbox"
 )
 
 // RequireBackend skips the test when no sandbox backend works on

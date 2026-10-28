@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/all"
+	"github.com/Nebuless/nebprx/internal/config"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all"
 )
 
 // TestEmitRoundTrip loads each feature_*.hcl fixture, emits it back

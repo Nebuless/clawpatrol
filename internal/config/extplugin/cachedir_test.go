@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // TestCacheDirLocked covers the cache-root selection: cacheDir when set,

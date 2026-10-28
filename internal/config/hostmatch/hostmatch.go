@@ -100,7 +100,7 @@ func ValidateHost(entry string) error {
 		return fmt.Errorf("%q: `*` only allowed as leftmost label (use `*.<suffix>`)", host)
 	}
 	// Otherwise: exact hostname or IP. We don't enforce DNS-label
-	// rules (clawpatrol has historically accepted any non-empty
+	// rules (nebprx has historically accepted any non-empty
 	// string, and operators occasionally use synthetic names that
 	// don't pass strict DNS validation).
 	return nil

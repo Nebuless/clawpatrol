@@ -9,9 +9,9 @@
    caps at 600 so `font-bold` resolves to SemiBold — matches the Plex
    Mono treatment (700 reads too heavy at body sizes).
 
-   Funnel Display — display family. Variable wght (300–800), latin-basic
-   subset. Newer Google Fonts release; designed specifically for display
-   use with a slight humanist tension in the joins.
+   Hanken Grotesk — display family. Variable wght (300–700), latin-basic
+   subset. A neutral grotesk that holds up at tight tracking in
+   headlines and in the PRX wordmark.
 
    IBM Plex Mono — code/mono family. Static cuts (Regular + Italic +
    SemiBold + SemiBoldItalic), latin-basic subset. SemiBold (600) stands
@@ -42,11 +42,11 @@
 }
 
 @font-face {
-  font-family: "Funnel Display";
+  font-family: "Hanken Grotesk";
   font-style: normal;
-  font-weight: 300 800;
+  font-weight: 300 700;
   font-display: swap;
-  src: url("/fonts/funnel-display/FunnelDisplay-Variable--latin_basic.woff2") format("woff2");
+  src: url("/fonts/hanken-grotesk/HankenGrotesk-Variable--latin_basic.woff2") format("woff2");
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
     U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,

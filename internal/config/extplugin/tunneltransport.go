@@ -8,8 +8,8 @@ import (
 	"net"
 	"sync"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // transportRouteRegistry records, per tunnel instance, how the gateway

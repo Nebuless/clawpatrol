@@ -21,9 +21,9 @@ export function AddDeviceModal({
   const url = whoami?.public_url || window.location.origin;
   const [profiles, setProfiles] = useState<string[]>([]);
   const [profile, setProfile] = useState("");
-  // Per-process `clawpatrol run` is the default; --whole-machine
+  // Per-process `nebprx run` is the default; --whole-machine
   // installs system Tailscale and routes all of the machine's network
-  // traffic through clawpatrol.
+  // traffic through nebprx.
   const [mode, setMode] = useState<"run" | "whole-machine">("run");
 
   useEffect(() => {
@@ -43,9 +43,9 @@ export function AddDeviceModal({
   // promise that, so the plain browser-approval join is suggested.
   const login = whoami?.auth_method === "tailscale";
 
-  const installCmd = "curl -fsSL https://clawpatrol.dev/install.sh | sh";
+  const installCmd = "curl -fsSL https://prx.nebuless.cloud/install.sh | sh";
   const joinCmd = [
-    "clawpatrol",
+    "nebprx",
     "join",
     ...(login ? ["--login"] : []),
     ...(mode === "whole-machine" ? ["--whole-machine"] : []),
@@ -84,9 +84,9 @@ export function AddDeviceModal({
               onChange={(e) => setMode(e.target.value as "run" | "whole-machine")}
               className="w-full font-mono text-xs text-text bg-canvas border-1.5 border-navy px-2 py-1.5"
             >
-              <option value="run">clawpatrol run (per-process, default)</option>
+              <option value="run">nebprx run (per-process, default)</option>
               <option value="whole-machine">
-                --whole-machine (route all of this machine's traffic through clawpatrol)
+                --whole-machine (route all of this machine's traffic through nebprx)
               </option>
             </select>
           </label>

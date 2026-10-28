@@ -2,7 +2,8 @@ import { defineConfig, type Plugin } from "vite";
 import preact from "@preact/preset-vite";
 import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "node:path";
-import { SITE_TITLE } from "./src/sections/HeroSection";
+import type { Doc } from "./docs-render";
+import { pageForPath, pages } from "./src/pages";
 
 // Keep <title> in sync with HeroSection's H1. The constant lives in
 // src/copy.ts so HeroSection imports it directly; this plugin rewrites
@@ -11,10 +12,11 @@ import { SITE_TITLE } from "./src/sections/HeroSection";
 function injectTitle(): Plugin {
   return {
     name: "inject-title",
-    transformIndexHtml(html) {
+    transformIndexHtml(html, context) {
+      const page = pageForPath(context.path) ?? pages[0];
       return html.replace(
         /<title>.*?<\/title>/,
-        `<title>${SITE_TITLE}</title>`,
+        `<title>${page.title}</title>`,
       );
     },
   };
@@ -25,7 +27,7 @@ function serveDocsInDev(): Plugin {
     name: "serve-docs-in-dev",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (!req.url?.startsWith("/docs")) return next();
+        if (!req.url || !/^\/docs(?:\/|\?|$)/.test(req.url)) return next();
         try {
           const { loadDocs, renderDocPage } =
             await server.ssrLoadModule("/docs-render.ts");
@@ -37,7 +39,7 @@ function serveDocsInDev(): Plugin {
             ? rawPath
             : rawPath.replace(/\/$/, "")) || "/docs";
 
-          let doc;
+          let doc: Doc | undefined;
           if (path === "/docs") {
             doc = docs[0];
           } else {
@@ -45,7 +47,7 @@ function serveDocsInDev(): Plugin {
               .replace(/\.md$/, "")
               .replace(/\/$/, "");
             doc = docs.find(
-              (d: any) => d.slug === slug,
+              (d: { slug: string }) => d.slug === slug,
             );
           }
           if (!doc) return next();

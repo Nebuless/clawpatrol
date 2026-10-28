@@ -15,7 +15,7 @@ import (
 	"github.com/sigstore/sigstore-go/pkg/testing/ca"
 	"github.com/sigstore/sigstore-go/pkg/verify"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 const testGitCommit = "2a6fb83e91633ab8a606f306f609f2fbfc8154f4"
@@ -376,7 +376,7 @@ func TestProvenanceRecordsAndPinsCommit(t *testing.T) {
 // TestProvenanceCommitCheckIsVersionAware covers that the re-pointed-tag
 // guard fires only for a re-download of the *same* version, not for an
 // explicit upgrade to a *new* version (whose commit legitimately differs).
-// Without this distinction `clawpatrol plugins update` to a newer attested
+// Without this distinction `nebprx plugins update` to a newer attested
 // release is wrongly blocked.
 func TestProvenanceCommitCheckIsVersionAware(t *testing.T) {
 	entry := lockEntry{Version: "v1.0.0", Commit: "commit-aaa", Attested: true}

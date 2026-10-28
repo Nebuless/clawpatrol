@@ -1,6 +1,6 @@
-# clawpatrol policy grammar
+# PRX policy grammar
 
-`config/` is clawpatrol's HCL policy loader. The grammar is a typed-
+`config/` is PRX's HCL policy loader. The grammar is a typed-
 block dialect — every named entity declares its kind + type via two
 labels, and operators reference entities by bare name. This README
 is the canonical syntax reference; the runtime semantics live in
@@ -24,8 +24,8 @@ blocks dispatch to plugins by their first label.
 # Top-level blocks read by the gateway daemon at boot.
 gateway {
   dashboard_listen = "127.0.0.1:8080"
-  log_path         = "/opt/clawpatrol/gateway.log"
-  state_dir        = "/opt/clawpatrol/state"
+  log_path         = "/opt/nebprx/gateway.log"
+  state_dir        = "/opt/nebprx/state"
   public_url       = "http://gateway.internal:8080"
 
   # Extra Host values the dashboard answers for, beyond the ones the
@@ -37,7 +37,7 @@ gateway {
   # proxy then owns the check: with the name the browser asked for
   # gone, the gateway cannot tell one frontend name from another, so
   # the proxy must refuse the frontend Host values it does not know.
-  dashboard_hosts = ["clawpatrol-backend"]
+  dashboard_hosts = ["nebprx-backend"]
 
   # Transport block presence selects the transport. Both may be enabled.
   wireguard {
@@ -182,7 +182,7 @@ approver "human_approver" "billing-strict" {
 
 Typed handle to a secret. The actual secret bytes live in the
 gateway's secret store (env vars by default, keyed by
-`CLAWPATROL_SECRET_<UPPER_NAME>`); the credential block carries only
+`NEBPRX_SECRET_<UPPER_NAME>`); the credential block carries only
 how-to-inject parameters.
 
 | Type | Inject shape |
@@ -199,9 +199,9 @@ how-to-inject parameters.
 | `slack_tokens` / `telegram_bot_token` / `gemini_api_key` /<br>`openai_codex_oauth` / `notion_oauth` / `clickhouse_credential` | schema-only today (runtime stubs land in follow-ups) |
 
 mTLS env var convention:
-`CLAWPATROL_SECRET_<NAME>_CERT`,
-`CLAWPATROL_SECRET_<NAME>_KEY`,
-`CLAWPATROL_SECRET_<NAME>_CA`. Values starting with `@` are read
+`NEBPRX_SECRET_<NAME>_CERT`,
+`NEBPRX_SECRET_<NAME>_KEY`,
+`NEBPRX_SECRET_<NAME>_CA`. Values starting with `@` are read
 off disk (`@/etc/k8s/cert.pem`).
 
 ### `endpoint "<type>" "<name>" { ... }`

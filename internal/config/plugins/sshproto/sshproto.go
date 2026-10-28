@@ -11,8 +11,8 @@
 package sshproto
 
 import (
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // Creds is the materialised view an SSH credential hands to the SSH

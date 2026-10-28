@@ -1,0 +1,769 @@
+package main
+
+import (
+	"encoding/json"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/Nebuless/nebprx/internal/config"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all"
+)
+
+// gatewayWithPolicy builds a minimal *Gateway whose Policy() returns
+// the compiled HCL. Enough for the exporter, which is invoked
+// directly here (bypassing route + auth).
+// testGatewayPrefix wraps inline HCL fixtures with a minimal valid
+// gateway block so loader-level operational validation passes.
+const testGatewayPrefix = `gateway {
+  state_dir  = "/opt/nebprx"
+  public_url = "https://gw.example.test"
+  wireguard { subnet_cidr = "10.55.0.0/24" }
+}
+
+`
+
+func gatewayWithPolicy(t *testing.T, hcl string) *Gateway {
+	t.Helper()
+	gw, diags := config.LoadBytes([]byte(testGatewayPrefix+hcl), "in.hcl")
+	if diags.HasErrors() {
+		t.Fatalf("load: %v", diags)
+	}
+	policy, err := config.Compile(gw)
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	g := &Gateway{}
+	g.policy.Store(policy)
+	return g
+}
+
+const fixtureHCL = `
+endpoint "https" "github" {
+  hosts = ["api.github.com"]
+}
+credential "bearer_token" "tok" { endpoint = https.github }
+profile "default" { credentials = [bearer_token.tok] }
+`
+
+// TestExporterHTTPSHappyPath: a recorded HTTPS Event reshapes into
+// an Action JSON that re-parses cleanly with the expected fields.
+func TestExporterHTTPSHappyPath(t *testing.T) {
+	w := &webMux{g: gatewayWithPolicy(t, fixtureHCL)}
+	ev := &Event{
+		ID:           "evt-1",
+		Mode:         "mitm",
+		Family:       "https",
+		Host:         "api.github.com",
+		Method:       "GET",
+		Path:         "/user",
+		AgentIP:      "100.64.0.7",
+		Action:       "allow",
+		Endpoint:     "github",
+		Rule:         "github-reads",
+		ReqBodyState: bodyCaptureComplete,
+		ReqHeaders: map[string]string{
+			"Authorization": "***",
+			"User-Agent":    "nebprx-test",
+		},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	if got := rw.Header().Get("Content-Disposition"); !strings.Contains(got, `filename="evt-1.json"`) {
+		t.Errorf("missing/incorrect Content-Disposition: %q", got)
+	}
+
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatalf("emitted body doesn't reparse as Fixture: %v\nbody=%s", err, rw.Body.String())
+	}
+	if f.Action.HTTP == nil {
+		t.Fatal("expected http block, got nil")
+	}
+	if f.Action.Host != "api.github.com" {
+		t.Errorf("host=%q want api.github.com", f.Action.Host)
+	}
+	if f.Action.HTTP.Method != "GET" {
+		t.Errorf("method=%q want GET", f.Action.HTTP.Method)
+	}
+	if f.Action.HTTP.Path != "/user" {
+		t.Errorf("path=%q want /user", f.Action.HTTP.Path)
+	}
+	want := Match{Verdict: "allow", Rule: "github-reads", Endpoint: "https.github"}
+	if f.Match != want {
+		t.Errorf("match=%+v want %+v", f.Match, want)
+	}
+}
+
+func TestExporterRejectsPartialRequestBodyCapture(t *testing.T) {
+	w := &webMux{g: gatewayWithPolicy(t, fixtureHCL)}
+	tests := []struct {
+		name      string
+		state     string
+		body      string
+		headers   map[string]string
+		wantError string
+	}{
+		{name: "incomplete", state: bodyCaptureIncomplete, body: `{"partial":true}`, wantError: "incomplete"},
+		{name: "aborted", state: bodyCaptureAborted, body: `{"partial":true}`, wantError: "aborted"},
+		{name: "storage capped", state: bodyCaptureComplete, body: `{"partial":true` + bodyTruncatedMarker, wantError: "truncated"},
+		{name: "unknown", body: `{"legacy":true}`, wantError: "unknown"},
+		{name: "legacy incomplete marker", body: `{"partial":true}` + legacyBodyIncompleteMarker, wantError: "incomplete"},
+		{name: "legacy aborted marker", body: `{"partial":true}` + legacyBodyAbortedMarker, wantError: "aborted"},
+		{name: "content encoded", state: bodyCaptureComplete, body: `{"decoded":true}`, headers: map[string]string{"content-encoding": "gzip"}, wantError: "content-encoded"},
+		{name: "binary preview", state: bodyCaptureComplete, body: "binary:00ff", wantError: "binary"},
+		{name: "decoded preview capped", state: bodyCaptureComplete, body: "expanded" + decodedSampleTruncatedMarker, wantError: "decoded preview is truncated"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ev := &Event{
+				ID: "partial", Mode: "mitm", Family: "https",
+				Host: "api.github.com", Method: "POST", Path: "/user",
+				Action: "allow", Endpoint: "github",
+				ReqBody: tt.body, ReqBodyState: tt.state, ReqHeaders: tt.headers,
+			}
+			rw := httptest.NewRecorder()
+			w.writeActionFixture(rw, ev)
+
+			if rw.Code != 400 {
+				t.Fatalf("status=%d want 400; body=%s", rw.Code, rw.Body.String())
+			}
+			if !strings.Contains(strings.ToLower(rw.Body.String()), tt.wantError) {
+				t.Fatalf("body=%q want error containing %q", rw.Body.String(), tt.wantError)
+			}
+		})
+	}
+}
+
+// Events recorded before the Endpoint column was populated have
+// no endpoint to find; the exporter must 400 with a clear reason.
+func TestExporterRejectsEmptyEndpoint(t *testing.T) {
+	w := &webMux{g: gatewayWithPolicy(t, fixtureHCL)}
+	ev := &Event{ID: "evt-2", Action: "allow"} // Endpoint == ""
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+
+	if rw.Code != 400 {
+		t.Fatalf("status=%d want 400; body=%s", rw.Code, rw.Body.String())
+	}
+	if !strings.Contains(rw.Body.String(), "predates endpoint tracking") {
+		t.Errorf("body=%q want explanatory error", rw.Body.String())
+	}
+}
+
+// match.endpoint is always emitted (the exporter knows it at
+// write time); the runner can rely on it for shared-host dispatch.
+func TestExporterAlwaysEmitsEndpoint(t *testing.T) {
+	const hcl = `
+
+endpoint "https" "alpha" {
+  hosts = ["api.example.com"]
+}
+endpoint "https" "beta" {
+  hosts = ["api.example.com"]
+}
+credential "bearer_token" "a" { endpoint = https.alpha }
+credential "bearer_token" "b" { endpoint = https.beta }
+profile "default" { credentials = [bearer_token.a, bearer_token.b] }
+`
+	w := &webMux{g: gatewayWithPolicy(t, hcl)}
+	ev := &Event{
+		ID: "evt-3", Mode: "mitm", Family: "https",
+		Host: "api.example.com", Method: "GET", Path: "/x",
+		Action: "allow", Endpoint: "beta", Rule: "", ReqBodyState: bodyCaptureComplete,
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatal(err)
+	}
+	if f.Match.Endpoint != "https.beta" {
+		t.Errorf("expected match.endpoint=https.beta, got %q", f.Match.Endpoint)
+	}
+}
+
+// approved / denied (and their pre-migration aliases hitl_allow /
+// hitl_deny) collapse to "approve" in the fixture (the chain is
+// terminal — see site/doc/nebprx-test.md). in_flight is a start
+// event and isn't exportable.
+func TestExporterEventActionMapping(t *testing.T) {
+	for _, action := range []string{"approved", "denied", "hitl_allow", "hitl_deny"} {
+		m, ok := matchFromEvent(&Event{Action: action, Rule: "r", Endpoint: "ep"})
+		if !ok || m.Verdict != "approve" {
+			t.Errorf("%s → (%+v, %v), want approve", action, m, ok)
+		}
+	}
+	if _, ok := matchFromEvent(&Event{Action: "in_flight"}); ok {
+		t.Error("in_flight should not be exportable")
+	}
+}
+
+// SQL exporter pulls the raw statement out of Event.Facets and pins
+// host to the endpoint's HCL-declared address (not Event.Host, which
+// is the dst IP). 400 when the recorded event has no statement.
+func TestExporterSQLHappyPath(t *testing.T) {
+	const hcl = `
+
+endpoint "postgres" "pg" {
+  host = "pg.internal:5432"
+}
+credential "postgres_credential" "pg-cred" {
+  endpoint = postgres.pg
+  user     = "agent"
+}
+profile "default" { credentials = [postgres_credential.pg-cred] }
+`
+	w := &webMux{g: gatewayWithPolicy(t, hcl)}
+	ev := &Event{
+		ID: "evt-sql-1", Mode: "pg", Family: "sql",
+		Host: "10.0.0.5", Action: "allow", Endpoint: "pg",
+		Rule:   "pg-reads",
+		Facets: map[string]any{"statement": "SELECT 1"},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatalf("reparse: %v\nbody=%s", err, rw.Body.String())
+	}
+	if f.Action.SQL == nil || f.Action.SQL.Statement != "SELECT 1" {
+		t.Errorf("sql=%+v want statement=SELECT 1", f.Action.SQL)
+	}
+	if f.Action.Host != "pg.internal:5432" {
+		t.Errorf("host=%q want pg.internal:5432 (HCL host, not Event.Host)", f.Action.Host)
+	}
+}
+
+// SQL exporter must include verb / tables / functions / database
+// when the recorded facets supply them — the dashboard's request
+// detail view already renders these, and `nebprx test` fixtures
+// are supposed to be self-contained (cl-m6wv).
+func TestExporterSQLEmitsAllFacets(t *testing.T) {
+	const hcl = `
+
+endpoint "postgres" "pg" {
+  host = "pg.internal:5432"
+}
+credential "postgres_credential" "pg-cred" {
+  endpoint = postgres.pg
+  user     = "agent"
+}
+profile "default" { credentials = [postgres_credential.pg-cred] }
+`
+	w := &webMux{g: gatewayWithPolicy(t, hcl)}
+	// Facets shaped as if reloaded from the events table (JSON
+	// round-trip turns []string into []any).
+	ev := &Event{
+		ID: "evt-sql-facets", Mode: "pg", Family: "sql",
+		Host: "10.0.0.5", Action: "allow", Endpoint: "pg",
+		Rule: "pg-reads",
+		Facets: map[string]any{
+			"statement": "SELECT count(*) FROM users",
+			"verb":      "select",
+			"tables":    []any{"users"},
+			"functions": []any{"count"},
+			"database":  "prod",
+		},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatalf("reparse: %v\nbody=%s", err, rw.Body.String())
+	}
+	if f.Action.SQL == nil {
+		t.Fatal("expected sql block")
+	}
+	sql := f.Action.SQL
+	if sql.Statement != "SELECT count(*) FROM users" {
+		t.Errorf("statement=%q", sql.Statement)
+	}
+	if sql.Verb != "select" {
+		t.Errorf("verb=%q want select", sql.Verb)
+	}
+	if len(sql.Tables) != 1 || sql.Tables[0] != "users" {
+		t.Errorf("tables=%v want [users]", sql.Tables)
+	}
+	if len(sql.Functions) != 1 || sql.Functions[0] != "count" {
+		t.Errorf("functions=%v want [count]", sql.Functions)
+	}
+	if sql.Database != "prod" {
+		t.Errorf("database=%q want prod", sql.Database)
+	}
+}
+
+// Older recordings (or wire frames that never produced verb / tables
+// / functions / database) still export cleanly with only statement —
+// fixture stays additive (cl-m6wv).
+func TestExporterSQLStatementOnlyBackcompat(t *testing.T) {
+	const hcl = `
+
+endpoint "postgres" "pg" {
+  host = "pg.internal:5432"
+}
+credential "postgres_credential" "pg-cred" {
+  endpoint = postgres.pg
+  user     = "agent"
+}
+profile "default" { credentials = [postgres_credential.pg-cred] }
+`
+	w := &webMux{g: gatewayWithPolicy(t, hcl)}
+	ev := &Event{
+		ID: "evt-sql-bare", Mode: "pg", Family: "sql",
+		Host: "10.0.0.5", Action: "allow", Endpoint: "pg",
+		Rule:   "pg-reads",
+		Facets: map[string]any{"statement": "SELECT 1"},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatalf("reparse: %v\nbody=%s", err, rw.Body.String())
+	}
+	if f.Action.SQL == nil || f.Action.SQL.Statement != "SELECT 1" {
+		t.Errorf("sql=%+v want statement=SELECT 1", f.Action.SQL)
+	}
+	if f.Action.SQL.Verb != "" || len(f.Action.SQL.Tables) != 0 ||
+		len(f.Action.SQL.Functions) != 0 || f.Action.SQL.Database != "" {
+		t.Errorf("expected empty derived fields, got %+v", f.Action.SQL)
+	}
+}
+
+func TestExporterSQLRejectsMissingStatement(t *testing.T) {
+	const hcl = `
+
+endpoint "postgres" "pg" {
+  host = "pg.internal:5432"
+}
+credential "postgres_credential" "pg-cred" {
+  endpoint = postgres.pg
+  user     = "agent"
+}
+profile "default" { credentials = [postgres_credential.pg-cred] }
+`
+	w := &webMux{g: gatewayWithPolicy(t, hcl)}
+	ev := &Event{ID: "evt-sql-2", Action: "allow", Endpoint: "pg"}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 400 {
+		t.Fatalf("status=%d want 400; body=%s", rw.Code, rw.Body.String())
+	}
+	if !strings.Contains(rw.Body.String(), "no statement recorded") {
+		t.Errorf("body=%q want explanatory error", rw.Body.String())
+	}
+}
+
+// k8s exporter reads verb/resource/namespace/name/params from
+// Event.Facets — the same shape the live k8s facet's Report emits.
+// Params is map[string]any in JSON; the exporter flattens it to
+// map[string]string.
+func TestExporterK8sHappyPath(t *testing.T) {
+	const hcl = `
+
+endpoint "kubernetes" "kube" {
+  server = "10.0.0.7"
+  hosts  = ["10.0.0.7"]
+}
+credential "mtls_credential" "kube-mtls" { endpoint = kubernetes.kube }
+profile "default" { credentials = [mtls_credential.kube-mtls] }
+`
+	w := &webMux{g: gatewayWithPolicy(t, hcl)}
+	ev := &Event{
+		ID: "evt-k8s-1", Mode: "mitm", Family: "k8s",
+		Host: "10.0.0.7", Action: "deny", Endpoint: "kube",
+		Rule: "k8s-no-secrets",
+		Facets: map[string]any{
+			"verb": "get", "resource": "secrets",
+			"namespace": "default", "name": "mysecret",
+			"params": map[string]any{"watch": "true"},
+		},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatalf("reparse: %v\nbody=%s", err, rw.Body.String())
+	}
+	if f.Action.K8s == nil {
+		t.Fatal("expected k8s block")
+	}
+	got := *f.Action.K8s
+	want := K8sAction{
+		Verb: "get", Resource: "secrets",
+		Namespace: "default", Name: "mysecret",
+		Params: map[string]string{"watch": "true"},
+	}
+	if got.Verb != want.Verb || got.Resource != want.Resource ||
+		got.Namespace != want.Namespace || got.Name != want.Name {
+		t.Errorf("k8s=%+v want %+v", got, want)
+	}
+	if got.Params["watch"] != "true" {
+		t.Errorf("params=%v want flattened watch=true", got.Params)
+	}
+	if f.Match.Verdict != "deny" {
+		t.Errorf("verdict=%q want deny", f.Match.Verdict)
+	}
+}
+
+// End-to-end contract between exporter and runner: an Event written
+// by the dispatch path → exporter JSON → runOneFixture → the same
+// match the exporter recorded. Catches contract drift between the
+// two halves of the feature.
+func TestExporterRunnerRoundTrip(t *testing.T) {
+	const hcl = `
+
+endpoint "https" "github" {
+  hosts = ["api.github.com"]
+}
+credential "bearer_token" "tok" { endpoint = https.github }
+rule "reads" {
+  endpoint  = https.github
+  condition = "http.method == 'GET'"
+  verdict   = "allow"
+}
+profile "default" { credentials = [bearer_token.tok] }
+`
+	gw := gatewayWithPolicy(t, hcl)
+	w := &webMux{g: gw}
+	ev := &Event{
+		ID: "evt-rt", Mode: "mitm", Family: "https",
+		Host: "api.github.com", Method: "GET", Path: "/user",
+		AgentIP: "100.64.0.7", Action: "allow",
+		Endpoint: "github", Rule: "reads", ReqBodyState: bodyCaptureComplete,
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("export status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	tmp := filepath.Join(t.TempDir(), "rt.json")
+	if err := os.WriteFile(tmp, rw.Body.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ok, msg, err := runOneFixture(gw.Policy(), tmp)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if !ok {
+		t.Fatalf("round-trip mismatch:\n%s", msg)
+	}
+}
+
+const sshExportHCL = `
+
+endpoint "ssh" "build-host" {
+  hosts = ["build.example.com:2222"]
+}
+credential "ssh_key" "key" { endpoint = ssh.build-host }
+profile "default" { credentials = [ssh_key.key] }
+`
+
+// ssh exporter reads verb/command/subsystem/forward_*/user from
+// Event.Facets (the shape sshfacet.Report emits) and pins host to the
+// endpoint's HCL address, not Event.Host (the dst IP / VIP).
+func TestExporterSSHHappyPath(t *testing.T) {
+	w := &webMux{g: gatewayWithPolicy(t, sshExportHCL)}
+	ev := &Event{
+		ID: "evt-ssh-1", Mode: "ssh", Family: "ssh",
+		Host: "10.0.0.9", Action: "allow", Endpoint: "build-host",
+		Rule: "ssh-exec-allowed",
+		Facets: map[string]any{
+			"verb": "exec", "command": "uname -a", "user": "ubuntu",
+		},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatalf("reparse: %v\nbody=%s", err, rw.Body.String())
+	}
+	if f.Action.SSH == nil {
+		t.Fatal("expected ssh block")
+	}
+	ssh := f.Action.SSH
+	if ssh.Verb != "exec" || ssh.Command != "uname -a" || ssh.User != "ubuntu" {
+		t.Errorf("ssh=%+v", ssh)
+	}
+	if f.Action.Host != "build.example.com:2222" {
+		t.Errorf("host=%q want build.example.com:2222 (HCL host, not Event.Host)", f.Action.Host)
+	}
+	if f.Match.Verdict != "allow" {
+		t.Errorf("verdict=%q want allow", f.Match.Verdict)
+	}
+}
+
+// forward_port is a CEL int, but reloaded from the events table it
+// arrives as a JSON float64; the exporter must narrow it back to a
+// clean integer.
+func TestExporterSSHForwardPortFromFloat(t *testing.T) {
+	w := &webMux{g: gatewayWithPolicy(t, sshExportHCL)}
+	ev := &Event{
+		ID: "evt-ssh-fwd", Mode: "ssh", Family: "ssh",
+		Host: "10.0.0.9", Action: "deny", Endpoint: "build-host",
+		Rule: "ssh-no-db-forward",
+		Facets: map[string]any{
+			"verb": "forward", "forward_host": "db.internal",
+			"forward_port": float64(5432), // events-table reload shape
+			"user":         "ubuntu",
+		},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatalf("reparse: %v\nbody=%s", err, rw.Body.String())
+	}
+	if f.Action.SSH == nil {
+		t.Fatal("expected ssh block")
+	}
+	ssh := f.Action.SSH
+	if ssh.Verb != "forward" || ssh.ForwardHost != "db.internal" || ssh.ForwardPort != 5432 {
+		t.Errorf("ssh=%+v want forward db.internal:5432", ssh)
+	}
+}
+
+// The ssh exporter round-trips the buffered stdin facet so a downloaded
+// `ssh host < script` action replays against an ssh.stdin rule.
+func TestExporterSSHStdin(t *testing.T) {
+	w := &webMux{g: gatewayWithPolicy(t, sshExportHCL)}
+	ev := &Event{
+		ID: "evt-ssh-stdin", Mode: "ssh", Family: "ssh",
+		Host: "10.0.0.9", Action: "deny", Endpoint: "build-host",
+		Rule: "ssh-no-destructive-stdin",
+		Facets: map[string]any{
+			"verb": "shell", "user": "ubuntu",
+			"stdin": "#!/bin/sh\nrm -rf / --no-preserve-root\n",
+		},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatalf("reparse: %v\nbody=%s", err, rw.Body.String())
+	}
+	if f.Action.SSH == nil || !strings.Contains(f.Action.SSH.Stdin, "rm -rf /") {
+		t.Errorf("ssh=%+v missing stdin", f.Action.SSH)
+	}
+}
+
+// A non-gateable log line (session connect / exit-status carry no
+// verb facet) can't become a fixture; the exporter must 400.
+func TestExporterSSHRejectsNonGateable(t *testing.T) {
+	w := &webMux{g: gatewayWithPolicy(t, sshExportHCL)}
+	ev := &Event{ID: "evt-ssh-connect", Family: "ssh", Action: "allow", Endpoint: "build-host"}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 400 {
+		t.Fatalf("status=%d want 400; body=%s", rw.Code, rw.Body.String())
+	}
+	if !strings.Contains(rw.Body.String(), "no gateable verb") {
+		t.Errorf("body=%q want explanatory error", rw.Body.String())
+	}
+}
+
+// End-to-end contract for the ssh family: a recorded Event → exporter
+// JSON → runOneFixture → the same deny the exporter recorded.
+func TestExporterSSHRunnerRoundTrip(t *testing.T) {
+	const hcl = `
+
+endpoint "ssh" "build-host" {
+  hosts = ["build.example.com:2222"]
+}
+credential "ssh_key" "key" { endpoint = ssh.build-host }
+rule "no-interactive" {
+  endpoint  = ssh.build-host
+  condition = "ssh.verb == 'pty'"
+  verdict   = "deny"
+  reason    = "no terminals"
+}
+profile "default" { credentials = [ssh_key.key] }
+`
+	gw := gatewayWithPolicy(t, hcl)
+	w := &webMux{g: gw}
+	ev := &Event{
+		ID: "evt-ssh-rt", Mode: "ssh", Family: "ssh",
+		Host: "10.0.0.9", Action: "deny",
+		Endpoint: "build-host", Rule: "no-interactive", Reason: "no terminals",
+		Facets: map[string]any{"verb": "pty", "user": "ubuntu"},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("export status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	tmp := filepath.Join(t.TempDir(), "ssh-rt.json")
+	if err := os.WriteFile(tmp, rw.Body.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ok, msg, err := runOneFixture(gw.Policy(), tmp)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if !ok {
+		t.Fatalf("round-trip mismatch:\n%s", msg)
+	}
+}
+
+// passthrough fixtures parse fine but the runner rejects them at
+// replay (site/doc/nebprx-test.md). Lock in both halves so a future change has
+// to pick one side intentionally.
+func TestRunnerRejectsPassthrough(t *testing.T) {
+	gw := gatewayWithPolicy(t, fixtureHCL)
+	body := `{"action":{"host":"api.github.com","http":{"method":"GET","path":"/x"}},` +
+		`"match":{"verdict":"passthrough","endpoint":"https.github"}}`
+	tmp := filepath.Join(t.TempDir(), "pt.json")
+	if err := os.WriteFile(tmp, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ok, _, err := runOneFixture(gw.Policy(), tmp)
+	if ok {
+		t.Fatal("expected runner to reject passthrough fixture")
+	}
+	if err == nil || !strings.Contains(err.Error(), "passthrough") {
+		t.Fatalf("err=%v, want passthrough rejection", err)
+	}
+}
+
+// The exporter stamps the credential the dispatch site resolved into
+// action.credential. With two credentials bound to one endpoint and a
+// rule pinned to one of them, the fixture only reaches the pinned rule
+// when it carries that credential — the same fixture with the field
+// removed falls through to the default rule, which is the verdict drift
+// the field exists to prevent.
+func TestExporterRecordsResolvedCredentialRoundTrip(t *testing.T) {
+	const hcl = `
+
+endpoint "https" "api" {
+  hosts = ["api.example.com"]
+}
+credential "bearer_token" "reader" { endpoint = https.api }
+credential "bearer_token" "writer" { endpoint = https.api }
+rule "writer-mutations" {
+  endpoint   = https.api
+  credential = bearer_token.writer
+  priority   = 100
+  condition  = "http.method != 'GET'"
+  verdict    = "allow"
+}
+rule "api-default" {
+  endpoint = https.api
+  priority = -100
+  verdict  = "deny"
+}
+profile "default" {
+  credentials = [
+    { placeholder = "PH_reader", credential = bearer_token.reader },
+    { placeholder = "PH_writer", credential = bearer_token.writer },
+  ]
+}
+`
+	gw := gatewayWithPolicy(t, hcl)
+	w := &webMux{g: gw}
+	ev := &Event{
+		ID: "evt-cred", Mode: "mitm", Family: "https",
+		Host: "api.example.com", Method: "POST", Path: "/repos",
+		AgentIP: "100.64.0.7", Action: "allow",
+		Endpoint: "api", Rule: "writer-mutations", Credential: "writer",
+		ReqBodyState: bodyCaptureComplete,
+		ReqHeaders:   map[string]string{"Authorization": "***"},
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("export status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var f Fixture
+	if err := json.Unmarshal(rw.Body.Bytes(), &f); err != nil {
+		t.Fatalf("reparse: %v\nbody=%s", err, rw.Body.String())
+	}
+	if f.Action.Credential != "writer" {
+		t.Fatalf("action.credential=%q want writer", f.Action.Credential)
+	}
+
+	dir := t.TempDir()
+	withCred := filepath.Join(dir, "with-credential.json")
+	if err := os.WriteFile(withCred, rw.Body.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ok, msg, err := runOneFixture(gw.Policy(), withCred)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if !ok {
+		t.Fatalf("fixture with credential should match the pinned rule:\n%s", msg)
+	}
+
+	// Same fixture, credential stripped (what the exporter produced
+	// before the field was recorded): the pinned rule is unreachable
+	// and the replay lands on the default deny.
+	f.Action.Credential = ""
+	stripped, err := json.Marshal(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withoutCred := filepath.Join(dir, "without-credential.json")
+	if err := os.WriteFile(withoutCred, stripped, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ok, msg, err = runOneFixture(gw.Policy(), withoutCred)
+	if err != nil {
+		t.Fatalf("run without credential: %v", err)
+	}
+	if ok {
+		t.Fatal("fixture without credential must not reach the credential-pinned rule")
+	}
+	if !strings.Contains(msg, "api-default") {
+		t.Fatalf("mismatch should land on api-default, got:\n%s", msg)
+	}
+}
+
+// Events that resolved no credential export without the field, so
+// fixtures for single-credential endpoints are unchanged.
+func TestExporterOmitsCredentialWhenUnresolved(t *testing.T) {
+	w := &webMux{g: gatewayWithPolicy(t, fixtureHCL)}
+	ev := &Event{
+		ID: "evt-nocred", Mode: "mitm", Family: "https",
+		Host: "api.github.com", Method: "GET", Path: "/user",
+		Action: "allow", Endpoint: "github", ReqBodyState: bodyCaptureComplete,
+	}
+	rw := httptest.NewRecorder()
+	w.writeActionFixture(rw, ev)
+	if rw.Code != 200 {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	if strings.Contains(rw.Body.String(), `"credential"`) {
+		t.Fatalf("expected no credential key in export:\n%s", rw.Body.String())
+	}
+}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 func TestDiscordVerifyCredentialSuccess(t *testing.T) {
@@ -36,8 +36,8 @@ func TestDiscordVerifyCredentialSuccess(t *testing.T) {
 	if gotAuth != "Bot real.discord.token" {
 		t.Fatalf("Authorization = %q, want Bot real.discord.token", gotAuth)
 	}
-	if gotUA != "clawpatrol/verify" {
-		t.Fatalf("User-Agent = %q, want clawpatrol/verify", gotUA)
+	if gotUA != "nebprx/verify" {
+		t.Fatalf("User-Agent = %q, want nebprx/verify", gotUA)
 	}
 }
 

@@ -11,15 +11,15 @@ type CommonProps = {
 };
 
 type AnchorProps = CommonProps &
-  Omit<JSX.HTMLAttributes<HTMLAnchorElement>, "size"> & { href: string };
+  Omit<JSX.IntrinsicElements["a"], "size"> & { href: string };
 
 type ButtonElProps = CommonProps &
-  Omit<JSX.HTMLAttributes<HTMLButtonElement>, "size"> & { href?: undefined };
+  Omit<JSX.IntrinsicElements["button"], "size"> & { href?: undefined };
 
 type ButtonProps = AnchorProps | ButtonElProps;
 
 const base =
-  "group inline-block font-mono font-semibold uppercase relative isolate z-10 " +
+  "prx-btn group inline-block font-mono font-semibold uppercase relative isolate z-10 " +
   "tracking-wider cursor-pointer transition-colors " +
   // Solid navy outline. CSS outline (not box-shadow) because outline
   // renders outside the stacking context — so the Background div
@@ -54,7 +54,7 @@ const backgroundOffsets: Record<Size, string> = {
 function Background({ size = "md" }: { size?: Size }) {
   return (
     <div
-      class={`${backgroundOffsets[size]} absolute bg-linear-to-r from-rust-300 to-rust-400 -z-10 group-hover:from-butter group-hover:to-rust-300 transition-colors duration-150`}
+      class={`prx-btn-bg ${backgroundOffsets[size]} absolute bg-linear-to-r from-rust-300 to-rust-400 -z-10 group-hover:from-butter group-hover:to-rust-300 transition-colors duration-150`}
     />
   );
 }

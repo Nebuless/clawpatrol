@@ -3,8 +3,8 @@
 ## Problem
 
 `/remote-control` (and other OAuth-only Claude Code features) does not
-work in Claude Code sessions launched through `clawpatrol run` when
-clawpatrol provides credentials via `ANTHROPIC_AUTH_TOKEN` env
+work in Claude Code sessions launched through `nebprx run` when
+PRX provides credentials via `ANTHROPIC_AUTH_TOKEN` env
 pushdown. Claude Code detects the session as bearer/API-token auth and
 refuses to register a remote-control session — even though the
 operator's gateway-stored credential is a full-scope claude.ai
@@ -63,7 +63,7 @@ inference-only and cannot do remote control):
 - anthropics/claude-code#35407 — `CLAUDE_CODE_OAUTH_TOKEN` not eligible
 - anthropics/claude-code#48378 — Desktop-injected token breaks `/remote-control`
 
-## What clawpatrol does
+## What PRX does
 
 For SDK clients (Python, Node, the raw Anthropic SDKs) the
 `anthropic_oauth_subscription` plugin keeps pushing
@@ -71,20 +71,20 @@ For SDK clients (Python, Node, the raw Anthropic SDKs) the
 gateway rewrites the header upstream so the placeholder never reaches
 Anthropic.
 
-For the `claude` CLI specifically, `clawpatrol run` can install a small
-shim (`installClaudeCodeOAuthShim`, `cmd/clawpatrol/integrations.go`)
+For the `claude` CLI specifically, `nebprx run` can install a small
+shim (`installClaudeCodeOAuthShim`, `cmd/nebprx/integrations.go`)
 just before the wrapped command starts. **It is opt-in** (R&D decision,
 2026-06-03): rewriting the worker's environment and config dir is too
 invasive to do silently — pointing `CLAUDE_CONFIG_DIR` at a
-clawpatrol-managed dir shadows the worker's existing `~/.claude` (skills,
+PRX-managed dir shadows the worker's existing `~/.claude` (skills,
 memory, MCP servers, project state), and writing into an operator's dir
-touches files clawpatrol doesn't own. So by default the shim only prints
+touches files PRX doesn't own. So by default the shim only prints
 a notice telling the operator how to turn it on; it changes nothing.
 
 Opt in per invocation:
 
 ```
-CLAWPATROL_CLAUDE_OAUTH_SHIM=1 clawpatrol run claude ...
+NEBPRX_CLAUDE_OAUTH_SHIM=1 nebprx run claude ...
 ```
 
 Once opted in, the shim:
@@ -113,8 +113,8 @@ added must re-run the dashboard OAuth flow once).
 
 ### Scoping & opt-in
 
-- The shim is off unless `CLAWPATROL_CLAUDE_OAUTH_SHIM=1` is set. Without
-  it, `clawpatrol run claude` prints a one-time notice explaining why
+- The shim is off unless `NEBPRX_CLAUDE_OAUTH_SHIM=1` is set. Without
+  it, `nebprx run claude` prints a one-time notice explaining why
   `/remote-control` is disabled and how to enable it, and changes nothing.
 - Even when opted in, it only fires when the wrapped binary is `claude`
   and `ANTHROPIC_AUTH_TOKEN` is set. Non-claude clients are untouched.
@@ -123,8 +123,8 @@ added must re-run the dashboard OAuth flow once).
   settings/MCP/project state) instead of overriding it. A real
   `.credentials.json` already present there is left alone — dropping
   `ANTHROPIC_AUTH_TOKEN` lets that login win on its own.
-- Otherwise the shim carves out a clawpatrol-managed dir
-  (`~/.clawpatrol/claude-config`). Note this dir becomes Claude Code's
+- Otherwise the shim carves out a PRX-managed dir
+  (`~/.nebprx/claude-config`). Note this dir becomes Claude Code's
   whole config home for the session, so the worker's `~/.claude` skills,
   memory, and MCP servers are *not* visible — set `CLAUDE_CONFIG_DIR`
   yourself if you need them.
@@ -134,7 +134,7 @@ added must re-run the dashboard OAuth flow once).
 On macOS, an interactive `claude /login` stores credentials in the
 Keychain rather than `.credentials.json`. The shim writes a file and
 points `CLAUDE_CONFIG_DIR` at it, which Claude Code reads on all
-platforms; clawpatrol's primary target (Linux workers) uses the file
+platforms; PRX's primary target (Linux workers) uses the file
 store natively. macOS operators who rely on a pre-existing Keychain
 login should simply leave the shim off (it is off by default) and rely on
 that login.

@@ -8,7 +8,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/denoland/clawpatrol/pluginsdk"
+	"github.com/Nebuless/nebprx/pluginsdk"
 )
 
 // demoEcho is a plain-TCP echo endpoint. The gateway hands the raw

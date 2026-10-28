@@ -21,8 +21,8 @@ import (
 	"github.com/hashicorp/go-hclog"
 	version "github.com/hashicorp/go-version"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	"github.com/Nebuless/nebprx/internal/config"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
 // This file downloads a plugin binary from a GitHub release, verifies it
@@ -457,7 +457,7 @@ func platformFromArchive(name string) string {
 // the first time a plugin is seen it resolves the operator's constraint
 // to the newest release, downloads it, and records the source + resolved
 // version in the lockfile (trust on first use). It never silently moves
-// to a newer version once pinned — that is `clawpatrol plugins update`.
+// to a newer version once pinned — that is `nebprx plugins update`.
 //
 // accept distinguishes the two callers: the gateway load (accept=false)
 // enforces the pinned hashes, the attested commit, and the provenance
@@ -489,19 +489,19 @@ func (m *Manager) resolvePluginBinary(ctx context.Context, sp config.PluginSourc
 	// and auto-upgrade — the one thing the running gateway must never do.
 	if !accept && have && entry.Version != "" && entry.Source == "" {
 		return "", nil, fmt.Errorf(
-			"lockfile entry for %q has a version but no source; fix or remove it, then run `clawpatrol plugins install`",
+			"lockfile entry for %q has a version but no source; fix or remove it, then run `nebprx plugins install`",
 			sp.Name)
 	}
 
 	if pinned {
 		if entry.Source != p.slug() {
 			return "", nil, fmt.Errorf(
-				"source changed from %q to %q since it was locked; run `clawpatrol plugins update %s`",
+				"source changed from %q to %q since it was locked; run `nebprx plugins update %s`",
 				entry.Source, p.slug(), sp.Name)
 		}
 		if err := constraintHolds(sp.Version, entry.Version); err != nil {
 			return "", nil, fmt.Errorf(
-				"locked version %s no longer satisfies %q; run `clawpatrol plugins update %s` (%w)",
+				"locked version %s no longer satisfies %q; run `nebprx plugins update %s` (%w)",
 				entry.Version, sp.Version, sp.Name, err)
 		}
 		// Offline fast path: trust the cache only when the lockfile records
@@ -590,7 +590,7 @@ func (f *fetcher) staticManifest(ctx context.Context, p parsedSource, r ghReleas
 // names a different source commit (the tag was re-pointed). An explicit
 // upgrade to a *new* version legitimately carries a new commit and is
 // re-pinned by the caller, not blocked. Skipped when the operator set
-// provenance = "off". The fix is `clawpatrol plugins approve`.
+// provenance = "off". The fix is `nebprx plugins approve`.
 //
 // fetchedVersion is the tag actually fetched: it equals entry.Version on
 // the load / keep-pinned path, and is the newest satisfying tag on an
@@ -603,7 +603,7 @@ func checkProvenanceNotDowngraded(name string, mode provenanceMode, entry lockEn
 		return fmt.Errorf(
 			"plugin %q lost its build-provenance attestation since it was approved; "+
 				"a benign plugin's build dropping provenance looks exactly like this. "+
-				"If you trust it, re-approve: clawpatrol plugins approve %s", name, name)
+				"If you trust it, re-approve: nebprx plugins approve %s", name, name)
 	}
 	// A changed attested commit is only a re-pointed-tag signal when the
 	// version is unchanged: the same tag now vouches a different commit. A
@@ -611,7 +611,7 @@ func checkProvenanceNotDowngraded(name string, mode provenanceMode, entry lockEn
 	if entry.Commit != "" && res.commit != "" && res.commit != entry.Commit && fetchedVersion == entry.Version {
 		return fmt.Errorf(
 			"plugin %q: attested source commit %s does not match the locked commit %s (the %s tag was re-pointed); "+
-				"if you trust the new build, re-approve: clawpatrol plugins approve %s",
+				"if you trust the new build, re-approve: nebprx plugins approve %s",
 			name, res.commit, entry.Commit, entry.Version, name)
 	}
 	return nil

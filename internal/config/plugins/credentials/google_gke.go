@@ -29,8 +29,8 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // gkeOAuthScope is what GKE's control plane (and every other Google
@@ -40,7 +40,7 @@ import (
 // for it to be evaluated.
 const gkeOAuthScope = "https://www.googleapis.com/auth/cloud-platform"
 
-// GoogleGKECredential is part of the clawpatrol plugin API.
+// GoogleGKECredential is part of the PRX plugin API.
 type GoogleGKECredential struct{}
 
 // gkeTokenSources caches an oauth2.TokenSource by SHA-256(sa_key).
@@ -50,11 +50,11 @@ type GoogleGKECredential struct{}
 // JSON + RSA private key on every signed request.
 var gkeTokenSources sync.Map
 
-// SignHTTPRequest is part of the clawpatrol plugin API.
+// SignHTTPRequest is part of the PRX plugin API.
 func (*GoogleGKECredential) SignHTTPRequest(_ context.Context, req *http.Request, sec runtime.Secret, _ any) error {
 	saKey := []byte(sec.Extras["sa_key"])
 	if len(saKey) == 0 {
-		return errors.New("google_gke_credential: missing sa_key (paste the SA JSON into the dashboard or set CLAWPATROL_SECRET_<NAME>_SA_KEY)")
+		return errors.New("google_gke_credential: missing sa_key (paste the SA JSON into the dashboard or set NEBPRX_SECRET_<NAME>_SA_KEY)")
 	}
 	ts, err := tokenSourceForSAKey(saKey)
 	if err != nil {
@@ -91,7 +91,7 @@ func tokenSourceForSAKey(saKey []byte) (oauth2.TokenSource, error) {
 	return actual.(oauth2.TokenSource), nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*GoogleGKECredential) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{
 		Name:        "sa_key",

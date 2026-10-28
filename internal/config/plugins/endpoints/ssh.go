@@ -58,12 +58,12 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	sshfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/ssh"
-	"github.com/denoland/clawpatrol/internal/config/plugins/sshproto"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	sshfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/ssh"
+	"github.com/Nebuless/nebprx/internal/config/plugins/sshproto"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // SSHEndpoint binds one or more host:port tuples. The credentials
@@ -82,7 +82,7 @@ type SSHEndpoint struct {
 	Hosts []string `hcl:"hosts"`
 }
 
-// EndpointHosts is part of the clawpatrol plugin API.
+// EndpointHosts is part of the PRX plugin API.
 func (e *SSHEndpoint) EndpointHosts() []string { return e.Hosts }
 
 // ConnRouteHosts implements runtime.ConnRouter — gives the gateway's
@@ -138,7 +138,7 @@ var (
 
 // ── HandleConn ────────────────────────────────────────────────────────
 
-// HandleConn is part of the clawpatrol plugin API.
+// HandleConn is part of the PRX plugin API.
 func (rt *SSHEndpointRuntime) HandleConn(ctx context.Context, ch *runtime.ConnHandle) error {
 	defer func() { _ = ch.Conn.Close() }()
 	if ch.Endpoint == nil || ch.Endpoint.Family != "ssh" {
@@ -187,7 +187,7 @@ func (rt *SSHEndpointRuntime) HandleConn(ctx context.Context, ch *runtime.ConnHa
 		PublicKeyCallback: func(ssh.ConnMetadata, ssh.PublicKey) (*ssh.Permissions, error) {
 			return &ssh.Permissions{}, nil
 		},
-		ServerVersion: "SSH-2.0-clawpatrol",
+		ServerVersion: "SSH-2.0-nebprx",
 	}
 	srvCfg.AddHostKey(hostKey)
 
@@ -384,7 +384,7 @@ func (rt *SSHEndpointRuntime) upstreamClientConfig(ch *runtime.ConnHandle, cc *c
 		Auth:            methods,
 		HostKeyCallback: hostKeyCb,
 		Timeout:         30 * time.Second,
-		ClientVersion:   "SSH-2.0-clawpatrol",
+		ClientVersion:   "SSH-2.0-nebprx",
 	}, nil
 }
 
@@ -617,7 +617,7 @@ func proxyChannel(a ssh.Channel, aReqs <-chan *ssh.Request, b ssh.Channel, bReqs
 // bytes (so typed/streamed stdin doesn't hang — its prefix is judged,
 // the rest streams on unjudged).
 const (
-	stdinMatchCap = 1 << 20 // mirror cmd/clawpatrol maxHTTPMatchBody
+	stdinMatchCap = 1 << 20 // mirror cmd/nebprx maxHTTPMatchBody
 	stdinIdle     = 250 * time.Millisecond
 )
 
@@ -800,7 +800,7 @@ buffering:
 		// Already acked above; surface the reason on the agent's stderr
 		// before the caller tears the channel down.
 		if reason != "" {
-			_, _ = a.Stderr().Write([]byte("clawpatrol: " + reason + "\n"))
+			_, _ = a.Stderr().Write([]byte("nebprx: " + reason + "\n"))
 		}
 		drain() // let the reader finish once the caller closes a
 		return false

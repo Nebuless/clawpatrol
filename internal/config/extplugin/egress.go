@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
 )
 
 // A plugin declares in its manifest the set of upstream targets it needs

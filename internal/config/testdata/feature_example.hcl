@@ -1,9 +1,9 @@
-# clawpatrol gateway config.
+# nebprx gateway config.
 #
 # Copy this file somewhere on the gateway host (e.g.
-# /opt/clawpatrol/gateway.hcl), edit the fields below, run:
+# /opt/nebprx/gateway.hcl), edit the fields below, run:
 #
-#     clawpatrol gateway -config /opt/clawpatrol/gateway.hcl
+#     nebprx gateway -config /opt/nebprx/gateway.hcl
 #
 # Hot-reloadable: every policy block. The gateway / wireguard /
 # tailscale block fields need a restart.
@@ -36,8 +36,8 @@
 gateway {
   dashboard_listen = "0.0.0.0:8080"
   public_url       = "http://66.42.120.196:8080"
-  log_path         = "/opt/clawpatrol/gateway.log"
-  state_dir        = "/opt/clawpatrol/oauth"
+  log_path         = "/opt/nebprx/gateway.log"
+  state_dir        = "/opt/nebprx/oauth"
 
   wireguard {
     endpoint    = "0.0.0.0:51820"

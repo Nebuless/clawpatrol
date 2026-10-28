@@ -2,7 +2,7 @@
 
 ## The big picture
 
-Claw Patrol sits between an [agent](#agent) and the upstream services
+PRX sits between an [agent](#agent) and the upstream services
 it talks to. Operators describe the system with [endpoints](#endpoint),
 [credentials](#credential), [rules](#rule), [approvers](#approver), and
 [profiles](#profile). This page defines those terms; see
@@ -13,7 +13,7 @@ it talks to. Operators describe the system with [endpoints](#endpoint),
 
 ### Gateway
 
-The Claw Patrol daemon. It loads config, hosts the operator UI, applies
+The PRX daemon. It loads config, hosts the operator UI, applies
 policy, injects real credentials, and forwards allowed traffic upstream.
 See [Architecture](/docs/architecture/) for the gateway’s position in a
 deployment.
@@ -127,7 +127,7 @@ endpoint. The agent never holds the real key — only the placeholder.
 ### Secret store
 
 The gateway-side source of secret bytes. Default backend: environment
-variables, keyed by `CLAWPATROL_SECRET_<UPPER_NAME>` (with
+variables, keyed by `NEBPRX_SECRET_<UPPER_NAME>` (with
 `@/path/to/file` shorthand for reading PEM bundles off disk).
 
 ### MitM

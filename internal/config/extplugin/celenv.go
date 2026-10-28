@@ -3,7 +3,7 @@ package extplugin
 import (
 	"fmt"
 
-	"github.com/denoland/clawpatrol/internal/config/match"
+	"github.com/Nebuless/nebprx/internal/config/match"
 	"github.com/google/cel-go/cel"
 	celast "github.com/google/cel-go/common/ast"
 )

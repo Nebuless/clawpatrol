@@ -8,35 +8,34 @@ export function CtaSection() {
       py-32 md:py-64 text-center"
     >
       <img
-        src="/claw-patrol-icon.svg"
+        src="/prx-icon.svg"
         alt=""
         aria-hidden="true"
         class="size-24 mx-auto mb-8"
       />
-      <h2 class="text-3xl sm:text-5xl mb-4 font-display">Open Source</h2>
+      <h2 id="book-a-pilot" class="text-3xl sm:text-5xl mb-4 font-display">Start with a pilot</h2>
       <p
         class="max-w-lg mx-auto text-base sm:text-lg
          mb-4 text-text-muted"
       >
-        The proxy holds your secrets and watches every byte your agents send. It
-        has to be auditable, so it’s{" "}
+        Run PRX on one server inside your network with one team's agents. The
+        source is{" "}
         <a
-          href="https://github.com/denoland/clawpatrol/blob/main/LICENSE.md"
+          href="https://github.com/Nebuless/clawpatrol/blob/main/LICENSE.md"
           class="underline underline-offset-2"
         >
           MIT licensed
         </a>
-        .
+        , so your security team can review every line.
       </p>
       <div class="mb-8 mt-16 flex justify-center">
         <InstallTerminal variant="expanded" />
       </div>
       <Button
-        href="https://github.com/denoland/clawpatrol"
-        size="md"
-        target="_blank"
+        href="/pilot/"
+        size="lg"
       >
-        Get Started
+        Book a pilot
       </Button>
     </section>
   );

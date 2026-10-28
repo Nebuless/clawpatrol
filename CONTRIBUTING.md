@@ -1,28 +1,27 @@
-# Contributing to Claw Patrol
+# Contributing to PRX
 
 Thanks for taking the time. This page says what kind of changes we
 take, how to get them reviewed quickly, and what the checks expect.
 
 ## What we are focused on
 
-Claw Patrol is a wire-level policy gateway for agents: real secrets
+PRX is a wire-level policy gateway for agents: real secrets
 stay in the gateway, every credentialed request goes through it, and
 rules decide what is allowed. Current priorities, in order:
 
 1. Reliability of the three deployment shapes (`gateway`, `join`,
-   `run`) on Linux and macOS, including the tunnels under them.
+   `run`) on Linux, macOS, and Windows, including the tunnels under them.
 2. Documentation that matches the code. A documented setting must
    do what it says.
 3. Security hardening of the gateway itself.
 4. Features that widen what the gateway can broker for agents, such
    as workload enrollment (Kubernetes and OIDC) and remote MCP.
 
-Things we are not taking on at the moment: Windows support and
-dashboard theming.
+Things we are not taking on at the moment: dashboard theming.
 
 Integrations with a specific third-party service, human-in-the-loop
 notifiers and approvers included, are built as external plugins,
-not added to core; see [Plugins](https://clawpatrol.dev/docs/plugins)
+not added to core; see [Plugins](https://prx.nebuless.cloud/docs/plugins)
 and the `pluginsdk` package. If the plugin interfaces cannot express
 what your integration needs, that gap is the thing to raise (the
 roadmap tracks reaching parity with the built-ins), and closing it
@@ -35,9 +34,9 @@ PR.
 ## Bug reports
 
 The most useful reports come with the exact command, the version
-(`clawpatrol --version`), the platform, what you expected, and what
-happened. For `clawpatrol run` problems on Linux, the daemon log at
-`~/.local/state/clawpatrol/run/daemon.log` usually holds the real
+(`nebprx --version`), the platform, what you expected, and what
+happened. For `nebprx run` problems on Linux, the daemon log at
+`~/.local/state/nebprx/run/daemon.log` usually holds the real
 cause. Never paste real credentials, tokens, or private hostnames;
 use placeholders.
 
@@ -52,9 +51,9 @@ use placeholders.
   blocks and attributes as part of another change.
 - If you touch a documented HCL field, regenerate the reference:
   `go run ./internal/tools/docgen`. CI fails when it is stale.
-- If you add a rule branch to `cmd/clawpatrol/testdata/example.hcl`,
+- If you add a rule branch to `cmd/nebprx/testdata/example.hcl`,
   add fixtures for both arms (see
-  [clawpatrol test](https://clawpatrol.dev/docs/clawpatrol-test)).
+  [nebprx test](https://prx.nebuless.cloud/docs/nebprx-test)).
 - Small follow-up fixes to your PR may be applied by a maintainer
   before landing; the commit keeps you as author.
 
@@ -70,8 +69,7 @@ make test                        # go test ./...
 go run ./internal/tools/docgen   # then commit any change
 ```
 
-`doc/dev-setup.md` covers prerequisites, including the macOS system
-extension build if you are working on `clawpatrol run` for macOS.
+`doc/dev-setup.md` covers prerequisites.
 Linux-specific paths (`run` on Linux, the sandbox backends) need a
 Linux host or VM; the CI matrix covers them, so it is fine to lean on
 CI for those if you do not have one.

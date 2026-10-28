@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	pb "github.com/denoland/clawpatrol/internal/config/extplugin/proto"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/all" // register built-in plugins
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	pb "github.com/Nebuless/nebprx/internal/config/extplugin/proto"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all" // register built-in plugins
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
@@ -94,7 +94,7 @@ func TestExternalCredentialMetadataAndInjectHTTPAdapter(t *testing.T) {
 
 	hcl := fmt.Sprintf(`
 gateway {
-  state_dir  = "/tmp/clawpatrol-test"
+  state_dir  = "/tmp/nebprx-test"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }
@@ -190,7 +190,7 @@ func TestExternalCredentialWithoutHTTPInjectRemainsSchemaOnly(t *testing.T) {
 
 	hcl := fmt.Sprintf(`
 gateway {
-  state_dir  = "/tmp/clawpatrol-test"
+  state_dir  = "/tmp/nebprx-test"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

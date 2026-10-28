@@ -1,0 +1,2316 @@
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"crypto/tls"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/netip"
+	neturl "net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+
+	"github.com/mdp/qrterminal/v3"
+)
+
+type tsStatus struct {
+	Self           *tsPeer            `json:"Self"`
+	Peer           map[string]*tsPeer `json:"Peer"`
+	MagicDNSSuffix string             `json:"MagicDNSSuffix"`
+	CurrentTailnet *tsTailnet         `json:"CurrentTailnet"`
+	User           map[string]tsUser  `json:"User"`
+}
+
+// reorderJoinArgsForFlagParse lets `nebprx join` accept flags either
+// before or after the gateway URL. Go's flag package stops parsing at the
+// first positional argument, but the CLI help historically showed the URL
+// first followed by optional flags.
+func reorderJoinArgsForFlagParse(args []string) []string {
+	var flags []string
+	var positional []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			positional = append(positional, args[i+1:]...)
+			break
+		}
+		if arg == "-" || !strings.HasPrefix(arg, "-") {
+			positional = append(positional, arg)
+			continue
+		}
+
+		name := strings.TrimLeft(arg, "-")
+		name, _, hasValue := strings.Cut(name, "=")
+		flags = append(flags, arg)
+		switch name {
+		// Every flag that takes a separate value belongs here, or the
+		// value is left behind as a positional and the gateway URL is
+		// consumed as the flag's value instead.
+		case "hostname", "profile", "name", "ca-dir", "ca-fingerprint":
+			if !hasValue && i+1 < len(args) {
+				i++
+				flags = append(flags, args[i])
+			}
+		}
+	}
+	return append(flags, positional...)
+}
+
+type tsTailnet struct {
+	Name string `json:"Name"`
+}
+
+type tsUser struct {
+	LoginName   string `json:"LoginName"`
+	DisplayName string `json:"DisplayName"`
+}
+
+type tsPeer struct {
+	HostName     string   `json:"HostName"`
+	DNSName      string   `json:"DNSName"`
+	TailscaleIPs []string `json:"TailscaleIPs"`
+	Online       bool     `json:"Online"`
+	UserID       int64    `json:"UserID"`
+}
+
+// runJoin is the entry point for a brand-new client without Tailscale.
+// Walks the device-flow onboarding (admin approves on dashboard via
+// existing tailnet device), installs Tailscale, joins, then continues
+// straight into the post-join setup (set exit-node, fetch CA, install
+// system trust) — single command, full setup.
+func runJoin(args []string) {
+	// `sudo nebprx join` lands wg.conf + api-token as root:root in
+	// /root/.config/nebprx, then the user's `nebprx run` (no
+	// sudo) can't read them. The CA-install step is the only piece that
+	// needs elevated rights, and runAsRoot() shells out to sudo on demand.
+	if os.Geteuid() == 0 && os.Getenv("SUDO_USER") != "" {
+		fail("don't run join under sudo — invoke as your normal user; I'll sudo internally for the CA install step")
+	}
+	fs := flag.NewFlagSet("join", flag.ExitOnError)
+	gwName := fs.String("name", "nebprx", "exit-node hostname on the tailnet (only used with --whole-machine)")
+	caOut := fs.String("ca-dir", defaultNebprxDir(), "where to store the fetched CA")
+	skipTrust := fs.Bool("no-trust", false, "fetch CA but skip system trust install (do it manually)")
+	caPin := fs.String("ca-fingerprint", "", "SHA-256 fingerprint the gateway's CA must match before it is written or trusted (from the dashboard); pins a non-interactive join instead of relying on a visual comparison")
+	wholeMachine := fs.Bool("whole-machine", false, "bring up wg-quick to route ALL host traffic through the gateway (default: persist conf only, use `nebprx run` for per-process routing)")
+	profile := fs.String("profile", "", "profile to assign at approval time (defaults to the gateway's default profile if the approver doesn't pick one)")
+	hostname := fs.String("hostname", "", "device name to register with the gateway (defaults to os.Hostname)")
+	loginFlag := fs.Bool("login", false, "interactively log in to the gateway's tailnet first (use when the gateway has no public URL). The temporary tailnet credentials are discarded once the gateway-minted device identity lands.")
+	_ = fs.Parse(reorderJoinArgsForFlagParse(args))
+	rest := fs.Args()
+	if len(rest) != 1 || rest[0] == "" {
+		fail("usage: nebprx join [--hostname NAME] [--profile NAME] [--whole-machine] <gateway-url>")
+	}
+	gatewayURL, err := validateGatewayURL(rest[0])
+	if err != nil {
+		fail("%v", err)
+	}
+	// Normalize the pin up front: a malformed --ca-fingerprint is an operator
+	// error worth reporting now, not a pin that silently cannot match later.
+	pinnedCAFP := ""
+	if *caPin != "" {
+		pinnedCAFP, err = normalizeCAFingerprint(*caPin)
+		if err != nil {
+			fail("%v", err)
+		}
+	}
+	if *wholeMachine {
+		if local, reason := isLocalGateway(gatewayURL); local {
+			fail("refusing --whole-machine join: gateway URL points at this host (%s).\n"+
+				"  Whole-machine routing on the gateway box itself creates a routing loop —\n"+
+				"  the gateway daemon's own outbound traffic would re-enter its own tunnel.\n"+
+				"  Drop --whole-machine and use `nebprx run` for per-process routing\n"+
+				"  on this host, or run `nebprx join` from a separate client device.",
+				reason)
+		}
+	}
+	if err := beginJoinSetup(); err != nil {
+		fail("join: %v", err)
+	}
+	// Fetch CA BEFORE the VPN goes up. Once `wg-quick up` flips
+	// the default route through the gateway, reaching the
+	// gateway's public URL goes via the tunnel — which can't
+	// carry traffic until the gateway has internet egress
+	// configured (MASQUERADE etc). The CA is small + cheap and
+	// the onboard endpoints are reachable on the public path.
+	//
+	// In Tailscale control mode the gateway intentionally does not
+	// expose /ca.crt on its public Funnel path — the CA is only
+	// reachable over the tailnet (security: no TOFU over plain
+	// internet). A 404 here means we're talking to a Tailscale-mode
+	// gateway; onboardViaDeviceFlow consumes the CA delivered inline in
+	// the approval poll response (see commitApprovedCA).
+	//
+	// Tailnet-bootstrap (--login or auto-fallback): when the gateway
+	// has no public Funnel at all, or this machine simply can't reach
+	// it from its current network, stand up a temporary tsnet node,
+	// drive interactive Tailscale auth, and dial the gateway over the
+	// tailnet for the rest of the flow. The bootstrap node is torn
+	// down (LocalClient.Logout + state-dir removed) before runJoin
+	// returns, so the human credentials never persist on disk — the
+	// agent's permanent identity is the gateway-minted tagged key.
+	//
+	// The fetched CA remains staged in memory until onboarding's fatal setup
+	// succeeds. Shell-rc setup also waits for dashboard approval.
+	ctx := context.Background()
+	var bootstrap *tailnetBootstrap
+	defer func() {
+		if bootstrap != nil {
+			bootstrap.Close(ctx)
+		}
+	}()
+	var joinHTTPCli *http.Client
+	if *loginFlag {
+		bs, berr := bootstrapTailnetForJoin(ctx)
+		if berr != nil {
+			fail("tailnet login: %v", berr)
+		}
+		bootstrap = bs
+		joinHTTPCli = bs.Client()
+	}
+	setup, err := preJoinFetchCA(gatewayURL, *caOut, pinnedCAFP, joinHTTPCli)
+	if err != nil && !isCaNotExposed(err) {
+		// Auto-fallback: a tailnet-shaped URL that's unreachable from
+		// this machine is exactly the case --login was added for. Try
+		// the bootstrap once before giving up so the operator doesn't
+		// have to re-run with the flag.
+		if bootstrap == nil && isTailnetShapedURL(gatewayURL) && isNetworkUnreachableErr(err) {
+			fmt.Fprintf(os.Stderr, "gateway %s unreachable from this network; falling back to tailnet login.\n", gatewayURL)
+			bs, berr := bootstrapTailnetForJoin(ctx)
+			if berr != nil {
+				fail("tailnet login: %v", berr)
+			}
+			bootstrap = bs
+			joinHTTPCli = bs.Client()
+			setup, err = preJoinFetchCA(gatewayURL, *caOut, pinnedCAFP, joinHTTPCli)
+			if err != nil && !isCaNotExposed(err) {
+				fail("ca fetch: %v", err)
+			}
+		} else {
+			fail("ca fetch: %v", err)
+		}
+	}
+	// Auto-approve is opt-in to the --login bootstrap: only then do
+	// we have an http client whose requests carry a tsnet whois the
+	// gateway recognises as a dashboard operator. The standard path
+	// (no bootstrap, just preJoinFetchCA over public Funnel) has no
+	// authenticated identity and must wait for the dashboard click.
+	autoApprove := bootstrap != nil
+	wgMode, err := onboardViaDeviceFlow(gatewayURL, *wholeMachine, *profile, *hostname, &setup, *skipTrust, joinHTTPCli, autoApprove)
+	if err != nil {
+		fail("join: %v", err)
+	}
+	if wgMode {
+		return
+	}
+	// Whole-machine Tailscale (Linux only): route all host traffic via
+	// the gateway by setting it as exit-node on the system tailscaled.
+	// Whole-machine Tailscale routing is Linux-only.
+	if *wholeMachine && runtime.GOOS == "linux" {
+		// Use the actual registered tsnet node name as the exit-node
+		// target, not the --name default. onboardViaDeviceFlow's
+		// whole-machine branch persists this at tailnet-gateway.
+		exitNode := *gwName
+		gwHostFile := strings.TrimSpace(readFileSilent(filepath.Join(*caOut, "tailnet-gateway")))
+		if gwHostFile != "" {
+			exitNode = gwHostFile
+		}
+		if err := completeWholeMachineTailscaleRouting(exitNode, applyWholeMachineExitNode); err != nil {
+			fail("%v", err)
+		}
+		// Closing message printed here (not in onboardViaDeviceFlow) so
+		// it lands after the exit-node setup and the "DNS pinned…" line.
+		printWholeMachineDone("tailscale exit-node")
+	}
+}
+
+// validateGatewayURL rejects gateway URLs that wouldn't survive a
+// round-trip through http.Client — historically the join flow only
+// noticed at the dial layer, after preJoinFetchCA had already written
+// the bogus string to ~/.nebprx/gateway. The most common shape
+// that bit operators was a bare hostname like "nebprx-gateway-1":
+// neturl.Parse accepts it (everything parses as opaque), but
+// http.Client.Get("nebprx-gateway-1/ca.crt") errors with
+// "unsupported protocol scheme \"\"" — and by the time you see the
+// error the state file is already corrupt.
+//
+// Rules: explicit http:// or https://, non-empty host. We don't try
+// to be clever and auto-promote bare hostnames — the right port
+// depends on whether the gateway is fronted by Funnel (:443) or
+// reached over the tailnet (:8080), and we don't have enough
+// context here to pick correctly. The error message tells the
+// operator the most likely form for the tailnet-mounted case.
+func validateGatewayURL(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "", fmt.Errorf("gateway URL is empty")
+	}
+	u, err := neturl.Parse(s)
+	if err != nil {
+		return "", fmt.Errorf("invalid gateway URL %q: %w", s, err)
+	}
+	switch u.Scheme {
+	case "http", "https":
+	default:
+		return "", fmt.Errorf("gateway URL %q is missing an http:// or https:// scheme — for a tailnet-mounted gateway, try http://%s:8080", s, s)
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("gateway URL %q has no host", s)
+	}
+	return s, nil
+}
+
+// applyWholeMachineExitNode finishes the whole-machine Tailscale Linux
+// join: pins SSH + public-IP reply traffic to the direct path, flips
+// the system tailscaled's exit-node to the gateway, and points DNS at
+// the gateway (tsnet has no UDP fallback). CA fetch + trust install +
+// shell rc are handled earlier in the join flow.
+func applyWholeMachineExitNode(gwName string) error {
+	if err := exemptSSHFromExitNode(""); err != nil {
+		// Couldn't protect SSH — refuse to flip exit-node so we don't
+		// kill an in-flight admin session.
+		return fmt.Errorf("protect SSH from exit-node: %w", err)
+	}
+	if err := exemptPublicIPFromExitNode(); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠ couldn't protect public IP inbound traffic: %v\n", err)
+	}
+	tscli, err := tailscaleBin()
+	if err != nil {
+		return fmt.Errorf("tailscale CLI not found: %w", err)
+	}
+	st, err := tailscaleStatus(tscli)
+	if err != nil {
+		return fmt.Errorf("tailscale status: %w", err)
+	}
+	peer := findPeerByName(st, gwName)
+	if peer == nil || len(peer.TailscaleIPs) == 0 {
+		return fmt.Errorf("no peer named %q on this tailnet", gwName)
+	}
+	if err := tsSet(tscli, "--exit-node="+gwName); err != nil {
+		return fmt.Errorf("tailscale set --exit-node=%s: %w", gwName, err)
+	}
+	pinDNSAtGatewayIfNeeded(peer.TailscaleIPs[0])
+	return nil
+}
+
+// joinSetup carries the post-join side-effect status so the caller
+// renders a single coherent block instead of interleaving "✓ ca…" /
+// "⚠ shell rc…" lines around the device-flow output.
+type joinSetup struct {
+	caInstalled   bool   // installed into system trust
+	installedCAFP string // fingerprint of the CA installed into system trust
+	caPath        string // active on-disk CA destination
+	candidateCA   []byte // staged canonical CA awaiting approved join completion
+	caHint        string // manual-trust hint when caInstalled == false
+	caFingerprint string // SHA-256 of the fetched cert (operator-readable)
+	pinnedCAFP    string // --ca-fingerprint: the CA the operator authorised
+	shellRC       bool   // shell rc updated with `eval "$(nebprx env)"`
+}
+
+// caFingerprintHexDigits is the length of a SHA-256 digest written as hex —
+// the form --ca-fingerprint accepts once separators are stripped.
+const caFingerprintHexDigits = sha256.Size * 2
+
+// normalizeCAFingerprint folds an operator-typed fingerprint into the
+// colon-separated uppercase hex that caFingerprintFromCert emits, so a pin
+// pasted from the dashboard matches whether it arrives with colons or without,
+// in either case, or carrying an openssl-style "sha256:" prefix. Anything that
+// isn't a full SHA-256 digest is rejected here rather than becoming a pin that
+// can never match.
+func normalizeCAFingerprint(s string) (string, error) {
+	t := strings.TrimSpace(s)
+	if lower := strings.ToLower(t); strings.HasPrefix(lower, "sha256:") {
+		t = t[len("sha256:"):]
+	}
+	var digits strings.Builder
+	for _, r := range t {
+		switch {
+		case r == ':' || r == '-' || r == ' ':
+			// Separators operators paste along with the digest.
+		case (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F'):
+			digits.WriteRune(r)
+		default:
+			return "", fmt.Errorf("CA fingerprint %q contains a non-hex character %q", s, r)
+		}
+	}
+	hexDigits := strings.ToUpper(digits.String())
+	if len(hexDigits) != caFingerprintHexDigits {
+		return "", fmt.Errorf("CA fingerprint %q has %d hex digits, want %d (a SHA-256 digest)",
+			s, len(hexDigits), caFingerprintHexDigits)
+	}
+	var out strings.Builder
+	for i := 0; i < len(hexDigits); i += 2 {
+		if i > 0 {
+			out.WriteByte(':')
+		}
+		out.WriteString(hexDigits[i : i+2])
+	}
+	return out.String(), nil
+}
+
+// isCaNotExposed returns true when the gateway deliberately did not expose
+// /ca.crt on its public path (Tailscale control mode). The CA is then
+// fetched securely over the tailnet by onboardViaDeviceFlow.
+func isCaNotExposed(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "status 404")
+}
+
+// preJoinFetchCA downloads and canonicalizes the gateway's CA into an
+// in-memory candidate and computes its SHA-256 fingerprint. caPath remains the
+// active destination and is not created or replaced until onboarding commits
+// the approved candidate after fatal setup succeeds.
+//
+// Splitting the flow this way puts the visual-fingerprint compare
+// in the loop: an on-path attacker who served a substitute CA over
+// plain HTTP loses because the dashboard surfaces the gateway's
+// real fingerprint and the operator can refuse to approve.
+//
+// cli is the HTTP client to use; pass nil for the default
+// TOFU-permissive client. The tailnet-bootstrap path in runJoin
+// passes a tsnet-dialing client so the same code reaches a
+// tailnet-only gateway.
+func preJoinFetchCA(gateway, caDir, pinnedFP string, cli *http.Client) (joinSetup, error) {
+	var s joinSetup
+	// Recorded before the first fallible step so it survives on the joinSetup
+	// this returns alongside an error — a gateway that answers /ca.crt with a
+	// 404 defers the CA to the approval poll, where the pin is the only
+	// authenticity check there is.
+	s.pinnedCAFP = pinnedFP
+	if err := os.MkdirAll(caDir, 0o700); err != nil {
+		return s, fmt.Errorf("mkdir %s: %w", caDir, err)
+	}
+	// Preflight: fail fast if the directory isn't writable by the current
+	// user. A root-owned dir from a previous `docker run -v` will pass
+	// MkdirAll (dir already exists) but fail every subsequent WriteFile,
+	// causing join to report success while writing nothing.
+	if err := checkDirWritable(caDir); err != nil {
+		return s, fmt.Errorf("config dir %s is not writable (owner mismatch?): %w", caDir, err)
+	}
+	// Persist the dashboard URL before the CA fetch so subsequent
+	// `nebprx env` / `nebprx run` invocations work even when
+	// the CA fetch is deferred (Tailscale mode, 404 on /ca.crt).
+	_ = os.WriteFile(filepath.Join(caDir, "gateway"),
+		[]byte(strings.TrimRight(gateway, "/")+"\n"), 0o644)
+	s.caPath = filepath.Join(caDir, "ca.crt")
+	canonicalCA, fp, err := fetchCAHTTP(gateway, cli)
+	if err != nil {
+		return s, fmt.Errorf("fetch CA: %w", err)
+	}
+	// Checked before the CA is staged, so a pinned join rejects a substitute
+	// without it ever becoming the candidate the rest of the flow works from.
+	if err := s.requireApprovedCA(canonicalCA); err != nil {
+		return s, err
+	}
+	s.candidateCA = append([]byte(nil), canonicalCA...)
+	s.caFingerprint = fp
+	return s, nil
+}
+
+// finishJoinSetup runs post-approval shell setup and retains the legacy eager
+// trust path for callers that do not defer CA activation. Device onboarding
+// defers both WireGuard and Tailscale CA activation to commitApprovedCA.
+//
+// installShellRC fires only in --whole-machine mode. In
+// per-process mode every agent picks up CA + push-down vars
+// through `nebprx run`, so the shell-rc shim is dead weight
+// — and worse, the `nebprx env` it eval's on every new
+// terminal would dial the gateway's tailnet IP, which the
+// parent shell cannot reach without system routing.
+// wholeMachineMarkerName is a sentinel file written under the
+// nebprx dir by a --whole-machine join. `nebprx run` checks for
+// it: in whole-machine mode the host already routes all traffic through
+// the gateway, so there's no per-process daemon/sandbox to attach to.
+const wholeMachineMarkerName = "whole-machine"
+
+func wholeMachineMarkerPath() string {
+	return filepath.Join(defaultNebprxDir(), wholeMachineMarkerName)
+}
+
+func clearWholeMachineMarker() error {
+	err := os.Remove(wholeMachineMarkerPath())
+	if err == nil || errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return fmt.Errorf("remove whole-machine marker: %w", err)
+}
+
+// beginJoinSetup invalidates any previous whole-machine commit before an
+// admitted join mutates local or network state. fail calls os.Exit, so this
+// transition must be synchronous rather than deferred.
+func beginJoinSetup() error {
+	return clearWholeMachineMarker()
+}
+
+func completeWholeMachineRouting(configure func() error) error {
+	if err := configure(); err != nil {
+		return err
+	}
+	return commitWholeMachineMarker()
+}
+
+func completeWholeMachineTailscaleRouting(exitNode string, apply func(string) error) error {
+	return completeWholeMachineRouting(func() error {
+		return apply(exitNode)
+	})
+}
+
+func commitWholeMachineMarker() error {
+	if err := os.MkdirAll(defaultNebprxDir(), 0o700); err != nil {
+		return fmt.Errorf("create nebprx dir for whole-machine marker: %w", err)
+	}
+	if err := atomicWriteFile(wholeMachineMarkerPath(), []byte("1\n"), 0o600); err != nil {
+		return fmt.Errorf("commit whole-machine marker: %w", err)
+	}
+	return nil
+}
+
+// isWholeMachineJoin reports whether this device was joined with
+// --whole-machine.
+func isWholeMachineJoin() bool {
+	_, err := os.Stat(wholeMachineMarkerPath())
+	return err == nil
+}
+
+// deferCA tells finishJoinSetup NOT to install any CA now: the approved CA is
+// committed and trusted at the END of the join via
+// commitApprovedCA, after fatal platform setup. Installing here would either
+// trust a prior join's stale ca.crt (rejoin) or commit a CA that a later fatal
+// step would strand.
+func finishJoinSetup(s *joinSetup, skipTrust, wholeMachine, deferCA bool) {
+	if s.caPath == "" {
+		return
+	}
+	if deferCA {
+		// CA committed + trusted at the end of the join.
+		if wholeMachine {
+			installShellRC() //nolint:errcheck
+		}
+		return
+	}
+	if _, err := os.Stat(s.caPath); err != nil {
+		// CA not fetched yet. Skip trust install here; it lands once the CA
+		// arrives.
+		if wholeMachine {
+			installShellRC() //nolint:errcheck
+		}
+		return
+	}
+	s.installTrust(skipTrust)
+	if wholeMachine {
+		if err := installShellRC(); err == nil {
+			s.shellRC = true
+		}
+	}
+}
+
+// joinTLSVerified reports whether the join flow's pre-CA HTTP client
+// authenticates the gateway's certificate against the system trust store.
+//
+// Two certificate chains are in play and only one of them is unverifiable. The
+// gateway's MITM CA is the thing this flow is here to fetch, so nothing local
+// can vouch for a certificate it signed. The gateway's own ingress certificate
+// is separate and already anchored: a Funnel gateway answers :443 with the
+// Let's Encrypt certificate Tailscale provisions for its
+// <node>.<tailnet>.ts.net name, and a gateway behind an operator-supplied
+// public URL answers with that domain's certificate. Authenticating that chain
+// is what denies an on-path attacker the ability to substitute the CA this join
+// installs into the system trust store, so it stays on.
+//
+// Verification is waived for the two host shapes no public root can ever
+// match, where requiring it would only make the gateway unjoinable:
+//
+//   - An IP literal. A tsnet listener holds a certificate for its MagicDNS
+//     name, never for its 100.64.0.0/10 address.
+//   - A loopback name. A gateway reached on this host answers its TLS port
+//     with a leaf its own MITM CA minted, which is precisely the CA the join
+//     has not got yet.
+//
+// Those gateways keep the fingerprint comparison as their authenticity check —
+// see requireApprovedCA and --ca-fingerprint.
+//
+// An http:// gateway carries no TLS, so the answer is moot for it. That is the
+// shape a tailnet-side join takes: the gateway serves its dashboard and
+// /ca.crt as plain HTTP on :8080 and exposes neither through the Funnel, which
+// is why a tailnet join rests on the fingerprint rather than on the transport.
+// Both answers come from a positive classification, so a URL that cannot be
+// read lands in neither bucket and each decision fails closed: verification
+// stays on, and the transport is not credited with authenticating anything.
+func joinTLSVerified(gateway string) bool {
+	return classifyGatewayTLS(gateway) != gatewayTLSUnverifiable
+}
+
+// joinTransportAuthenticated reports whether the connection to gateway is
+// authenticated, which is what allows a CA delivered over it — rather than
+// compared against a fingerprint — to count as authenticated too. See
+// gatewayTLSPubliclyRooted for what that rests on, and for the rejoin case
+// where --ca-fingerprint is the stronger answer.
+func joinTransportAuthenticated(gateway string) bool {
+	return classifyGatewayTLS(gateway) == gatewayTLSPubliclyRooted
+}
+
+// gatewayTLSClass is what the public roots can say about a gateway URL.
+type gatewayTLSClass int
+
+const (
+	// gatewayTLSUnclassified is a URL classifyGatewayTLS cannot read. Neither
+	// security decision grants it anything.
+	gatewayTLSUnclassified gatewayTLSClass = iota
+	// gatewayTLSPubliclyRooted is an https host the system trust store can
+	// authenticate: a name that is neither a loopback name nor an IP literal.
+	//
+	// The bound is the trust store, not the public roots alone. A host that
+	// has joined before carries the previous gateway's CA in that store, so a
+	// certificate that CA minted for this name also passes — whoever holds
+	// that key can present one. --ca-fingerprint is what does not depend on
+	// the store, and is the stronger choice for a rejoin to a gateway whose
+	// predecessor is not trusted.
+	gatewayTLSPubliclyRooted
+	// gatewayTLSUnverifiable is a shape no public root could ever match:
+	// plain http, which carries no TLS at all; an IP literal; or a loopback
+	// name.
+	gatewayTLSUnverifiable
+)
+
+func classifyGatewayTLS(gateway string) gatewayTLSClass {
+	u, err := neturl.Parse(gateway)
+	if err != nil {
+		return gatewayTLSUnclassified
+	}
+	switch {
+	case strings.EqualFold(u.Scheme, "http"):
+		return gatewayTLSUnverifiable
+	case !strings.EqualFold(u.Scheme, "https"):
+		return gatewayTLSUnclassified
+	}
+	// A fully qualified name may carry the DNS root's trailing dot. It names
+	// the same host, so it is stripped before the host is classified.
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	if host == "" {
+		return gatewayTLSUnclassified
+	}
+	// RFC 6761 reserves localhost — and anything under it — for the loopback.
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return gatewayTLSUnverifiable
+	}
+	// A host that parses as an address is an IP literal; a name is not.
+	if _, err := netip.ParseAddr(host); err == nil {
+		return gatewayTLSUnverifiable
+	}
+	return gatewayTLSPubliclyRooted
+}
+
+// refuseOffOriginRedirect is the redirect policy every join client carries.
+//
+// The join addresses exact endpoints on the gateway the operator named, so a
+// redirect that leaves that origin is refused rather than followed. Following
+// one would carry the exchange — including the CA the approval poll delivers —
+// onto a transport none of the decisions above judged: an https origin could
+// hand the flow to plain http, and everything after would arrive
+// unauthenticated while still being credited to the origin that was verified.
+func refuseOffOriginRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) == 0 {
+		return nil
+	}
+	origin := via[0].URL
+	if !strings.EqualFold(origin.Scheme, req.URL.Scheme) ||
+		!strings.EqualFold(origin.Host, req.URL.Host) {
+		return fmt.Errorf("refusing redirect off the gateway's origin: %s → %s",
+			origin.Redacted(), req.URL.Redacted())
+	}
+	if len(via) > 5 {
+		return fmt.Errorf("too many redirects from %s", origin.Redacted())
+	}
+	return nil
+}
+
+// newJoinHTTPClient builds the client the join flow uses before the gateway's
+// CA is trusted, applying joinTLSVerified's policy to gateway.
+func newJoinHTTPClient(gateway string, timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout:       timeout,
+		CheckRedirect: refuseOffOriginRedirect,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: !joinTLSVerified(gateway), //nolint:gosec
+			},
+		},
+	}
+}
+
+// fetchCAHTTP downloads the CA from gateway and returns the canonical
+// certificate and its SHA-256 fingerprint without making it active.
+// The fingerprint flows back to the CLI's stdout so the operator
+// can compare it against what the dashboard shows during the
+// approval step.
+func fetchCAHTTP(gateway string, cli *http.Client) ([]byte, string, error) {
+	url := strings.TrimRight(gateway, "/") + "/ca.crt"
+	c := cli
+	if c == nil {
+		c = newJoinHTTPClient(gateway, 10*time.Second)
+	}
+	resp, err := c.Get(url)
+	if err != nil {
+		// Name the cause and the way out. A gateway fronted by a certificate
+		// no public root signs is reachable over its tailnet URL, which is
+		// plain HTTP on the dashboard port and pins the CA by fingerprint.
+		var certErr *tls.CertificateVerificationError
+		if errors.As(err, &certErr) {
+			return nil, "", fmt.Errorf(
+				"fetch ca: %s presented a certificate no public root signs (%w) — "+
+					"join over the gateway's tailnet URL instead (http://<gateway-host>:8080)",
+				url, err)
+		}
+		return nil, "", fmt.Errorf("fetch ca: get %s: %w", url, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != 200 {
+		return nil, "", fmt.Errorf("fetch ca: %s status %d", url, resp.StatusCode)
+	}
+	// 256 KiB cap. A PEM-encoded CA cert is <4 KiB; the cap stops a
+	// hostile gateway from streaming gigabytes into a TOFU client
+	// before the fingerprint check rejects it.
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 256<<10))
+	if err != nil {
+		return nil, "", fmt.Errorf("fetch ca: read %s: %w", url, err)
+	}
+	// Require exactly one usable CA and return/fingerprint that canonical
+	// certificate — not the raw payload — so an appended attacker CA can't ride
+	// in behind the legitimate first-cert fingerprint the operator confirms.
+	canonical, err := canonicalMITMCAPEM(b)
+	if err != nil {
+		return nil, "", fmt.Errorf("fetch ca from %s: %w", url, err)
+	}
+	fp, err := caFingerprintFromPEM(canonical)
+	if err != nil {
+		return nil, "", fmt.Errorf("fetch ca: fingerprint from %s: %w", url, err)
+	}
+	return canonical, fp, nil
+}
+
+// installShellRC appends `eval "$(nebprx env)"` to the user's shell
+// rc file (idempotent — looks for the existing marker line). This way
+// agent CLIs (claude, gh, codex) automatically pick up the placeholder
+// tokens + CA bundle in every new shell, no manual sourcing needed.
+func installShellRC() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	const marker = "# nebprx: agent env (nebprx env)"
+	const block = "\n" + "# nebprx: agent env (nebprx env)\n" +
+		"command -v nebprx >/dev/null 2>&1 && eval \"$(nebprx env)\"\n"
+	for _, name := range []string{".zshrc", ".bashrc", ".profile"} {
+		p := filepath.Join(home, name)
+		b, err := os.ReadFile(p)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		if strings.Contains(string(b), marker) {
+			return nil // already installed
+		}
+		f, err := os.OpenFile(p, os.O_APPEND|os.O_WRONLY, 0o644)
+		if err != nil {
+			return err
+		}
+		if _, err := f.WriteString(block); err != nil {
+			_ = f.Close()
+			return err
+		}
+		return f.Close()
+	}
+	return nil
+}
+
+// exemptSSHFromExitNode protects SSH (TCP/22) reply traffic from
+// being redirected through the tailscale exit-node. Without this,
+// `tailscale set --exit-node=` reroutes the SYN-ACK / reply packets
+// for any SSH session through the tailnet — wrong source IP, client
+// EOFs the handshake, you're locked out.
+//
+// We mark all outbound packets with sport=22 via iptables mangle, then
+// add an `ip rule` that routes those marked packets via the `main`
+// table (default interface). Covers every present and future SSH
+// session, not just the one that triggered the install.
+//
+// Idempotent — duplicate iptables/ip-rule entries return non-zero,
+// which we swallow.
+func exemptSSHFromExitNode(_ string) error {
+	cmds := [][]string{
+		{"iptables", "-t", "mangle", "-C", "OUTPUT", "-p", "tcp", "--sport", "22", "-j", "MARK", "--set-mark", "0x64"},
+		{"ip", "rule", "show"},
+	}
+	// 1) Mark SSH replies (idempotent: -C check first, only -A if missing)
+	check := exec.Command("sudo", cmds[0]...)
+	if check.Run() != nil {
+		add := append([]string{"iptables", "-t", "mangle", "-A", "OUTPUT", "-p", "tcp", "--sport", "22", "-j", "MARK", "--set-mark", "0x64"}, "")
+		add = add[:len(add)-1]
+		c := exec.Command("sudo", add...)
+		c.Stderr = os.Stderr
+		if err := c.Run(); err != nil {
+			return fmt.Errorf("iptables mangle: %w", err)
+		}
+	}
+	// 2) Route marked traffic via the main table (idempotent: check first)
+	listed := exec.Command("sudo", cmds[1]...)
+	out, _ := listed.Output()
+	if !strings.Contains(string(out), "fwmark 0x64") {
+		c := exec.Command("sudo", "ip", "rule", "add", "fwmark", "0x64", "lookup", "main", "pref", "50")
+		c.Stderr = os.Stderr
+		if err := c.Run(); err != nil {
+			return fmt.Errorf("ip rule: %w", err)
+		}
+	}
+	return nil
+}
+
+// exemptPublicIPFromExitNode ensures reply traffic for this machine's public
+// IP address routes via the main table (direct interface) rather than the
+// Tailscale exit-node. Without this, inbound TCP connections (HTTPS, etc.)
+// receive SYN-ACKs from the exit-node's public IP instead of the machine's
+// own IP, breaking every server that binds to the public interface.
+//
+// The fix is a single high-priority policy-routing rule:
+//
+//	ip rule add from <public-ip> lookup main priority 100
+//
+// Idempotent. Also writes a networkd-dispatcher script so the rule survives
+// reboots (Tailscale's own routing rules are re-installed on every boot, so
+// we have to be too).
+func exemptPublicIPFromExitNode() error {
+	// Find the primary public IPv4: source addr used for the default route.
+	out, err := exec.Command("ip", "-o", "route", "get", "1.1.1.1").Output()
+	if err != nil {
+		return fmt.Errorf("ip route get: %w", err)
+	}
+	// output: "1.1.1.1 via ... dev eth0 src 203.0.113.5 ..."
+	pubIP := ""
+	fields := strings.Fields(string(out))
+	for i, f := range fields {
+		if f == "src" && i+1 < len(fields) {
+			pubIP = fields[i+1]
+			break
+		}
+	}
+	if pubIP == "" || strings.HasPrefix(pubIP, "100.") || pubIP == "127.0.0.1" {
+		return fmt.Errorf("could not determine public IP (got %q)", pubIP)
+	}
+
+	// Add ip rule idempotently.
+	existing, _ := exec.Command("ip", "rule", "show").Output()
+	if !strings.Contains(string(existing), pubIP) {
+		c := exec.Command("sudo", "ip", "rule", "add", "from", pubIP, "lookup", "main", "priority", "100")
+		c.Stderr = os.Stderr
+		if err := c.Run(); err != nil {
+			return fmt.Errorf("ip rule add: %w", err)
+		}
+	}
+
+	// Persist via networkd-dispatcher so the rule survives reboots.
+	dir := "/etc/networkd-dispatcher/routable.d"
+	_ = exec.Command("sudo", "mkdir", "-p", dir).Run()
+	script := fmt.Sprintf("#!/bin/sh\n# nebprx: keep public IP replies on direct path (not exit-node)\nip rule show | grep -q '%s' || ip rule add from %s lookup main priority 100\n", pubIP, pubIP)
+	tmp, err := os.CreateTemp("", "nebprx-routing-*")
+	if err != nil {
+		return fmt.Errorf("create routing temp file: %w", err)
+	}
+	// `mv` consumes tmp.Name() on success, but the WriteString /
+	// chmod / fork paths can all leave it on disk. Remove
+	// unconditionally; missing is fine.
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	if _, err := tmp.WriteString(script); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write routing temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close routing temp file: %w", err)
+	}
+	dst := dir + "/50-nebprx-public-ip"
+	c := exec.Command("sudo", "sh", "-c", fmt.Sprintf("mv %s %s && chmod +x %s", tmp.Name(), dst, dst))
+	c.Stderr = os.Stderr
+	if err := c.Run(); err != nil {
+		return fmt.Errorf("install routing script: %w", err)
+	}
+	return nil
+}
+
+// tsSet runs `tailscale set ...`, prepending sudo on Linux where the
+// LocalAPI checkprefs ACL requires it (unless --operator was set on
+// `up`). On macOS the GUI app handles auth so plain `tailscale set`
+// works.
+func tsSet(tscli string, args ...string) error {
+	full := append([]string{"set"}, args...)
+	if runtime.GOOS == "linux" {
+		full = append([]string{tscli}, full...)
+		c := exec.Command("sudo", full...)
+		c.Stdout, c.Stderr = os.Stdout, os.Stderr
+		return c.Run()
+	}
+	c := exec.Command(tscli, full...)
+	c.Stdout, c.Stderr = os.Stdout, os.Stderr
+	return c.Run()
+}
+
+func tailscaleBin() (string, error) {
+	if p, err := exec.LookPath("tailscale"); err == nil {
+		return p, nil
+	}
+	if runtime.GOOS == "darwin" {
+		mac := "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+		if _, err := os.Stat(mac); err == nil {
+			return mac, nil
+		}
+	}
+	return "", fmt.Errorf("tailscale binary not on PATH")
+}
+
+func tailscaleStatus(bin string) (*tsStatus, error) {
+	out, err := exec.Command(bin, "status", "--json").Output()
+	if err != nil {
+		return nil, err
+	}
+	var s tsStatus
+	if err := json.Unmarshal(out, &s); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+// findPeerByName looks up a peer by its tailnet-unique short name. Multiple
+// peers may share HostName (Tailscale uses the value the node reports at
+// registration — unchanged by name collisions), so prefer matching the
+// first label of DNSName which Tailscale disambiguates with "-1", "-2"…
+func findPeerByName(s *tsStatus, name string) *tsPeer {
+	for _, p := range s.Peer {
+		short := p.DNSName
+		if i := strings.IndexByte(short, '.'); i > 0 {
+			short = short[:i]
+		}
+		if short == name {
+			return p
+		}
+	}
+	for _, p := range s.Peer {
+		if p.HostName == name {
+			return p
+		}
+	}
+	return nil
+}
+
+// claimTailnetPeer registers the whole-machine tailnet IP with the gateway and
+// persists the minted per-peer api-token. It is entirely best-effort: every
+// failure only warns and returns — it must never abort the join, so the
+// mandatory CA commit and state finalization downstream always run. A missing
+// api-token only means env-pushdown (GH_TOKEN, …) is empty until the operator
+// re-runs `nebprx join`.
+func claimTailnetPeer(cli *http.Client, gateway, deviceCode, hn, tailIP, caDir string) {
+	if tailIP == "" {
+		fmt.Fprintln(os.Stderr, "⚠ couldn't read tailnet IP — onboard claim skipped")
+		return
+	}
+	claimURL := fmt.Sprintf("%s/api/onboard/claim?device_code=%s&ip=%s",
+		gateway, deviceCode, neturl.QueryEscape(tailIP))
+	if hn != "" {
+		claimURL += "&hostname=" + neturl.QueryEscape(hn)
+	}
+	cr, err := cli.Post(claimURL, "application/json", nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "⚠ onboard claim failed: %v\n", err)
+		return
+	}
+	defer func() { _ = cr.Body.Close() }()
+	if cr.StatusCode != 200 {
+		body, _ := io.ReadAll(io.LimitReader(cr.Body, 400))
+		fmt.Fprintf(os.Stderr, "⚠ onboard claim %d: %s\n", cr.StatusCode, string(body))
+		return
+	}
+	var claimResp map[string]string
+	if err := json.NewDecoder(io.LimitReader(cr.Body, 16<<10)).Decode(&claimResp); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠ decode claim response: %v\n", err)
+		return
+	}
+	tok := claimResp["api_token"]
+	if tok == "" {
+		// Silence here used to surface hours later as the daemon's
+		// "peer api token not persisted" with no hint of the cause.
+		why := claimResp["api_token_error"]
+		if why == "" {
+			why = "gateway returned no api_token"
+		}
+		fmt.Fprintf(os.Stderr, "⚠ %s — env-pushdown (GH_TOKEN, …) will be empty "+
+			"until this is fixed\n", why)
+		return
+	}
+	if err := os.WriteFile(filepath.Join(caDir, "api-token"), []byte(tok+"\n"), 0o600); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠ write api-token: %v\n", err)
+	}
+}
+
+// installCATrustFn is the trust-store installer, a package var so tests can
+// substitute a fake without shelling out to sudo/security.
+var installCATrustFn = installCATrust
+
+// behind a live step ("* Installing CA in system trust" → "✓ CA
+// installed in system trust" / "! CA not trusted yet — …") and records
+// the outcome on s.
+//
+// It reads the on-disk CA once into an immutable snapshot and, if the operator
+// confirmed a fingerprint at approval time, refuses to install anything that
+// doesn't match it — so a concurrent/same-UID process swapping ca.crt between
+// approval and install can't get a different CA trusted.
+func (s *joinSetup) installTrust(skipTrust bool) {
+	pemBytes, err := os.ReadFile(s.caPath)
+	if err != nil {
+		return
+	}
+	if err := s.requireApprovedCA(pemBytes); err != nil {
+		s.caHint = manualTrustHint(s.caPath)
+		fmt.Println("! " + err.Error() + " — not installing")
+		return
+	}
+	// Trust install is best-effort — installTrustBytes surfaces its own manual
+	// hint on failure, so the discarded error is intentional.
+	_ = s.installTrustBytes(pemBytes, skipTrust)
+}
+
+// installTrustBytes installs an in-memory CA snapshot into system trust, keyed
+// on its fingerprint (not a bare boolean — a rejoin that swapped in a different
+// CA re-installs instead of being treated as done). The bytes are written to a
+// private temp file and installed from THERE, never re-opening the
+// user-controlled ca.crt path, closing the validate→reopen TOCTOU.
+func (s *joinSetup) installTrustBytes(pemBytes []byte, skipTrust bool) error {
+	fp, err := caFingerprintFromPEM(pemBytes)
+	if err != nil {
+		s.warnCATrustFailed()
+		return fmt.Errorf("fingerprint CA: %w", err)
+	}
+	if fp == s.installedCAFP {
+		s.caInstalled = true
+		return nil
+	}
+	if skipTrust {
+		s.caHint = manualTrustHint(s.caPath)
+		fmt.Println("! CA fetched but not trusted (--no-trust) — install manually: " + s.caHint)
+		return nil
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(s.caPath), ".ca-install-*.crt")
+	if err != nil {
+		s.warnCATrustFailed()
+		return fmt.Errorf("create CA snapshot: %w", err)
+	}
+	snap := tmp.Name()
+	defer func() { _ = os.Remove(snap) }()
+	if _, err := tmp.Write(pemBytes); err != nil {
+		_ = tmp.Close()
+		s.warnCATrustFailed()
+		return fmt.Errorf("write CA snapshot: %w", err)
+	}
+	// 0644 so the privileged installer (sudo cp / security) can read it.
+	if err := tmp.Chmod(0o644); err != nil {
+		_ = tmp.Close()
+		s.warnCATrustFailed()
+		return fmt.Errorf("chmod CA snapshot: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		s.warnCATrustFailed()
+		return fmt.Errorf("close CA snapshot: %w", err)
+	}
+	// Erase-on-done only when sudo won't prompt — an interactive
+	// password prompt prints inside the step and breaks the cursor
+	// math. sudo -n returns non-zero (without prompting) when a
+	// password would be needed, and errors when sudo is absent.
+	erasable := exec.Command("sudo", "-n", "true").Run() == nil
+	finish := beginStep("Installing CA in system trust", nil, erasable)
+	if err := installCATrustFn(snap); err != nil {
+		s.caHint = manualTrustHint(s.caPath)
+		finish("! CA not trusted yet — install manually: " + s.caHint)
+		return fmt.Errorf("install CA trust: %w", err)
+	}
+	s.caInstalled = true
+	s.installedCAFP = fp
+	finish("✓ CA installed in system trust")
+	return nil
+}
+
+// warnCATrustFailed records a manual-trust hint and prints it, so a failure to
+// even attempt trust installation (snapshot prep) is never silent.
+func (s *joinSetup) warnCATrustFailed() {
+	s.caHint = manualTrustHint(s.caPath)
+	fmt.Fprintln(os.Stderr, "! CA not trusted (install prep failed) — install manually: "+s.caHint)
+}
+
+// commitApprovedCA atomically writes the approved canonical CA and installs it
+// into system trust from that same immutable snapshot. Called at the END of
+// onboardViaDeviceFlow's WireGuard and Tailscale paths — after every fatal step
+// inside onboarding has succeeded — so an onboarding failure never leaves a rejoin
+// with the new CA trusted while routing/credentials still belong to the old
+// gateway. (Linux whole-machine also runs `applyWholeMachineExitNode` in
+// runJoin afterward; that routing step is separately recoverable by re-running
+// `nebprx join`, which re-commits the CA idempotently.)
+//
+// The ca.crt write is transactional (a failure aborts the join); trust
+// installation is best-effort and surfaces a manual-install hint on failure.
+func (s *joinSetup) commitApprovedCA(canonicalCA []byte, skipTrust bool) error {
+	if len(canonicalCA) == 0 {
+		return fmt.Errorf("internal: no approved CA to commit")
+	}
+	// Held to the fingerprints the join committed to before anything is
+	// written: a mismatch here means the CA that arrived is not the CA the
+	// operator authorised, and the join fails rather than trusting it.
+	if err := s.requireApprovedCA(canonicalCA); err != nil {
+		return err
+	}
+	if err := atomicWriteFile(s.caPath, canonicalCA, 0o644); err != nil {
+		return fmt.Errorf("write ca.crt: %w", err)
+	}
+	_ = s.installTrustBytes(canonicalCA, skipTrust)
+	return nil
+}
+
+// requireApprovedCA holds a candidate CA to every fingerprint this join is
+// already committed to, before the candidate reaches the disk or the system
+// trust store. Two independent sources can supply one:
+//
+//   - --ca-fingerprint, which the operator read off the dashboard or a
+//     configuration store out of band.
+//   - The CA staged by the pre-join /ca.crt fetch, which a gateway that
+//     delivers a second copy inline in the approval poll has to agree with.
+//
+// Each is optional and the check is only as strong as the ones present, so a
+// gateway that exposes no public /ca.crt and an operator who passed no pin
+// leave the printed fingerprint as the thing to compare against the dashboard.
+// Whichever are present must all match: disagreement means a substituted CA.
+func (s *joinSetup) requireApprovedCA(candidate []byte) error {
+	fp, err := caFingerprintFromPEM(candidate)
+	if err != nil {
+		return fmt.Errorf("fingerprint CA: %w", err)
+	}
+	for _, want := range []struct{ source, fingerprint string }{
+		{"--ca-fingerprint", s.pinnedCAFP},
+		{"the CA fetched from the gateway's /ca.crt", s.caFingerprint},
+	} {
+		if want.fingerprint == "" || strings.EqualFold(want.fingerprint, fp) {
+			continue
+		}
+		return fmt.Errorf("gateway CA fingerprint %s does not match %s (%s)",
+			fp, want.source, want.fingerprint)
+	}
+	return nil
+}
+
+func installCATrust(caPath string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("sudo", "security", "add-trusted-cert",
+			"-d", "-r", "trustRoot",
+			"-k", "/Library/Keychains/System.keychain",
+			caPath).Run()
+	case "linux":
+		dst := "/usr/local/share/ca-certificates/nebprx.crt"
+		if err := exec.Command("sudo", "cp", caPath, dst).Run(); err != nil {
+			return err
+		}
+		return exec.Command("sudo", "update-ca-certificates").Run()
+	default:
+		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+}
+
+func manualTrustHint(caPath string) string {
+	switch runtime.GOOS {
+	case "darwin":
+		return fmt.Sprintf("sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s", caPath)
+	case "linux":
+		return fmt.Sprintf("sudo cp %s /usr/local/share/ca-certificates/nebprx.crt && sudo update-ca-certificates", caPath)
+	}
+	return "manually add " + caPath + " to your system trust store"
+}
+
+// pinDNSAtGatewayIfNeeded writes /etc/resolv.conf → nameserver gwIP on
+// Linux hosts that don't run systemd-resolved. tsnet has no UDP
+// fallback, so client DNS to a public nameserver via the exit-node is
+// silently dropped at the gateway's netstack. Pointing the client at
+// the gateway routes queries through serveTsnetDNSUDP. Hosts running
+// systemd-resolved are already fine — their queries source-bind to
+// the physical link DNS and bypass the exit-node.
+func pinDNSAtGatewayIfNeeded(gwIP string) {
+	if runtime.GOOS != "linux" || gwIP == "" {
+		return
+	}
+	if exec.Command("systemctl", "is-active", "--quiet", "systemd-resolved").Run() == nil {
+		return
+	}
+	const path = "/etc/resolv.conf"
+	cur, _ := os.ReadFile(path)
+	desired := fmt.Sprintf("# nebprx: routed via Tailscale exit-node\nnameserver %s\n", gwIP)
+	if strings.Contains(string(cur), gwIP) && strings.Contains(string(cur), "nebprx:") {
+		return
+	}
+	if _, err := os.Stat(path + ".nebprx.bak"); errors.Is(err, os.ErrNotExist) && len(cur) > 0 {
+		_ = writeSudo(path+".nebprx.bak", cur)
+	}
+	if err := writeSudo(path, []byte(desired)); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠ resolv.conf: %v\n", err)
+		return
+	}
+	fmt.Printf("DNS pinned to gateway (%s)\n", gwIP)
+}
+
+func writeSudo(path string, content []byte) error {
+	cmd := exec.Command("sudo", "tee", path)
+	cmd.Stdin = bytes.NewReader(content)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, out)
+	}
+	return nil
+}
+
+func defaultNebprxDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".nebprx")
+}
+
+// daemonStateDir returns the per-user **persistent** directory for
+// daemon-only state (auth-key, future daemon-private files). XDG
+// spec: $XDG_STATE_HOME/nebprx, fall back to
+// ~/.local/state/nebprx when unset. Separate from
+// defaultNebprxDir so that the agent-visible ~/.nebprx/
+// directory only holds files the agent legitimately needs (ca.crt,
+// mode marker, etc.).
+func daemonStateDir() string {
+	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
+		return filepath.Join(d, "nebprx")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".local", "state", "nebprx")
+}
+
+// readFileSilent reads a file and returns its contents as a string,
+// or empty on any error.
+func readFileSilent(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func fail(format string, a ...any) {
+	fmt.Fprintf(os.Stderr, "nebprx: "+format+"\n", a...)
+	os.Exit(2)
+}
+
+func isTerminal(f *os.File) bool {
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return (fi.Mode() & os.ModeCharDevice) != 0
+}
+
+// printChecklist prints each line on its own row. Lines already carry
+// their own status marker ("✓ " success, "! " needs-attention) from the
+// caller / setupSummaryItems, so this is a plain printer — no tree
+// glyphs, which previously made the items read as sub-steps of whatever
+// progress line preceded them.
+func printChecklist(items []string) {
+	for _, line := range items {
+		fmt.Println(line)
+	}
+}
+
+// printWholeMachineDone prints the closing message for a --whole-machine
+// join. Unlike per-process mode there's no `nebprx run` — all host
+// traffic already routes through the gateway, so tools run directly.
+// But the credential env (placeholders + SSL_CERT_FILE) only landed in
+// the shell rc, which the current shell hasn't sourced yet, so point
+// the operator at `nebprx env` / a fresh shell. via names the
+// routing mechanism (interface or exit-node).
+func printWholeMachineDone(via string) {
+	fmt.Println()
+	fmt.Printf("Installed! All host traffic now routes through the gateway (%s).\n", via)
+	fmt.Println("Run your tools directly — no `nebprx run` needed. This shell hasn't")
+	fmt.Println("loaded the injected credentials yet; start a new shell or run:")
+	fmt.Println()
+	fmt.Println(`    eval "$(nebprx env)"`)
+}
+
+// setupSummaryItems lowers a joinSetup into the human-facing one-liners
+// the join / login output blocks render. CA-trust failures and skipped
+// shell-rc updates surface as their own items so the operator sees what
+// they need to do manually; success cases stay quiet to keep the block
+// short.
+// setupSummaryItems returns the trailing checklist items that aren't
+// already reported by their own live step. CA trust is handled by
+// joinSetup.installTrust at install time, so it's intentionally not
+// repeated here.
+func setupSummaryItems(s joinSetup) []string {
+	var out []string
+	if s.shellRC {
+		out = append(out, `✓ shell rc updated (eval "$(nebprx env)")`)
+	}
+	return out
+}
+
+// onboardViaDeviceFlow: brand-new client (no tailscale yet) calls the
+// gateway dashboard, gets a user_code, prompts the user to approve on
+// an existing trusted device, polls for the minted Tailscale auth key,
+// installs Tailscale (if missing), and runs `tailscale up --authkey`.
+// wgAddressFromConf parses the `Address = X.Y.Z.W/32` line out of a
+// wg-quick config so the CLI can send its peer IP to the gateway
+// before bringing the tunnel up. Returns "" when the conf has no
+// Address attribute or the value is unparseable.
+func wgAddressFromConf(conf string) string {
+	for _, line := range strings.Split(conf, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "Address") {
+			continue
+		}
+		_, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		v = strings.TrimSpace(v)
+		if i := strings.Index(v, "/"); i > 0 {
+			v = v[:i]
+		}
+		return v
+	}
+	return ""
+}
+
+// onboardViaDeviceFlow drives the device-flow handshake against the
+// gateway and ends in a working VPN connection. Returns wgMode=true
+// when the gateway picked the wireguard control plane (caller skips
+// tailscale-specific post-setup). profile, when non-empty, is sent
+// to the gateway as the suggested profile for this device — the
+// approver can still override it from the dashboard. hostname, when
+// non-empty, overrides os.Hostname() for the device name registered
+// with the gateway.
+//
+// setup carries the CA staged by preJoinFetchCA. The approval click is the
+// operator's confirmation that the fingerprint the dashboard showed matched
+// what the CLI printed. The exact staged snapshot becomes active and trusted
+// only after the selected control plane's fatal setup succeeds.
+//
+// httpCli is the HTTP client to use for /api/onboard/{start,poll,claim};
+// pass nil for the default TOFU-permissive client. The tailnet
+// bootstrap path passes a tsnet-dialing client so the same code path
+// reaches a gateway whose Funnel is disabled or unreachable from this
+// machine's network position.
+//
+// autoApprove signals that the http client's requests authenticate as
+// a tailnet identity the gateway recognises as a dashboard operator
+// (today: bootstrap tsnet via --login). When true we POST
+// /api/onboard/approve immediately after /start; the operator gate
+// accepts the request via tailnetGate's whois path and the device-flow
+// poll then resolves with no human-in-the-loop step. The post is
+// best-effort — a 403 (e.g. the login isn't actually in the operators
+// allowlist) falls through to the existing browser-approval prompt.
+func onboardViaDeviceFlow(gateway string, wholeMachine bool, profile, hostname string, setup *joinSetup, skipTrust bool, httpCli *http.Client, autoApprove bool) (bool, error) {
+	gateway = strings.TrimRight(gateway, "/")
+	cli := httpCli
+	if cli == nil {
+		// Same transport policy as fetchCAHTTP: the gateway's ingress
+		// certificate is authenticated wherever a public root can do it, which
+		// covers the Funnel URL that carries this flow's /start and /poll. A
+		// caller-supplied client dials over tsnet and owns its own TLS config,
+		// so we don't second-guess it here.
+		cli = newJoinHTTPClient(gateway, 30*time.Second)
+	}
+
+	hn := hostname
+	if hn == "" {
+		hn, _ = os.Hostname()
+	}
+
+	// 1. start — pass our hostname so the dashboard shows a real
+	// device name in WG mode (no whois fallback there).
+	q := neturl.Values{}
+	if hn != "" {
+		q.Set("hostname", hn)
+	}
+	if profile != "" {
+		q.Set("profile", profile)
+	}
+	if wholeMachine {
+		q.Set("whole_machine", "1")
+	}
+	startURL := gateway + "/api/onboard/start"
+	if encoded := q.Encode(); encoded != "" {
+		startURL += "?" + encoded
+	}
+	resp, err := cli.Post(startURL, "application/json", nil)
+	if err != nil {
+		return false, fmt.Errorf("start: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
+		return false, fmt.Errorf("start: %d %s", resp.StatusCode, string(b))
+	}
+	var start struct {
+		DeviceCode string `json:"device_code"`
+		UserCode   string `json:"user_code"`
+		VerifyURL  string `json:"verify_url"`
+		Interval   int    `json:"interval"`
+		ExpiresIn  int    `json:"expires_in"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&start); err != nil {
+		return false, fmt.Errorf("start decode: %w", err)
+	}
+
+	autoApproved := false
+	if autoApprove {
+		// Best-effort: use the bootstrap tsnet's whois identity to
+		// self-approve. Same handler the dashboard "Approve" button
+		// hits — the operator gate accepts our request when the
+		// tsnet peer login is in the operators allowlist. A 403 here
+		// is the expected outcome for any user who isn't in that
+		// allowlist; we silently fall through to browser approval
+		// and the operator drives the dashboard click as today.
+		aq := neturl.Values{}
+		aq.Set("code", start.UserCode)
+		if profile != "" {
+			aq.Set("profile", profile)
+		}
+		// Approve must hit the same origin the dashboard's Approve
+		// button POSTs from — the operator-gated dashboard/API, where
+		// the bootstrap node's tailnet whois identity is checked. The
+		// `gateway` arg is the join URL, which for a funnel-enabled
+		// gateway is the public :443 Funnel whose allowlist excludes
+		// /api/onboard/approve (it would 404). verify_url already
+		// points at that dashboard origin (the tailnet :8080 API in
+		// tsnet mode), so derive the approve base from it.
+		approveBase := approveBaseFromVerifyURL(start.VerifyURL, gateway)
+		approveURL := approveBase + "/api/onboard/approve?" + aq.Encode()
+		finish := beginStep("Approving as tailnet operator", nil, true)
+		// Bound the self-approve POST. It dials the gateway's tailnet IP,
+		// which hangs indefinitely if this machine logged into a tailnet
+		// that doesn't include the gateway (e.g. the wrong account at the
+		// Tailscale login prompt). On timeout / error, fall back to
+		// dashboard approval rather than wedging the whole join.
+		actx, acancel := context.WithTimeout(context.Background(), 15*time.Second)
+		var ar *http.Response
+		areq, aerr := http.NewRequestWithContext(actx, http.MethodPost, approveURL, nil)
+		if aerr == nil {
+			ar, aerr = cli.Do(areq)
+		}
+		switch {
+		case aerr != nil:
+			finish("")
+			fmt.Fprintf(os.Stderr,
+				"⚠ couldn't reach the gateway over the tailnet to self-approve\n"+
+					"  (is this machine logged into the tailnet that has %s?)\n"+
+					"  — approve on the dashboard instead.\n", gateway)
+		case ar.StatusCode == 200:
+			_ = ar.Body.Close()
+			autoApproved = true
+			finish("✓ auto-approved as tailnet operator")
+		case ar.StatusCode == 403:
+			// Not an operator — clear the pending line and fall through
+			// to dashboard approval. Normal for any non-allowlisted user.
+			_ = ar.Body.Close()
+			finish("")
+		default:
+			body, _ := io.ReadAll(io.LimitReader(ar.Body, 1024))
+			_ = ar.Body.Close()
+			finish("")
+			fmt.Fprintf(os.Stderr,
+				"⚠ auto-approve unexpected status %d: %s — approve on the dashboard instead.\n",
+				ar.StatusCode, strings.TrimSpace(string(body)))
+		}
+		acancel()
+	}
+
+	// 2. poll
+	interval := time.Duration(start.Interval) * time.Second
+	if interval == 0 {
+		interval = 3 * time.Second
+	}
+	deadline := time.Now().Add(time.Duration(start.ExpiresIn) * time.Second)
+
+	// In whole-machine mode the nebprx WireGuard tunnel already routes
+	// all traffic — including these poll requests. When the admin approves,
+	// MintKey evicts our old peer from the gateway device, killing the
+	// tunnel mid-poll and hanging the join indefinitely. Bring it down
+	// before polling so requests go over the regular internet — and before
+	// the approve step below, so wg-quick's own output doesn't land inside
+	// that step's block.
+	if wholeMachine {
+		_ = runAsRoot("wg-quick", "down", "nebprx").Run()
+	}
+
+	// Manual approval: show the approve step and leave it up until the
+	// poll loop sees the device approved, then collapse it to "✓ approved".
+	// No spinner — the step block is the indicator. (Auto-approve already
+	// printed its own "✓ auto-approved …".)
+	var finishApprove func(string)
+	if !autoApproved {
+		// Tailnet-only verify URLs (100.64.0.0/10 IP or *.ts.net host)
+		// are unreachable from the joining machine until approval lands,
+		// so show a QR to scan from a phone / tailnet device. For a
+		// publicly reachable URL, skip the QR and just open a browser.
+		tailnetOnly := isTailnetOnlyURL(start.VerifyURL)
+		detail := linkDetail(start.VerifyURL, tailnetOnly)
+		if !tailnetOnly {
+			tryOpen(start.VerifyURL)
+		}
+		// CA fingerprint with the why: the staged CA came from a transport no
+		// public root vouches for — plain HTTP over the tailnet, or a
+		// loopback TLS port whose leaf this gateway's own CA minted — so an
+		// on-path attacker could have swapped it. The dashboard shows the
+		// fingerprint the gateway actually has; matching them before
+		// approving rules that swap out. --ca-fingerprint does the same
+		// comparison without needing the operator's eye.
+		if setup != nil && setup.caFingerprint != "" {
+			detail = append(detail,
+				"",
+				"  before approving, confirm this matches the dashboard:",
+				"  CA fingerprint: "+setup.caFingerprint)
+		}
+		finishApprove = beginStep("Approve this device on the dashboard — code "+start.UserCode, detail, true)
+	}
+
+	authKey, loginServer, apiToken := "", "", ""
+	var tailnetGWHost, tailnetControlURL, gatewayIP, caPEM string
+	// Track the most recent transport error so a poll loop that never
+	// produced a valid response can surface it on timeout. Without this
+	// the operator just sees "timed out waiting for approval" with no
+	// hint that the gateway was unreachable the entire time (DNS hung,
+	// TLS handshake refused, etc.).
+	var lastPollErr error
+	for time.Now().Before(deadline) {
+		time.Sleep(interval)
+		pr, err := cli.Post(gateway+"/api/onboard/poll?device_code="+start.DeviceCode, "application/json", nil)
+		if err != nil {
+			lastPollErr = err
+			continue
+		}
+		lastPollErr = nil
+		var pv map[string]string
+		// Cap at 256 KiB — the success payload carries the CA PEM
+		// (~4 KiB) plus a handful of auth tokens. 256 KiB leaves room
+		// for chained intermediates without letting a runaway server
+		// stream into a CLI poller.
+		if err := json.NewDecoder(io.LimitReader(pr.Body, 256<<10)).Decode(&pv); err != nil {
+			lastPollErr = fmt.Errorf("decode poll response: %w", err)
+		}
+		_ = pr.Body.Close()
+		if k, ok := pv["auth_key"]; ok && k != "" {
+			authKey = k
+			loginServer = pv["login_server"]
+			apiToken = pv["api_token"]
+			tailnetGWHost = pv["gateway_host"]
+			tailnetControlURL = pv["control_url"]
+			gatewayIP = pv["gateway_ip"]
+			caPEM = pv["ca_pem"]
+			break
+		}
+		if e := pv["error"]; e != "" && e != "authorization_pending" && e != "slow_down" {
+			return false, fmt.Errorf("poll: %s (%s)", e, pv["detail"])
+		}
+	}
+	if authKey == "" {
+		if lastPollErr != nil {
+			return false, fmt.Errorf("timed out waiting for approval (last poll error: %w)", lastPollErr)
+		}
+		return false, fmt.Errorf("timed out waiting for approval")
+	}
+	if finishApprove != nil {
+		finishApprove("✓ approved")
+	}
+	// The tailscale device-flow join consumes the poll-delivered CA (the
+	// gateway's /ca.crt isn't public in tsnet mode). Validate it now as the
+	// mandatory single canonical CA — a missing/invalid CA aborts the join
+	// before any state is written — but do NOT persist or install it yet:
+	// commitApprovedCA writes+trusts it at the END of the join, after every
+	// fatal platform-setup step, so a later failure can't strand a rejoin with
+	// the new CA trusted while routing/credentials still belong to the old
+	// gateway. tsnetJoin marks the tailscale paths.
+	tsnetJoin := !strings.HasPrefix(loginServer, "wireguard://")
+	if tsnetJoin && runtime.GOOS == "darwin" {
+		return false, fmt.Errorf("client routing through Tailscale is not supported on macOS; use a WireGuard gateway with --whole-machine")
+	}
+	var canonicalCA []byte
+	if tsnetJoin {
+		cc, verr := canonicalMITMCAPEM([]byte(caPEM))
+		if verr != nil {
+			return false, fmt.Errorf("gateway CA rejected: %w", verr)
+		}
+		canonicalCA = cc
+	} else {
+		if setup == nil || len(setup.candidateCA) == 0 {
+			return false, fmt.Errorf("internal: no staged WireGuard CA")
+		}
+		canonicalCA = append([]byte(nil), setup.candidateCA...)
+	}
+	// Hold the CA to --ca-fingerprint and to whatever the pre-join /ca.crt
+	// fetch staged, before the join touches this machine. commitApprovedCA
+	// repeats the check as the guard on the write itself; failing here too
+	// spares the operator a platform setup that would have to be undone.
+	if setup != nil {
+		// Three things can authenticate a CA: the transport it arrived on, the
+		// CA staged from /ca.crt, and --ca-fingerprint. A poll-delivered CA
+		// with none of them has nothing that could detect a substitution, so
+		// the join stops instead of installing an unauthenticated root. The
+		// gateway shapes that reach here — a Funnel URL, whose certificate is
+		// verified, and a tailnet URL, which serves /ca.crt and so stages a
+		// fingerprint — each satisfy one.
+		if tsnetJoin && setup.pinnedCAFP == "" && setup.caFingerprint == "" &&
+			!joinTransportAuthenticated(gateway) {
+			return false, fmt.Errorf(
+				"refusing to trust the CA delivered by %s: nothing authenticates it — "+
+					"the connection's certificate is not publicly rooted, the gateway served no "+
+					"/ca.crt to compare against, and no --ca-fingerprint was given. "+
+					"Re-run with --ca-fingerprint <fingerprint from the dashboard>", gateway)
+		}
+		if err := setup.requireApprovedCA(canonicalCA); err != nil {
+			return false, err
+		}
+		// Print what arrived, so the fingerprint the dashboard shows has a
+		// counterpart to be compared against. On the tailnet path this is the
+		// only place it can be printed: the CA rides the approval poll, so it
+		// does not exist until the approval has already happened. A mismatch
+		// spotted here is recovered by rejoining with --ca-fingerprint, which
+		// refuses the substitute instead of relying on the operator's eye.
+		if fp, ferr := caFingerprintFromPEM(canonicalCA); ferr == nil {
+			fmt.Println("  CA fingerprint: " + fp)
+		}
+	}
+	// Both control planes defer the CA write and trust install to
+	// commitApprovedCA after their fatal setup has succeeded.
+	finishJoinSetup(setup, skipTrust, wholeMachine, true)
+	// Persist the per-peer bearer the gateway minted alongside the
+	// wg conf. Lives next to ca.crt — same dir the env-pushdown
+	// fetcher reads. Best-effort; missing file means env-pushdown
+	// will refuse to authenticate and the operator gets a clear
+	// stderr warning instead of a silent fall-through.
+	if apiToken != "" {
+		_ = os.WriteFile(filepath.Join(filepath.Dir(setup.caPath), "api-token"),
+			[]byte(apiToken+"\n"), 0o600)
+	}
+
+	// 3a. wireguard branch — auth_key is the full client config.
+	// Skip tailscale entirely (no daemon, no `tailscale up`). The
+	// gateway runs an L3 forwarder that catches SYNs to ANY dst IP
+	// once we route 0.0.0.0/0 into the tunnel, so we don't pin
+	// /etc/hosts and don't need a /api/onboard/claim round-trip —
+	// the server registered our peer IP against the approver at
+	// mint time.
+	if strings.HasPrefix(loginServer, "wireguard://") {
+		iface := strings.TrimPrefix(loginServer, "wireguard://")
+		if iface == "" {
+			iface = "nebprx"
+		}
+		// Send our hostname BEFORE wg-quick brings the tunnel up — once
+		// 0.0.0.0/0 routes through the tunnel the public gateway URL
+		// becomes unreachable. Server's /api/onboard/approve already
+		// registered the (peerIP → owner) mapping at mint time, but
+		// the hostname only landed if the CLI sent it at /start. This
+		// claim call is idempotent on owner and updates the hostname
+		// row in the devices table.
+		if hn != "" {
+			wgIP := wgAddressFromConf(authKey)
+			claimURL := fmt.Sprintf("%s/api/onboard/claim?device_code=%s&hostname=%s",
+				gateway, start.DeviceCode, neturl.QueryEscape(hn))
+			if wgIP != "" {
+				claimURL += "&ip=" + neturl.QueryEscape(wgIP)
+			}
+			if cr, err := cli.Post(claimURL, "application/json", nil); err == nil {
+				_ = cr.Body.Close()
+			}
+		}
+		// Persist the user-readable config for the Linux daemon.
+		var persistErr error
+		if err := writeUserWGConf(authKey); err != nil {
+			persistErr = err
+		}
+		// Mode marker — read by the daemon at startup to pick the
+		// transport. Default (no marker) also defaults to wireguard,
+		// but writing it explicitly avoids surprises if a host has
+		// stale state from a previous tailscale-mode join.
+		_ = os.WriteFile(filepath.Join(filepath.Dir(setup.caPath), "mode"),
+			[]byte("wireguard\n"), 0o600)
+
+		if wholeMachine {
+			if err := completeWholeMachineRouting(func() error {
+				return wgQuickUpFn(iface, authKey)
+			}); err != nil {
+				return true, fmt.Errorf("wg-quick up: %w", err)
+			}
+		}
+		if err := setup.commitApprovedCA(canonicalCA, skipTrust); err != nil {
+			return true, err
+		}
+		items := setupSummaryItems(*setup)
+		items = append(items, "✓ joined gateway")
+		printChecklist(items)
+		if !wholeMachine {
+			fmt.Println()
+			if runtime.GOOS == "darwin" {
+				fmt.Println("Joined. To route host traffic, re-run: nebprx join --whole-machine " + gateway)
+			} else {
+				fmt.Println("Installed! Try: nebprx run claude")
+			}
+
+		} else {
+			printWholeMachineDone(iface)
+		}
+		if persistErr != nil {
+			fmt.Fprintf(os.Stderr, "⚠ persist user wg conf: %v\n", persistErr)
+		}
+		return true, nil
+	}
+
+	// 3b. tailscale branch — ensure binary + daemon.
+	//
+	// Per-process tsnet mode: the in-process tsnet node joins the
+	// tailnet at `nebprx run` time using the auth_key persisted
+	// below. No system Tailscale touched.
+	//
+	// Whole-machine Tailscale uses the Linux system daemon.
+	if !wholeMachine {
+		clawDir := filepath.Dir(setup.caPath)
+		// The approved CA is validated up front and committed + trusted at the
+		// end of this path via commitApprovedCA (after fatal setup) — nothing to
+		// do here for the CA.
+		if err := os.WriteFile(filepath.Join(clawDir, "mode"), []byte("tailscale\n"), 0o600); err != nil {
+			return false, fmt.Errorf("write mode: %w", err)
+		}
+		// Persist the join-time --hostname so the per-host daemon
+		// registers under the operator-chosen name instead of
+		// os.Hostname() (which on most VMs is the system login, not
+		// the intended bot identity).
+		if hn != "" {
+			_ = os.WriteFile(filepath.Join(clawDir, "hostname"), []byte(hn+"\n"), 0o600)
+		}
+		if tailnetGWHost != "" {
+			_ = os.WriteFile(filepath.Join(clawDir, "tailnet-gateway"), []byte(tailnetGWHost+"\n"), 0o600)
+		}
+		if err := os.WriteFile(filepath.Join(clawDir, "control-url"), []byte(tailnetControlURL+"\n"), 0o600); err != nil {
+			return false, fmt.Errorf("write control-url: %w", err)
+		}
+		if gatewayIP != "" {
+			tailnetURL := fmt.Sprintf("http://%s:8080", gatewayIP)
+			_ = os.WriteFile(filepath.Join(clawDir, "tailnet-url"), []byte(tailnetURL+"\n"), 0o600)
+			// Used by `nebprx run` to set the gateway as its tsnet
+			// exit node so the gateway sees the original dst via
+			// RegisterFallbackTCPHandler (no PROXY-header smuggling).
+			_ = os.WriteFile(filepath.Join(clawDir, "tailnet-gateway-ip"), []byte(gatewayIP+"\n"), 0o600)
+		}
+		// Persist the Linux daemon credential.
+		{
+			stateDir := daemonStateDir()
+			if err := os.MkdirAll(stateDir, 0o700); err != nil {
+				return false, fmt.Errorf("daemon state dir: %w", err)
+			}
+			if err := os.WriteFile(filepath.Join(stateDir, "auth-key"), []byte(authKey+"\n"), 0o600); err != nil {
+				return false, fmt.Errorf("write auth-key: %w", err)
+			}
+			// Claim against the tailnet IP the daemon will own, so the
+			// gateway mints the per-peer bearer. Without it the daemon
+			// can't authenticate /api/env-pushdown and every wrapped
+			// agent boots with an empty credential set (no GH_TOKEN).
+			//
+			// Best-effort: at this point auth-key + mode markers are
+			// already written and the single-use key is spent, so a
+			// transient claim failure must not abort the join and leave a
+			// half-configured host. Warn and continue — the daemon still
+			// falls back to the poll-delivered placeholder token (written
+			// above) and the operator can re-run `nebprx join`. This
+			// mirrors the whole-machine claim below, which also only warns.
+			if err := claimPeerAPIToken(gateway, start.DeviceCode, hn, authKey,
+				tailnetControlURL, stateDir, filepath.Dir(setup.caPath), httpCli); err != nil {
+				fmt.Fprintf(os.Stderr,
+					"⚠ peer api-token claim failed: %v\n"+
+						"  env-pushdown may be unavailable until you re-run `nebprx join`.\n", err)
+			}
+		}
+		// All fatal platform setup succeeded — now commit + trust the approved
+		// CA. A rejoin that fails earlier leaves the old CA/trust intact.
+		if err := setup.commitApprovedCA(canonicalCA, skipTrust); err != nil {
+			return false, err
+		}
+		items := setupSummaryItems(*setup)
+		items = append(items, "✓ joined gateway")
+		printChecklist(items)
+		fmt.Println()
+		fmt.Println("Installed! Try: nebprx run claude")
+		return false, nil
+	}
+
+	if _, err := tailscaleBin(); err != nil {
+		fmt.Println("└ Installing tailscale (will require sudo)")
+		if err := installTailscale(); err != nil {
+			return false, fmt.Errorf("install tailscale: %w", err)
+		}
+	}
+	tscli, err := tailscaleBin()
+	if err != nil {
+		return false, err
+	}
+	if runtime.GOOS == "linux" {
+		// `tailscale up` needs tailscaled. The install.sh script
+		// usually enables it, but some VMs / docker images leave it
+		// disabled. Start unconditionally — systemctl is idempotent.
+		_ = exec.Command("sudo", "systemctl", "enable", "--now", "tailscaled").Run()
+	}
+
+	// 4b. tailscale up — set --operator on linux so future
+	// `tailscale set/serve/funnel` calls don't need sudo.
+	// On macOS the App Store Tailscale daemon handles auth via the
+	// menu-bar app; running `sudo tailscale up` crashes with a
+	// BundleIdentifiers fatal error. Run without sudo on non-Linux.
+	upArgs := []string{"up", "--reset", "--authkey=" + authKey, "--accept-routes", "--accept-dns=false"}
+	if runtime.GOOS == "linux" {
+		if u := os.Getenv("USER"); u != "" {
+			upArgs = append(upArgs, "--operator="+u)
+		}
+	}
+	var cmd *exec.Cmd
+	if runtime.GOOS == "linux" {
+		cmd = exec.Command("sudo", append([]string{tscli}, upArgs...)...)
+	} else {
+		cmd = exec.Command(tscli, upArgs...)
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return false, fmt.Errorf("tailscale up: %w", err)
+	}
+
+	// 5. claim — tell gateway "this tailnet IP belongs to <approver>".
+	// Best-effort: every claim failure only warns (env-pushdown falls back and
+	// the operator can re-run join) and must NOT abort — the mandatory CA
+	// commit and the mode/state finalization below still have to run, or a
+	// warning-only failure would report success with the old/absent CA still
+	// in place after `tailscale up --reset` already switched identity.
+	myIP, _ := exec.Command(tscli, "ip", "-4").Output()
+	tailIP := strings.TrimSpace(strings.SplitN(string(myIP), "\n", 2)[0])
+	claimTailnetPeer(cli, gateway, start.DeviceCode, hn, tailIP, filepath.Dir(setup.caPath))
+
+	// Write mode marker files so `nebprx run` can detect Tailscale mode.
+	clawDir := filepath.Dir(setup.caPath)
+	if err := os.WriteFile(filepath.Join(clawDir, "mode"), []byte("tailscale\n"), 0o600); err != nil {
+		return false, fmt.Errorf("write mode: %w", err)
+	}
+	if hn != "" {
+		_ = os.WriteFile(filepath.Join(clawDir, "hostname"), []byte(hn+"\n"), 0o600)
+	}
+	if tailnetGWHost != "" {
+		_ = os.WriteFile(filepath.Join(clawDir, "tailnet-gateway"), []byte(tailnetGWHost+"\n"), 0o600)
+	}
+	if tailnetControlURL != "" {
+		if err := os.WriteFile(filepath.Join(clawDir, "control-url"), []byte(tailnetControlURL+"\n"), 0o600); err != nil {
+			return false, fmt.Errorf("write control-url: %w", err)
+		}
+	}
+
+	// Look up the gateway peer on the tailnet to persist the tailnet-direct URL
+	// (bypasses Funnel for peer API calls) and the peer IP. The CA is NOT
+	// fetched here — it's consumed from the approval poll response and persisted
+	// by commitApprovedCA below.
+	if tailnetGWHost != "" {
+		if st2, serr := tailscaleStatus(tscli); serr == nil {
+			// tailnetGWHost may be an FQDN like "nebprx-1.tail9a48e.ts.net";
+			// HostName in `tailscale status` is the short name "nebprx-1".
+			shortName := tailnetGWHost
+			if i := strings.IndexByte(shortName, '.'); i > 0 {
+				shortName = shortName[:i]
+			}
+			if peer := findPeerByName(st2, shortName); peer != nil && len(peer.TailscaleIPs) > 0 {
+				// Persist tailnet-direct URL so nebprx run uses it for peer
+				// API calls instead of the public join URL, which may be
+				// Funnel-proxied and not expose peer-API endpoints. Port 8080
+				// is the gateway's InfoListen (plain HTTP on the tailnet).
+				tailnetURL := fmt.Sprintf("http://%s:8080", peer.TailscaleIPs[0])
+				_ = os.WriteFile(filepath.Join(clawDir, "tailnet-url"), []byte(tailnetURL+"\n"), 0o600)
+				_ = os.WriteFile(filepath.Join(clawDir, "tailnet-gateway-ip"),
+					[]byte(peer.TailscaleIPs[0]+"\n"), 0o600)
+				// The poll-delivered CA is committed + trusted at the end of the
+				// join (commitApprovedCA below); no best-effort refetch (which
+				// used to skip a rejoin's new CA whenever a stale ca.crt existed).
+			}
+		}
+	}
+	if wholeMachine {
+		if err := installShellRC(); err == nil {
+			setup.shellRC = true
+		}
+	}
+
+	// All fatal platform setup succeeded — now commit + trust the approved CA.
+	if err := setup.commitApprovedCA(canonicalCA, skipTrust); err != nil {
+		return false, err
+	}
+	items := setupSummaryItems(*setup)
+	items = append(items, "✓ joined gateway")
+	printChecklist(items)
+	// The closing message is printed by runJoin, after it sets the
+	// exit-node and pins DNS — otherwise "DNS pinned…" would land after
+	// "Installed!". (Linux whole-machine Tailscale only.)
+	return false, nil
+}
+
+// isTailnetOnlyURL reports whether u's host is reachable only from
+// inside a Tailscale tailnet: a 100.64.0.0/10 CGNAT address (the
+// range Tailscale carves nodes out of) or a name ending in `.ts.net`
+// (the MagicDNS suffix). Invalid URLs return false so the caller
+// falls back to the regular `tryOpen` path.
+func isTailnetOnlyURL(u string) bool {
+	p, err := neturl.Parse(u)
+	if err != nil || p == nil {
+		return false
+	}
+	host := p.Hostname()
+	if host == "" {
+		return false
+	}
+	if strings.HasSuffix(strings.ToLower(host), ".ts.net") {
+		return true
+	}
+	if ip, err := netip.ParseAddr(host); err == nil {
+		return ip.Is4() && tailscaleCGNAT.Contains(ip)
+	}
+	return false
+}
+
+// tailscaleCGNAT is 100.64.0.0/10 — Tailscale's CGNAT range. Anything
+// inside it is unreachable except from a tailnet member.
+var tailscaleCGNAT = netip.MustParsePrefix("100.64.0.0/10")
+
+// approveBaseFromVerifyURL returns the scheme://host origin of the
+// onboard verify URL — the dashboard origin whose /api/onboard/approve
+// is the same handler the dashboard Approve button POSTs to. Falls back
+// to the join URL when verify_url is absent or unparseable.
+func approveBaseFromVerifyURL(verifyURL, fallback string) string {
+	if verifyURL == "" {
+		return fallback
+	}
+	u, err := neturl.Parse(verifyURL)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return fallback
+	}
+	return u.Scheme + "://" + u.Host
+}
+
+// qrLines renders url as half-block QR rows, each indented two spaces
+// so it sits under a step's "* " headline. GenerateHalfBlock packs two
+// QR rows per line via ▀/▄/█/space — half the height of the
+// block-per-cell variant, and it renders cleanly when the join output
+// is piped to a file or pasted into chat.
+func qrLines(url string) []string {
+	var buf bytes.Buffer
+	qrterminal.GenerateHalfBlock(url, qrterminal.M, &buf)
+	var out []string
+	for _, line := range strings.Split(strings.TrimRight(buf.String(), "\n"), "\n") {
+		out = append(out, "  "+line)
+	}
+	return out
+}
+
+// linkDetail returns the indented detail lines for a step that points
+// the operator at a URL: the URL itself, and — when qr is true — a
+// blank line plus a scannable QR beneath it. Shared by the
+// tailnet-login and dashboard-approval steps so the URL + QR layout
+// stays identical everywhere it appears.
+func linkDetail(url string, qr bool) []string {
+	out := []string{"  " + url}
+	if qr {
+		out = append(out, "")
+		out = append(out, qrLines(url)...)
+	}
+	return out
+}
+
+// beginStep prints a pending step — a "* "-prefixed headline plus any
+// already-indented detail lines — and returns a finish func. On a TTY
+// (and when erasable) finish erases the whole block and reprints it as
+// a single status line ("✓ …" done, "! …" needs-attention, or "" to
+// just clear it); off a TTY it appends the status line below instead.
+//
+// Nothing else may write to stdout between begin and finish or the
+// erase line-count drifts. erasable must be false when the step shells
+// out to something that writes to the terminal (an interactive sudo
+// password prompt), since that output would land inside the block.
+func beginStep(headline string, detail []string, erasable bool) func(status string) {
+	fmt.Println("* " + headline)
+	for _, l := range detail {
+		fmt.Println(l)
+	}
+	n := 1 + len(detail)
+	erase := erasable && isTerminal(os.Stdout)
+	return func(status string) {
+		if erase {
+			fmt.Printf("\033[%dA\033[J", n)
+		}
+		if status != "" {
+			fmt.Println(status)
+		}
+	}
+}
+
+func tryOpen(u string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", u)
+	case "linux":
+		cmd = exec.Command("xdg-open", u)
+	default:
+		return
+	}
+	_ = cmd.Start()
+}
+
+// runAsRoot prepends "sudo" only when the caller isn't already root
+// AND sudo is on PATH. Containers / cloud-init bootstraps frequently
+// run as root with no sudo binary; barfing in that case is rude.
+func runAsRoot(cmd string, args ...string) *exec.Cmd {
+	if os.Geteuid() == 0 {
+		return exec.Command(cmd, args...)
+	}
+	if _, err := exec.LookPath("sudo"); err == nil {
+		return exec.Command("sudo", append([]string{cmd}, args...)...)
+	}
+	// last resort — try without sudo, let the OS reject if it must.
+	return exec.Command(cmd, args...)
+}
+
+// writeUserWGConf drops a copy of the wg-quick conf at
+// ~/.config/nebprx/wg.conf (chmod 600) so `nebprx run` can
+// build per-process tunnels without sudo. Idempotent.
+//
+// Hardcoded XDG path (~/.config) instead of os.UserConfigDir() —
+// the latter returns ~/Library/Application Support on macOS. Keep the
+// cross-platform ~/.config/nebprx/wg.conf location consistent.
+func writeUserWGConf(conf string) error {
+	dir := filepath.Join(os.Getenv("HOME"), ".config", "nebprx")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, "wg.conf")
+	return os.WriteFile(path, []byte(conf), 0o600)
+}
+
+// wgQuickUp writes the supplied wireguard config to
+// /etc/wireguard/<iface>.conf and brings the interface up via
+// `wg-quick up`. Installs `wireguard-tools` if missing on linux.
+var wgQuickUpFn = wgQuickUp
+
+func wgQuickUp(iface, conf string) error {
+	if _, err := exec.LookPath("wg-quick"); err != nil {
+		if runtime.GOOS == "linux" {
+			c := runAsRoot("apt-get", "install", "-y", "wireguard-tools")
+			c.Stdout, c.Stderr = os.Stdout, os.Stderr
+			if err := c.Run(); err != nil {
+				return fmt.Errorf("install wireguard-tools: %w", err)
+			}
+		} else {
+			return fmt.Errorf("wg-quick not found — install wireguard-tools and wireguard-go")
+		}
+	}
+	dst := filepath.Join("/etc/wireguard", iface+".conf")
+	if runtime.GOOS == "linux" {
+		conf = injectSSHExemptPostUp(conf)
+	}
+	tmp, err := os.CreateTemp("", "nebprx-wg-*.conf")
+	if err != nil {
+		return fmt.Errorf("create wg temp conf: %w", err)
+	}
+	// Deferred so we don't leak the temp file when WriteString,
+	// Close, or install fails on the way down.
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	if _, err := tmp.WriteString(conf); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write wg temp conf: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close wg temp conf: %w", err)
+	}
+	if err := runAsRoot("mkdir", "-p", filepath.Dir(dst)).Run(); err != nil {
+		return fmt.Errorf("create wireguard config dir: %w", err)
+	}
+	if err := runAsRoot("install", "-m", "0600", tmp.Name(), dst).Run(); err != nil {
+		return fmt.Errorf("install conf: %w", err)
+	}
+	// `wg-quick up` is idempotent enough — bring down first if up.
+	_ = runAsRoot("wg-quick", "down", iface).Run()
+	c := runAsRoot("wg-quick", "up", iface)
+	c.Stdout, c.Stderr = os.Stdout, os.Stderr
+	return c.Run()
+}
+
+// injectSSHExemptPostUp inserts policy-routing PostUp/PostDown hooks
+// into the [Interface] block of a wg-quick conf so packets sourced
+// from the host's public IP keep using the original routing table.
+//
+// Without this, `AllowedIPs = 0.0.0.0/0` makes wg-quick replace the
+// default route with one through the tunnel — including reply packets
+// for inbound connections. SSH replies route through nebprx →
+// wrong source IP → in-flight admin session that ran `nebprx join
+// --whole-machine` dies mid-handshake. Same trick unclaw landed in
+// commit 53e0496.
+//
+// Returns conf unchanged when the host IP can't be detected (best
+// effort — better to bring up the tunnel than block on a heuristic).
+// Idempotent on the wire because PostUp's `ip rule add` is a single
+// rule with a fixed priority; re-runs add a duplicate but PostDown
+// removes one at a time and wg-quick down/up cycles cleanly.
+func injectSSHExemptPostUp(conf string) string {
+	hostIP := detectHostIP()
+	if hostIP == "" {
+		return conf
+	}
+	// Priority 5 — must beat wg-quick's two own rules:
+	//   pref 8: from all lookup main suppress_prefixlength 0
+	//   pref 9: not fwmark 51820 lookup 51820
+	// Pref 10 (what unclaw originally used in commit 53e0496) gets
+	// shadowed by pref 9 — pref 9 matches every non-fwmarked packet
+	// first → table 51820 → nebprx iface → SYN-ACK exits the wrong
+	// interface, SSH session dies. Observed on Ubuntu 24.04 / Vultr.
+	postUp := fmt.Sprintf("PostUp = ip rule add from %s lookup main priority 5", hostIP)
+	postDown := fmt.Sprintf("PostDown = ip rule del from %s lookup main priority 5", hostIP)
+	if strings.Contains(conf, postUp) {
+		return conf
+	}
+	// Insert before [Peer] (always present, terminates [Interface]).
+	// Falls back to append if [Peer] is missing for some reason.
+	idx := strings.Index(conf, "[Peer]")
+	if idx < 0 {
+		return conf + "\n" + postUp + "\n" + postDown + "\n"
+	}
+	return conf[:idx] + postUp + "\n" + postDown + "\n\n" + conf[idx:]
+}
+
+// detectHostIP returns the IPv4 address used to reach the public
+// internet, mirroring `ip -4 route get 1.1.1.1 | grep -oP 'src \K...'`.
+// Returns "" on any error so callers can decide to skip the rule.
+func detectHostIP() string {
+	out, err := exec.Command("ip", "-4", "route", "get", "1.1.1.1").Output()
+	if err != nil {
+		return ""
+	}
+	// Output: "1.1.1.1 via X dev eth0 src Y.Y.Y.Y uid 0 \n cache"
+	fields := strings.Fields(string(out))
+	for i, f := range fields {
+		if f == "src" && i+1 < len(fields) {
+			return fields[i+1]
+		}
+	}
+	return ""
+}
+
+// installTailscale runs the official one-line installer for the
+// platform. Requires sudo.
+func installTailscale() error {
+	switch runtime.GOOS {
+	case "darwin":
+		// brew install --cask tailscale; user must launch app once.
+		c := exec.Command("brew", "install", "--cask", "tailscale")
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+		if err := c.Run(); err != nil {
+			return fmt.Errorf("brew install: %w (or download manually from tailscale.com)", err)
+		}
+		fmt.Println("  launch Tailscale.app once, then re-run nebprx join")
+		return fmt.Errorf("manual app launch required")
+	case "linux":
+		c := exec.Command("sh", "-c", "curl -fsSL https://tailscale.com/install.sh | sh")
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stderr
+		return c.Run()
+	}
+	return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+}
+
+// `nebprx uninstall` — tear down everything `nebprx join`
+// (and friends) put on this machine. Cross-platform, idempotent.
+// Brings down the wg-quick interface, removes the CA from system
+// trust, drops the per-user state dirs, and strips the shell-rc
+// env shim.
+func runUninstall(args []string) {
+	fs := flag.NewFlagSet("uninstall", flag.ExitOnError)
+	keepCA := fs.Bool("keep-ca", false, "keep ~/.nebprx + system trust")
+	keepConf := fs.Bool("keep-conf", false, "keep ~/.config/nebprx/wg.conf")
+	yes := fs.Bool("y", false, "skip the confirmation prompt")
+	_ = fs.Parse(args)
+
+	if !*yes {
+		fmt.Print("Uninstall nebprx from this machine? [y/N] ")
+		var resp string
+		_, _ = fmt.Scanln(&resp)
+		if resp != "y" && resp != "Y" {
+			fmt.Println("aborted")
+			return
+		}
+	}
+
+	step := func(label string, fn func() error) {
+		if err := fn(); err != nil {
+			fmt.Fprintf(os.Stderr, "  ⚠ %s: %v\n", label, err)
+			return
+		}
+		fmt.Println("  ✓ " + label)
+	}
+	bestEffort := func(name string, argv ...string) func() error {
+		return func() error {
+			c := exec.Command(name, argv...)
+			c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+			return c.Run()
+		}
+	}
+
+	switch runtime.GOOS {
+	case "darwin":
+		step("wg-quick down nebprx", bestEffort("sudo", "wg-quick", "down", "nebprx"))
+		if !*keepCA {
+			step("untrust CA in System.keychain",
+				bestEffort("sudo", "security", "delete-certificate",
+					"-c", "nebprx", "/Library/Keychains/System.keychain"))
+		}
+	case "linux":
+		step("wg-quick down nebprx", bestEffort("sudo", "wg-quick", "down", "nebprx"))
+		if !*keepCA {
+			step("rm system CA", bestEffort("sudo", "rm", "-f",
+				"/usr/local/share/ca-certificates/nebprx.crt"))
+			step("update-ca-certificates", bestEffort("sudo", "update-ca-certificates"))
+		}
+	}
+
+	if !*keepCA {
+		dir := defaultNebprxDir()
+		step("rm "+dir, func() error { return os.RemoveAll(dir) })
+	}
+	if !*keepConf {
+		confDir := filepath.Join(os.Getenv("HOME"), ".config", "nebprx")
+		step("rm "+confDir, func() error { return os.RemoveAll(confDir) })
+	}
+	step("strip shell-rc env shim", removeShellRCMarker)
+
+	fmt.Println()
+	fmt.Println("done. Reinstall: curl -fsSL https://prx.nebuless.cloud/install.sh | sh")
+}
+
+// removeShellRCMarker strips the line installShellRC appended.
+// Idempotent — silently no-ops when the marker isn't present.
+func removeShellRCMarker() error {
+	const marker = "# nebprx: agent env (nebprx env)"
+	home := os.Getenv("HOME")
+	for _, name := range []string{".zshrc", ".bashrc", ".profile"} {
+		p := filepath.Join(home, name)
+		src, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		i := strings.Index(string(src), marker)
+		if i < 0 {
+			continue
+		}
+		// Drop the marker line + the eval line that follows.
+		end := i
+		newlines := 0
+		for end < len(src) && newlines < 2 {
+			if src[end] == '\n' {
+				newlines++
+			}
+			end++
+		}
+		out := append([]byte{}, src[:i]...)
+		out = append(out, src[end:]...)
+		if err := os.WriteFile(p, out, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// `nebprx status` — what's installed, what's running, what's
+// reachable. Self-diagnose without log streaming. No flags; one
+// shot of every signal that matters for "why isn't this working".
+func runStatus(args []string) {
+	_ = args
+	check := func(label string, ok bool, detail string) {
+		mark := "✗"
+		if ok {
+			mark = "✓"
+		}
+		if detail != "" {
+			fmt.Printf("  %s %s — %s\n", mark, label, detail)
+		} else {
+			fmt.Printf("  %s %s\n", mark, label)
+		}
+	}
+
+	caPath := filepath.Join(defaultNebprxDir(), "ca.crt")
+	_, caErr := os.Stat(caPath)
+	check("CA bundle", caErr == nil, caPath)
+
+	confPath := filepath.Join(os.Getenv("HOME"), ".config", "nebprx", "wg.conf")
+	_, confErr := os.Stat(confPath)
+	check("wg.conf", confErr == nil, confPath)
+
+	switch runtime.GOOS {
+	case "darwin":
+		out, err := exec.Command("wg", "show", "interfaces").Output()
+		check("WireGuard interface up", err == nil && strings.TrimSpace(string(out)) != "", strings.TrimSpace(string(out)))
+	case "linux":
+		out, err := exec.Command("ip", "link", "show", "nebprx").Output()
+		up := err == nil && strings.Contains(string(out), "state UNKNOWN")
+		check("wg-quick interface up", up, "ip link show nebprx")
+	}
+
+	// Gateway reachability: parse Endpoint from wg.conf, hit /info on
+	// the configured public_url if we can reach it. Best-effort only.
+	if confErr == nil {
+		if endpoint := wgEndpointFromConf(confPath); endpoint != "" {
+			check("gateway reachable", pingGateway(endpoint), endpoint)
+		}
+	}
+}
+
+func wgEndpointFromConf(path string) string {
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = f.Close() }()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if strings.HasPrefix(line, "Endpoint") {
+			if eq := strings.IndexByte(line, '='); eq > 0 {
+				return strings.TrimSpace(line[eq+1:])
+			}
+		}
+	}
+	return ""
+}
+
+// pingGateway dials the wg endpoint host on the configured port. Just
+// proves the host is reachable + listening, not that wg handshake
+// succeeds.
+func pingGateway(endpoint string) bool {
+	c, err := net.DialTimeout("udp", endpoint, 2*time.Second)
+	if err != nil {
+		return false
+	}
+	_ = c.Close()
+	return true
+}

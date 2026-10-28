@@ -1,4 +1,28 @@
-const api = fetch;
+import { endSupportView, type SupportIdentity } from "./support";
+import type { DashboardContext } from "./dashboardContext";
+let sessionEpoch = 0;
+
+let supportActive = false;
+export function clearSessionCache() {
+  sessionEpoch++;
+  lastStateTag = "";
+  lastState = null;
+  supportActive = false;
+}
+const api: typeof fetch = async (input, init) => {
+  const target = new URL(
+    input instanceof Request ? input.url : String(input),
+    window.location.origin,
+  );
+  if (target.origin !== window.location.origin)
+    throw new Error("Cross-origin dashboard request denied");
+  const r = await fetch(target, init);
+  if (supportActive && (r.status === 401 || r.status === 403)) {
+    clearSessionCache();
+    endSupportView();
+  }
+  return r;
+};
 
 export type SecretSlot = {
   name: string;
@@ -284,7 +308,7 @@ export type Plugin = {
   approvedHashes?: string[];
   // updateAvailable is the newest release tag (GitHub sources) that
   // satisfies the plugin's constraint and is newer than the locked
-  // version; apply it with `clawpatrol plugins update`.
+  // version; apply it with `nebprx plugins update`.
   updateAvailable?: string;
   // requested is what a blocked/unapproved plugin's resolvable version
   // declares it needs, read from its signed static manifest (no spawn) —
@@ -304,7 +328,7 @@ export async function getPlugins(): Promise<Plugin[]> {
 
 // approvePlugin records the named plugin's current permissions in the
 // lockfile and reloads so a previously-blocked plugin loads. The
-// dashboard equivalent of `clawpatrol plugins approve`.
+// dashboard equivalent of `nebprx plugins approve`.
 export async function approvePlugin(name: string): Promise<void> {
   const r = await fetch("/api/plugins/approve", {
     method: "POST",
@@ -481,7 +505,10 @@ export type UpdateBanner = {
   advisory?: string;
 };
 
-type StateResp = {
+export type StateResp = {
+  support?: SupportIdentity;
+  account_context?: DashboardContext;
+  support_available?: boolean;
   whoami: Whoami;
   integrations: Integration[];
   agents: Agent[];
@@ -494,16 +521,33 @@ type StateResp = {
 };
 let lastStateTag = "";
 let lastState: StateResp | null = null;
-export async function getState(): Promise<StateResp> {
+let lastStateProfile = "";
+export async function getState(profile = ""): Promise<StateResp> {
+  const epoch = sessionEpoch;
+  if (profile !== lastStateProfile) {
+    lastStateTag = "";
+    lastState = null;
+    lastStateProfile = profile;
+  }
+  const cachedState = lastState;
+  const cachedTag = lastStateTag;
   const headers: Record<string, string> = {};
-  if (lastStateTag) headers["If-None-Match"] = lastStateTag;
-  const r = await fetch("/api/state", { headers, credentials: "same-origin" });
-  if (r.status === 304 && lastState) return lastState;
+  if (cachedTag && !supportActive) headers["If-None-Match"] = cachedTag;
+  const r = await api("/api/state" + (profile ? "?profile=" + encodeURIComponent(profile) : ""), {
+    headers,
+    credentials: "same-origin",
+    cache: supportActive ? "no-store" : "default",
+  });
+  if (epoch !== sessionEpoch) throw new Error("Session changed");
+  if (r.status === 304 && cachedState) return cachedState;
   if (!r.ok) throw new Error(await r.text());
-  const tag = r.headers.get("ETag");
-  if (tag) lastStateTag = tag;
   const body = (await r.json()) as StateResp;
-  lastState = body;
+  if (epoch !== sessionEpoch) throw new Error("Session changed");
+  supportActive = Boolean(body.support);
+  if (profile === lastStateProfile) {
+    lastStateTag = supportActive ? "" : r.headers.get("ETag") || "";
+    lastState = supportActive ? null : body;
+  }
   return body;
 }
 
@@ -588,7 +632,7 @@ export type EventRecord = {
   family?: string;
   facets?: Record<string, unknown>;
   // endpoint/rule are populated at dispatch time; needed by the
-  // Download action button (site/doc/clawpatrol-test.md).
+  // Download action button (site/doc/nebprx-test.md).
   endpoint?: string;
   rule?: string;
   // credential is the bare name of the credential the gateway resolved
@@ -604,7 +648,7 @@ export type EventRecord = {
 };
 
 // downloadActionFixture fetches the action reshaped as a
-// `clawpatrol test` fixture. Returns a Blob so the caller can
+// `nebprx test` fixture. Returns a Blob so the caller can
 // trigger a browser download.
 export async function downloadActionFixture(id: string): Promise<Blob> {
   const r = await api(`/api/actions/${id}?fmt=fixture`);

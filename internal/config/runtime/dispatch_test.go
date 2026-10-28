@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	_ "github.com/denoland/clawpatrol/internal/config/plugins/all"
-	sqlfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	_ "github.com/Nebuless/nebprx/internal/config/plugins/all"
+	sqlfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 func newSQLMetaForVerb(verb string) *sqlfacet.Meta {
@@ -57,7 +57,7 @@ func compile(t *testing.T) *config.CompiledPolicy {
 // runtime tests don't care about transport config, only the policy
 // blocks they declare.
 const testGatewayPrefix = `gateway {
-  state_dir  = "/opt/clawpatrol"
+  state_dir  = "/opt/nebprx"
   public_url = "https://gw.example.test"
   wireguard { subnet_cidr = "10.55.0.0/24" }
 }

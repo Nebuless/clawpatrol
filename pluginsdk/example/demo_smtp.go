@@ -10,7 +10,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/denoland/clawpatrol/pluginsdk"
+	"github.com/Nebuless/nebprx/pluginsdk"
 )
 
 // demoSMTP is a synthetic ESMTP-ish protocol — TLS-terminated by the

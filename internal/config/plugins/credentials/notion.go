@@ -7,14 +7,14 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// NotionOAuth is part of the clawpatrol plugin API.
+// NotionOAuth is part of the PRX plugin API.
 type NotionOAuth struct{}
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (n *NotionOAuth) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if len(sec.Bytes) == 0 {
 		return nil
@@ -26,7 +26,7 @@ func (n *NotionOAuth) InjectHTTP(_ context.Context, req *http.Request, sec runti
 	return nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*NotionOAuth) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Notion OAuth access token", Description: "secret_… integration token or OAuth access_token. Stamped as Authorization: Bearer + Notion-Version header."}}
 }

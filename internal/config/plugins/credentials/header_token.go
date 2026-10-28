@@ -10,11 +10,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// HeaderToken is part of the clawpatrol plugin API.
+// HeaderToken is part of the PRX plugin API.
 type HeaderToken struct {
 	// Header is the HTTP header name to overwrite with the secret value.
 	Header string `hcl:"header"`
@@ -23,7 +23,7 @@ type HeaderToken struct {
 	Prefix string `hcl:"prefix,optional"`
 }
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (h *HeaderToken) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if h.Header == "" || len(sec.Bytes) == 0 {
 		return nil
@@ -32,7 +32,7 @@ func (h *HeaderToken) InjectHTTP(_ context.Context, req *http.Request, sec runti
 	return nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*HeaderToken) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Header value"}}
 }

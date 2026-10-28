@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/denoland/clawpatrol/internal/config"
+	"github.com/Nebuless/nebprx/internal/config"
 )
 
 // ConnRouter is the optional interface an endpoint plugin's body

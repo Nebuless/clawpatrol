@@ -2,17 +2,25 @@ import { logout, type Whoami } from "../lib/api";
 import { Button } from "./Button";
 import { Main } from "./Main";
 import { PageTitle } from "./PageTitle";
+import { SupportPanel } from "./SupportPanel";
 
 // AccountPage shows the currently authenticated principal (moved
 // here from the global Header) and the only account-level action
 // the dashboard supports: logging out.
-export function AccountPage({ whoami }: { whoami: Whoami | null }) {
+export function AccountPage({
+  whoami,
+  supportEnabled = false,
+}: {
+  whoami: Whoami | null;
+  supportEnabled?: boolean;
+}) {
   return (
     <Main>
       <PageTitle trail={[{ label: "Account" }]} />
       <section className="bg-canvas border-1.5 border-navy p-4 space-y-4">
         {whoami?.user ? <Identity whoami={whoami} /> : <NotLoggedIn />}
       </section>
+      {supportEnabled && <SupportPanel />}
     </Main>
   );
 }
@@ -66,7 +74,7 @@ function LogoutControl({ whoami }: { whoami: Whoami }) {
       // Even on a network error we reload — the cookie may have
       // been cleared client-side, in which case the gate will
       // redirect to /__login on the next request.
-      window.location.href = "/__login";
+      window.location.reload();
     }
   };
   return (

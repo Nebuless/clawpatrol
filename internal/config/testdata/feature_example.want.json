@@ -8,9 +8,9 @@
   },
   "gateway": {
     "dashboard_listen": "0.0.0.0:8080",
-    "log_path": "/opt/clawpatrol/gateway.log",
+    "log_path": "/opt/nebprx/gateway.log",
     "public_url": "http://66.42.120.196:8080",
-    "state_dir": "/opt/clawpatrol/oauth",
+    "state_dir": "/opt/nebprx/oauth",
     "wireguard": {
       "endpoint": "0.0.0.0:51820",
       "subnet_cidr": "10.55.0.0/24"

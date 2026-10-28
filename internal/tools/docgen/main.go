@@ -1,5 +1,5 @@
 // Command docgen generates site/doc/config-reference.md from the
-// clawpatrol HCL config plugin registry. Schema source of truth is
+// nebprx HCL config plugin registry. Schema source of truth is
 // the Go structs under internal/config/plugins/ and the operational structs
 // in config/. Field documentation is read from Go source comments.
 //
@@ -9,7 +9,7 @@
 // catch schemas that changed without doc updates.
 //
 // Why hand-rolled (not terraform-docs / gomarkdoc / etc.):
-// clawpatrol's HCL is a plugin-dispatched DSL — `<kind> "<type>"
+// nebprx's HCL is a plugin-dispatched DSL — `<kind> "<type>"
 // "<name>" { ... }` blocks dispatch to a runtime-registered Go
 // struct via config.Register. No off-the-shelf HCL doc tool walks
 // a custom plugin registry; terraform-docs targets Terraform module
@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/denoland/clawpatrol/internal/tools/docgen/internal/render"
+	"github.com/Nebuless/nebprx/internal/tools/docgen/internal/render"
 )
 
 func main() {

@@ -2,7 +2,7 @@ import { SectionLabel } from "../components/SectionLabel";
 import { TerminalFrame } from "../components/TerminalFrame";
 
 /* ──────────────────────────────────────────────────────────────────────
-   `clawpatrol test` — regression-test CLI for policy changes. Replays
+   `nebprx test` — regression-test CLI for policy changes. Replays
    recorded actions against a candidate config and asserts the verdicts
    still match. Drops into CI as a single binary; no gateway, no auth.
    The terminal output below is real: run against deno.hcl with one
@@ -21,7 +21,7 @@ function TestOutput() {
       <pre class="text-[12.5px] sm:text-[13px] font-mono leading-relaxed text-canvas overflow-x-auto text-shadow-navy-100/10 text-shadow-lg">
         <code>
           <span class="text-canvas/40">$ </span>
-          clawpatrol test gateway.hcl tests/
+          nebprx test gateway.hcl tests/
           {"\n"}
           <span class="text-text-subtle">
             {ok("tests/anthropic-implicit-allow.json")}
@@ -33,7 +33,7 @@ function TestOutput() {
             {ok("tests/clickhouse-read.json")}
           </span>
           <span class="text-text-subtle">
-            {ok("tests/deno-com-require-approval.json")}
+            {ok("tests/github-require-approval.json")}
           </span>
           <span class="text-text-subtle">
             {ok("tests/api-resource-read.json")}
@@ -99,7 +99,7 @@ export function TestSection() {
             </h3>
             <p class="text-base text-text-muted mb-5 max-w-xl">
               Record real actions from the dashboard. Drop the JSON files into a
-              fixtures directory. Run <code>clawpatrol test</code> in CI: when a
+              fixtures directory. Run <code>nebprx test</code> in CI: when a
               policy change flips a verdict, the runner prints the diff and
               fails the build.
             </p>

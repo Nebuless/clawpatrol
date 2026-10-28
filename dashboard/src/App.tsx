@@ -14,7 +14,12 @@ import { PageTitle } from "./components/PageTitle";
 import { PluginsPage } from "./components/PluginsPage";
 import { RequestDetailPage } from "./components/RequestDetailPage";
 import { SettingsPage } from "./components/SettingsPage";
-import { getState, type Agent, type Integration, type UpdateBanner, type Whoami } from "./lib/api";
+import { type Agent, type Integration, type UpdateBanner } from "./lib/api";
+import { SupportBanner } from "./components/SupportBanner";
+import { ProviderPage } from "./components/ProviderPage";
+import { endSupportView } from "./lib/support";
+import { useDashboardContext } from "./lib/useDashboardContext";
+import { DashboardPreferences } from "./components/DashboardPreferences";
 
 type Route =
   | { name: "main" }
@@ -29,6 +34,11 @@ type Route =
 
 function parseRoute(): Route {
   const raw = window.location.hash;
+  try {
+    decodeURIComponent(raw);
+  } catch {
+    return { name: "main" };
+  }
   const qi = raw.indexOf("?");
   const h = qi < 0 ? raw : raw.slice(0, qi);
   if (h.startsWith("#/onboard/"))
@@ -54,40 +64,30 @@ function parseRoute(): Route {
 }
 
 export default function App() {
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [whoami, setWhoami] = useState<Whoami | null>(null);
-  const [update, setUpdate] = useState<UpdateBanner | null>(null);
-  const [configFile, setConfigFile] = useState<string>("gateway.hcl");
+  return window.location.pathname === "/__provider/ui" ? <ProviderPage /> : <DashboardApp />;
+}
+function DashboardApp() {
+  const preferences = useDashboardContext();
+  const { state, ended, refresh } = preferences;
+  const integrations = state?.integrations ?? [];
+  const agents = state?.agents ?? [];
+  const whoami = state?.whoami ?? null;
+  const support = state?.support ?? null;
+  const supportEnabled = state?.support_available === true;
+  const update = state?.update ?? null;
+  const configFile = state?.config_file ?? "gateway.hcl";
   const [connectId, setConnectId] = useState<string | null>(null);
-  const [route, setRoute] = useState(parseRoute());
-
+  const [, setRoute] = useState(parseRoute());
+  const route = parseRoute();
+  useEffect(() => {
+    if (!support) return;
+    const timer = setTimeout(endSupportView, Math.max(0, support.expires * 1000 - Date.now()));
+    return () => clearTimeout(timer);
+  }, [support]);
   useEffect(() => {
     const onHash = () => setRoute(parseRoute());
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, []);
-
-  async function refresh() {
-    try {
-      // Single round-trip; getState ETags so the no-change path is a
-      // 304 (no body, no JSON parse). Replaces three parallel fetches
-      // that ran every 3 s — one bundled fetch every 5 s now.
-      const s = await getState();
-      setIntegrations(s.integrations || []);
-      setAgents(s.agents || []);
-      setWhoami(s.whoami);
-      setUpdate(s.update ?? null);
-      if (s.config_file) setConfigFile(s.config_file);
-    } catch {
-      /* swallow */
-    }
-  }
-
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 5000);
-    return () => clearInterval(t);
   }, []);
 
   function navigate(hash: string) {
@@ -95,10 +95,36 @@ export default function App() {
     setRoute(parseRoute());
   }
 
+  if (ended)
+    return (
+      <main className="p-6" role="status">
+        <h1 tabIndex={-1} ref={(el) => el?.focus()}>
+          Support session ended
+        </h1>
+        <p>
+          Customer data cleared. Return to your Provider to request a new customer-approved session.
+        </p>
+      </main>
+    );
+
+  if (!state)
+    return (
+      <main className="p-6" role={preferences.error ? "alert" : "status"}>
+        {preferences.error || "Loading dashboard context…"}
+        {preferences.error && (
+          <button className="block underline mt-4" onClick={() => location.reload()}>
+            Reload dashboard
+          </button>
+        )}
+      </main>
+    );
+
   return (
     <div className="flex flex-col min-h-screen bg-canvas">
+      {support && <SupportBanner identity={support} />}
       <UpdateNotice update={update} />
       <Header whoami={whoami} currentRoute={route.name} />
+      {preferences.enabled && <DashboardPreferences preferences={preferences} />}
       {route.name === "main" ? (
         <Main>
           <PageTitle trail={[{ label: "Live overview" }]} />
@@ -107,7 +133,7 @@ export default function App() {
             integrations={integrations}
             onSelect={(ip) => navigate("#/device/" + encodeURIComponent(ip))}
           />
-          <HITLBar />
+          {!support && <HITLBar />}
           <LiveRequests height="420px" />
         </Main>
       ) : route.name === "devices" ? (
@@ -120,11 +146,12 @@ export default function App() {
       ) : route.name === "analytics" ? (
         <AnalyticsPage ip={route.ip} agents={agents} />
       ) : route.name === "request" ? (
-        <RequestDetailPage id={route.id} agents={agents} />
+        <RequestDetailPage id={route.id} agents={agents} support={support !== null} />
       ) : route.name === "onboard" ? (
         <OnboardPage code={route.code} />
       ) : route.name === "settings" ? (
         <SettingsPage
+          support={support !== null}
           integrations={integrations}
           onConnect={(id) => setConnectId(id)}
           onRefresh={refresh}
@@ -132,10 +159,11 @@ export default function App() {
       ) : route.name === "plugins" ? (
         <PluginsPage />
       ) : route.name === "account" ? (
-        <AccountPage whoami={whoami} />
+        <AccountPage whoami={whoami} supportEnabled={supportEnabled && !support} />
       ) : (
         <DevicePage
           ip={route.ip}
+          support={support !== null}
           agents={agents}
           integrations={integrations}
           configFile={configFile}
@@ -204,7 +232,7 @@ function HomeAgents({
 
 function UpdateNotice({ update }: { update: UpdateBanner | null }) {
   if (!update?.update_available) return null;
-  const dismissKey = "clawpatrol:update-dismissed:" + update.latest;
+  const dismissKey = "nebprx:update-dismissed:" + update.latest;
   const [dismissed, setDismissed] = useState(
     typeof localStorage !== "undefined" && localStorage.getItem(dismissKey) === "1",
   );
@@ -212,7 +240,7 @@ function UpdateNotice({ update }: { update: UpdateBanner | null }) {
   return (
     <div className="bg-butter-100 border-b border-butter-300 px-4 sm:px-4 py-2 text-xs text-text flex items-center justify-between gap-3">
       <div className="flex-1">
-        <span className="font-semibold">Claw Patrol {update.latest}</span>
+        <span className="font-semibold">PRX {update.latest}</span>
         {" available — "}
         <a
           href={update.url}
@@ -222,7 +250,7 @@ function UpdateNotice({ update }: { update: UpdateBanner | null }) {
         >
           release notes
         </a>
-        {update.advisory && <span className="ml-2 text-rust-700">({update.advisory})</span>}
+        {update.advisory && <span className="ml-2 text-butter-700">({update.advisory})</span>}
       </div>
       <button
         onClick={() => {

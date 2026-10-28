@@ -1,4 +1,4 @@
-// Package credentials implements clawpatrol credentials support.
+// Package credentials implements nebprx credentials support.
 package credentials
 
 // anthropic_manual_key: Anthropic API key stamped into the
@@ -9,14 +9,14 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// AnthropicManualKey is part of the clawpatrol plugin API.
+// AnthropicManualKey is part of the PRX plugin API.
 type AnthropicManualKey struct{}
 
-// InjectHTTP is part of the clawpatrol plugin API.
+// InjectHTTP is part of the PRX plugin API.
 func (a *AnthropicManualKey) InjectHTTP(_ context.Context, req *http.Request, sec runtime.Secret) error {
 	if len(sec.Bytes) == 0 {
 		return nil
@@ -25,7 +25,7 @@ func (a *AnthropicManualKey) InjectHTTP(_ context.Context, req *http.Request, se
 	return nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*AnthropicManualKey) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{{Label: "Anthropic API key", Description: "sk-ant-…"}}
 }

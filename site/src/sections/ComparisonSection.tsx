@@ -9,33 +9,33 @@ const CAPABILITIES: { heading: string; body: string; icon: IconKey }[] = [
     heading: "LLM Gateways",
     icon: "llm",
     body:
-      "Route LLM calls between providers and log usage. Claw Patrol watches " +
+      "Route LLM calls between providers and log usage. PRX watches " +
       "LLM traffic too, but focuses on what agents do downstream.",
   },
   {
     heading: "Content Guardrails",
     icon: "guardrail",
-    body: "Scan model output for unsafe content. Claw Patrol scans actions, not just words.",
+    body: "Scan model output for unsafe content. PRX scans actions, not just words.",
   },
   {
     heading: "HTTP and MCP Gateways",
     icon: "gateway",
     body:
-      "HTTP proxies that hold credentials and apply policies. Claw Patrol " +
+      "HTTP proxies that hold credentials and apply policies. PRX " +
       "does the same, plus non-HTTP protocols like Postgres.",
   },
   {
     heading: "Sandboxes",
     icon: "sandbox",
     body:
-      "Confine what an agent does on its machine. Claw Patrol limits what " +
+      "Confine what an agent does on its machine. PRX limits what " +
       "it can reach instead — stack the two.",
   },
   {
     heading: "Credential Stores",
     icon: "credentials",
     body:
-      "Hold secrets so the agent never sees them. Claw Patrol does that, " +
+      "Hold secrets so the agent never sees them. PRX does that, " +
       "paired with wire-level rules on every call those credentials authorize.",
   },
 ];
@@ -49,8 +49,8 @@ export function ComparisonSection() {
           Built for <span class="text-rust">everything agents do</span>
         </h3>
         <p class="text-text-muted text-base sm:text-lg max-w-2xl mb-16">
-          Lots of tools exist in the agent space, solving individual problems.
-          Claw Patrol takes a holistic approach.
+          Most tools cover one piece of the agent problem. PRX covers the whole
+          path from agent to system.
         </p>
 
         <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-12 md:gap-16">

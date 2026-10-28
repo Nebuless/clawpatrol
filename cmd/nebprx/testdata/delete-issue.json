@@ -1,0 +1,18 @@
+{
+  "action": {
+    "host": "api.github.com",
+    "http": {
+      "method": "DELETE",
+      "path":   "/repos/Nebuless/clawpatrol/issues/1",
+      "headers": {
+        "Authorization": ["***"]
+      }
+    }
+  },
+  "match": {
+    "verdict":  "deny",
+    "rule":     "github-writes",
+    "endpoint": "https.github",
+    "reason":   "writes go through PR review"
+  }
+}

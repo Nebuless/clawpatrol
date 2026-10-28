@@ -12,7 +12,7 @@ package wire
 
 import "github.com/hashicorp/go-plugin"
 
-// HandshakeConfig is the magic-cookie pair every clawpatrol plugin
+// HandshakeConfig is the magic-cookie pair every nebprx plugin
 // subprocess must echo back. A mismatch means the gateway is invoking the
 // wrong binary, or the binary is from an incompatible build of the SDK;
 // go-plugin refuses to start in either case.
@@ -20,14 +20,14 @@ import "github.com/hashicorp/go-plugin"
 // ProtocolVersion bumps when the wire protocol breaks compatibility.
 var HandshakeConfig = plugin.HandshakeConfig{
 	ProtocolVersion:  1,
-	MagicCookieKey:   "CLAWPATROL_PLUGIN",
-	MagicCookieValue: "clawpatrol-plugin-v1",
+	MagicCookieKey:   "NEBPRX_PLUGIN",
+	MagicCookieValue: "nebprx-plugin-v1",
 }
 
 // PluginName is the registered plugin name in go-plugin's plugin map.
-// Every clawpatrol plugin exports a single entry under this key whose
+// Every nebprx plugin exports a single entry under this key whose
 // gRPC service set covers Manifest / Build / HandleConn / Tunnel.
-const PluginName = "clawpatrol"
+const PluginName = "nebprx"
 
 // HostServicesBrokerID is the go-plugin broker stream id the gateway
 // serves host services (HostState / HostControl / HostTunnel) on and the
@@ -37,4 +37,4 @@ const HostServicesBrokerID uint32 = 1
 // SessionMetadataKey is the gRPC metadata key the per-connection session
 // token rides under on every HostControl call. Lower-case per gRPC's
 // metadata convention.
-const SessionMetadataKey = "clawpatrol-session"
+const SessionMetadataKey = "nebprx-session"

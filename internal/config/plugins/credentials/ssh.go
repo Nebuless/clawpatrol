@@ -23,12 +23,12 @@ package credentials
 import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/plugins/sshproto"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/plugins/sshproto"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
-// SSHCredential is part of the clawpatrol plugin API.
+// SSHCredential is part of the PRX plugin API.
 type SSHCredential struct{}
 
 // SSHAuth implements sshproto.AuthCredential. Returns the raw
@@ -52,7 +52,7 @@ func (s *SSHCredential) SSHAuth(sec runtime.Secret) (sshproto.Creds, error) {
 	return creds, nil
 }
 
-// SecretSlots is part of the clawpatrol plugin API.
+// SecretSlots is part of the PRX plugin API.
 func (*SSHCredential) SecretSlots() []config.SecretSlot {
 	return []config.SecretSlot{
 		{

@@ -48,11 +48,11 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/crypto/pbkdf2"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/facet"
-	"github.com/denoland/clawpatrol/internal/config/match"
-	sqlfacet "github.com/denoland/clawpatrol/internal/config/plugins/facets/sql"
-	"github.com/denoland/clawpatrol/internal/config/runtime"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/facet"
+	"github.com/Nebuless/nebprx/internal/config/match"
+	sqlfacet "github.com/Nebuless/nebprx/internal/config/plugins/facets/sql"
+	"github.com/Nebuless/nebprx/internal/config/runtime"
 )
 
 // PostgresEndpoint addresses a single RDS-or-equivalent server.
@@ -75,7 +75,7 @@ type PostgresEndpoint struct {
 	SSLMode string `hcl:"sslmode,optional"`
 }
 
-// EndpointHosts is part of the clawpatrol plugin API.
+// EndpointHosts is part of the PRX plugin API.
 func (e *PostgresEndpoint) EndpointHosts() []string { return []string{e.Host} }
 
 // ConnRouteHosts implements runtime.ConnRouter — postgres traffic
@@ -100,7 +100,7 @@ func (e *PostgresEndpoint) RequiresVIP() bool { return true }
 // password verbatim before injection.
 type PostgresEndpointRuntime struct{}
 
-// DetectPlaceholder is part of the clawpatrol plugin API.
+// DetectPlaceholder is part of the PRX plugin API.
 func (PostgresEndpointRuntime) DetectPlaceholder(req *runtime.Request, candidates []string) string {
 	if req == nil {
 		return ""

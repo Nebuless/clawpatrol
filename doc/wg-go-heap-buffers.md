@@ -29,10 +29,10 @@ wireguard-go ships hard-coded platform overrides for constrained environments:
 | Android | `4096` | constrained RAM |
 | iOS | `1024` | Network Extension API memory limit |
 
-Clawpatrol uses the default build (`golang.zx2c4.com/wireguard`), so it
+PRX uses the default build (`golang.zx2c4.com/wireguard`), so it
 inherits the unbounded behaviour.
 
-## Impact on clawpatrol today
+## Impact on PRX today
 
 Low-to-moderate deployments (single gateway, hundreds of peers, lightly
 loaded) are generally unaffected — the pools do not grow large enough to
@@ -102,7 +102,7 @@ Do not fork yet. The risk only materialises at scale we have not reached.
 
 When heap pressure is observed in production (via pprof or OOM events):
 
-1. File a clawpatrol issue with heap profiles to quantify the impact.
+1. File a PRX issue with heap profiles to quantify the impact.
 2. Apply the one-line patch via a `go.mod replace` pointing at a thin fork
    (steps above). The fork surface is one file; upstream security patches
    can be tracked with a periodic `git merge`.

@@ -20,8 +20,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/denoland/clawpatrol/internal/config"
-	"github.com/denoland/clawpatrol/internal/config/hostmatch"
+	"github.com/Nebuless/nebprx/internal/config"
+	"github.com/Nebuless/nebprx/internal/config/hostmatch"
 )
 
 // passthroughBuild is the Build hook for endpoint plugins that don't
