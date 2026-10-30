@@ -1,0 +1,53 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "all-caps-body",
+        "value": "*",
+        "files": [
+          ".lavish/prx-package-intelligence.html"
+        ],
+        "createdAt": "2026-10-27T02:50:29.495Z",
+        "reason": "Agent review: uppercase is confined to short research/date metadata, table headers and diagram labels; no body passage is uppercase."
+      },
+      {
+        "rule": "extreme-negative-tracking",
+        "value": "*",
+        "files": [
+          ".lavish/prx-package-intelligence.html"
+        ],
+        "createdAt": "2026-10-27T02:50:29.566Z",
+        "reason": "Agent browser verification at 1440px and 390px: all headings compute to -0.025em (h2 -0.8px/-0.7px, h3 -0.55px), not the detector-reported -0.16em/-0.20em; inspected screenshots remain legible."
+      },
+      {
+        "rule": "oversized-h1",
+        "value": "*",
+        "files": [
+          ".lavish/prx-package-intelligence.html"
+        ],
+        "createdAt": "2026-10-27T02:50:29.629Z",
+        "reason": "Agent browser verification at 1440px and 390px: h1 computes to 62px and 38px under clamp(38px,5vw,62px), not the detector-reported 176px; report introduction fits the viewport."
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "docs/plans/2026-10-27-1621-feat-hosting-support-impersonation-plan.html"
+        ],
+        "createdAt": "2026-10-27T21:49:32.522Z",
+        "reason": "Agent: static detector combines dark-media variables with white default surfaces and loses inherited foreground. Declared light/dark ink, muted, link and warning pairs exceed WCAG AA; black text is not declared for dark surfaces. Scope is this engineering plan only."
+      },
+      {
+        "rule": "aphoristic-cadence",
+        "value": "*",
+        "files": [
+          "docs/plans/2026-10-27-1621-feat-hosting-support-impersonation-plan.html"
+        ],
+        "createdAt": "2026-10-27T21:49:45.403Z",
+        "reason": "Agent: engineering security requirements intentionally use explicit prohibitions and permission boundaries. The detector flags normative technical instructions, not promotional aphorisms; exception limited to this plan."
+      }
+    ]
+  }
+}
