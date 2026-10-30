@@ -1,6 +1,7 @@
 .env
 .claude/*
 !.claude/CLAUDE.md
+!.claude/skills
 ca/
 ts-state/
 dist/
@@ -24,3 +25,6 @@ CLAUDE.local.md
 *.swp
 /plugin-example/plugin-example
 .context/compound-engineering/
+
+# Local design snapshots and editor sessions.
+.taste-skill/
