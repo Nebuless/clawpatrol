@@ -2,7 +2,7 @@
 -- rerunning the same UTC day overwrites that day's rows. The
 -- scheduled worker handler computes the same numbers via prepared
 -- statements; this file lets you seed or backfill manually with
---   npx wrangler d1 execute TELEMETRY_DB --remote --file sql/snapshot.sql
+--   pnpm exec vp exec wrangler d1 execute TELEMETRY_DB --remote --file sql/snapshot.sql
 INSERT OR REPLACE INTO telemetry_snapshots (day, metric, bucket, count)
 SELECT CAST(strftime('%Y%m%d', 'now') AS INTEGER), 'active', '',
        COUNT(*)

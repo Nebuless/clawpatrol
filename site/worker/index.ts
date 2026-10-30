@@ -2,7 +2,7 @@
 // Cloudflare Worker for prx.nebuless.cloud. Three responsibilities:
 //
 //   1. Serve the static landing site (env.ASSETS, built into ./dist
-//      by `npm run build`).
+//      by `pnpm run build`).
 //   2. Accept telemetry pings from PRX gateways at
 //      POST /api/telemetry/v1/check, upsert into D1, and return the
 //      latest GitHub release as the update-checker response.
@@ -18,8 +18,7 @@ interface Env {
 }
 
 const MAX_BODY_BYTES = 4096;
-const RELEASES_URL =
-  "https://api.github.com/repos/Nebuless/clawpatrol/releases/latest";
+const RELEASES_URL = "https://api.github.com/repos/Nebuless/PRX/releases/latest";
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -37,10 +36,7 @@ export default {
   },
 };
 
-async function handleCheck(
-  req: Request,
-  env: Env,
-): Promise<Response> {
+async function handleCheck(req: Request, env: Env): Promise<Response> {
   if (req.method !== "POST") {
     return new Response(null, { status: 405 });
   }
@@ -101,23 +97,25 @@ async function handleCheck(
        bytes_in_1h          = excluded.bytes_in_1h,
        bytes_out_1h         = excluded.bytes_out_1h,
        payload              = excluded.payload`,
-  ).bind(
-    id,
-    now,
-    now,
-    version,
-    str(body.git_sha),
-    os,
-    arch,
-    str(body.go_version),
-    str(body.transport),
-    intOrNull(body.uptime_s),
-    intOrNull(body.connected_devices_1h),
-    intOrNull(body.actions_count_1h),
-    intOrNull(body.bytes_in_1h),
-    intOrNull(body.bytes_out_1h),
-    text,
-  ).run();
+  )
+    .bind(
+      id,
+      now,
+      now,
+      version,
+      str(body.git_sha),
+      os,
+      arch,
+      str(body.go_version),
+      str(body.transport),
+      intOrNull(body.uptime_s),
+      intOrNull(body.connected_devices_1h),
+      intOrNull(body.actions_count_1h),
+      intOrNull(body.bytes_in_1h),
+      intOrNull(body.bytes_out_1h),
+      text,
+    )
+    .run();
 
   const release = await fetchLatestRelease();
   const updateAvailable = !!release.tag && release.tag !== version;
@@ -130,10 +128,7 @@ async function handleCheck(
   });
 }
 
-async function handleInstall(
-  req: Request,
-  env: Env,
-): Promise<Response> {
+async function handleInstall(req: Request, env: Env): Promise<Response> {
   if (req.method !== "POST") {
     return new Response(null, { status: 405 });
   }
@@ -178,16 +173,18 @@ async function handleInstall(
        version     = excluded.version,
        from_source = excluded.from_source,
        reason      = excluded.reason`,
-  ).bind(
-    id,
-    now,
-    event,
-    str(body.os) || null,
-    str(body.arch) || null,
-    str(body.version) || null,
-    fromSource,
-    str(body.reason) || null,
-  ).run();
+  )
+    .bind(
+      id,
+      now,
+      event,
+      str(body.os) || null,
+      str(body.arch) || null,
+      str(body.version) || null,
+      fromSource,
+      str(body.reason) || null,
+    )
+    .run();
 
   return new Response(null, { status: 204 });
 }
@@ -207,7 +204,7 @@ async function fetchLatestRelease(): Promise<Release> {
     cf: { cacheTtl: 1800, cacheEverything: true },
   });
   if (!r.ok) return { tag: "", url: "", advisory: null };
-  const data = await r.json() as {
+  const data = (await r.json()) as {
     tag_name?: string;
     html_url?: string;
     body?: string;
@@ -217,9 +214,7 @@ async function fetchLatestRelease(): Promise<Release> {
   return { tag, url, advisory: parseAdvisory(data.body ?? "") };
 }
 
-function parseAdvisory(
-  body: string,
-): { level: string; message: string } | null {
+function parseAdvisory(body: string): { level: string; message: string } | null {
   const m = body.match(/^\[(security|advisory)\]\s*([\s\S]*)/i);
   if (!m) return null;
   const firstPara = m[2].split(/\n\s*\n/)[0].trim();
@@ -236,36 +231,44 @@ async function snapshotDaily(env: Env): Promise<void> {
   const day = yyyymmdd(new Date(now * 1000));
   const db = env.TELEMETRY_DB;
 
-  const active = await db.prepare(
-    `SELECT COUNT(*) AS count FROM gateways WHERE last_seen > ?`,
-  ).bind(cutoff).first<{ count: number }>();
+  const active = await db
+    .prepare(`SELECT COUNT(*) AS count FROM gateways WHERE last_seen > ?`)
+    .bind(cutoff)
+    .first<{ count: number }>();
 
-  const transports = await db.prepare(
-    `SELECT COALESCE(transport, '(unknown)') AS bucket,
+  const transports = await db
+    .prepare(
+      `SELECT COALESCE(transport, '(unknown)') AS bucket,
             COUNT(*) AS count
        FROM gateways
       WHERE last_seen > ?
       GROUP BY bucket`,
-  ).bind(cutoff).all<{ bucket: string; count: number }>();
+    )
+    .bind(cutoff)
+    .all<{ bucket: string; count: number }>();
 
-  const platforms = await db.prepare(
-    `SELECT COALESCE(os, '?') || '/' || COALESCE(arch, '?') AS bucket,
+  const platforms = await db
+    .prepare(
+      `SELECT COALESCE(os, '?') || '/' || COALESCE(arch, '?') AS bucket,
             COUNT(*) AS count
        FROM gateways
       WHERE last_seen > ?
       GROUP BY bucket`,
-  ).bind(cutoff).all<{ bucket: string; count: number }>();
+    )
+    .bind(cutoff)
+    .all<{ bucket: string; count: number }>();
 
-  const versions = await db.prepare(
-    `SELECT version AS bucket, COUNT(*) AS count
+  const versions = await db
+    .prepare(
+      `SELECT version AS bucket, COUNT(*) AS count
        FROM gateways
       WHERE last_seen > ?
       GROUP BY bucket`,
-  ).bind(cutoff).all<{ bucket: string; count: number }>();
+    )
+    .bind(cutoff)
+    .all<{ bucket: string; count: number }>();
 
-  const rows: Array<[number, string, string, number]> = [
-    [day, "active", "", active?.count ?? 0],
-  ];
+  const rows: Array<[number, string, string, number]> = [[day, "active", "", active?.count ?? 0]];
   for (const r of transports.results) {
     rows.push([day, "transport", r.bucket, r.count]);
   }

@@ -12,7 +12,7 @@ try {
   const { chromium } = await import(pathToFileURL(modulePath));
   const providerPort = new URL(f.Provider).port;
   const browser = await chromium.launch({
-    executablePath: process.env.PRX_CHROMIUM || "/root/.local/bin/chromium",
+    ...(process.env.PRX_CHROMIUM ? { executablePath: process.env.PRX_CHROMIUM } : {}),
     headless: true,
     args: [
       "--no-sandbox",

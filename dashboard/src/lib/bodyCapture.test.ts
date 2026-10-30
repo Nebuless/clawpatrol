@@ -1,3 +1,4 @@
+import { test } from "vite-plus/test";
 import {
   BODY_ABORTED_MARKER,
   BODY_INCOMPLETE_MARKER,
@@ -11,7 +12,7 @@ function assertEquals<T>(actual: T, expected: T): void {
   }
 }
 
-Deno.test("splitBodyCapture leaves complete bodies unchanged", () => {
+test("splitBodyCapture leaves complete bodies unchanged", () => {
   assertEquals(splitBodyCapture(`{"ok":true}`, "complete"), {
     text: `{"ok":true}`,
     capped: false,
@@ -19,7 +20,7 @@ Deno.test("splitBodyCapture leaves complete bodies unchanged", () => {
   });
 });
 
-Deno.test("splitBodyCapture uses structured incomplete state", () => {
+test("splitBodyCapture uses structured incomplete state", () => {
   assertEquals(splitBodyCapture(`{"partial":true}`, "incomplete"), {
     text: `{"partial":true}`,
     capped: false,
@@ -27,7 +28,7 @@ Deno.test("splitBodyCapture uses structured incomplete state", () => {
   });
 });
 
-Deno.test("splitBodyCapture uses structured aborted state", () => {
+test("splitBodyCapture uses structured aborted state", () => {
   assertEquals(splitBodyCapture("partial", "aborted"), {
     text: "partial",
     capped: false,
@@ -35,7 +36,7 @@ Deno.test("splitBodyCapture uses structured aborted state", () => {
   });
 });
 
-Deno.test("splitBodyCapture keeps structured state and cap truncation orthogonal", () => {
+test("splitBodyCapture keeps structured state and cap truncation orthogonal", () => {
   assertEquals(splitBodyCapture(`partial${BODY_TRUNCATED_MARKER}`, "incomplete"), {
     text: "partial",
     capped: true,
@@ -43,7 +44,7 @@ Deno.test("splitBodyCapture keeps structured state and cap truncation orthogonal
   });
 });
 
-Deno.test("splitBodyCapture marks legacy rows with no state as unknown", () => {
+test("splitBodyCapture marks legacy rows with no state as unknown", () => {
   assertEquals(splitBodyCapture("legacy body"), {
     text: "legacy body",
     capped: false,
@@ -51,7 +52,7 @@ Deno.test("splitBodyCapture marks legacy rows with no state as unknown", () => {
   });
 });
 
-Deno.test("splitBodyCapture understands legacy lifecycle markers", () => {
+test("splitBodyCapture understands legacy lifecycle markers", () => {
   assertEquals(splitBodyCapture(`partial${BODY_ABORTED_MARKER}${BODY_TRUNCATED_MARKER}`), {
     text: "partial",
     capped: true,
@@ -59,7 +60,7 @@ Deno.test("splitBodyCapture understands legacy lifecycle markers", () => {
   });
 });
 
-Deno.test("structured state prevents lifecycle-marker suffix ambiguity", () => {
+test("structured state prevents lifecycle-marker suffix ambiguity", () => {
   const text = `literal${BODY_INCOMPLETE_MARKER}`;
   assertEquals(splitBodyCapture(text, "complete"), {
     text,

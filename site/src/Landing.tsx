@@ -1,4 +1,5 @@
 import { Layout } from "./Layout";
+import { AssessmentOverview } from "./pages/Assessment";
 import { DotField } from "./components/DotField.tsx";
 import { ShadeGradient } from "./components/ShadeBar.tsx";
 import { ApproversSection } from "./sections/ApproversSection";
@@ -16,6 +17,7 @@ export function Landing() {
   return (
     <Layout>
       <HeroSection />
+      <AssessmentOverview />
       <VpnSection />
       <ShadeGradient color="text-navy" invert />
       <ProblemSection />

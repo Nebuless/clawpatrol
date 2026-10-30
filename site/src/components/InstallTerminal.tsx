@@ -9,11 +9,7 @@ type Variant = "compact" | "expanded";
 //   • compact — used inline (e.g. hero column).
 //   • expanded — bigger padding and type for standalone use as a
 //     section’s primary install affordance.
-export function InstallTerminal({
-  variant = "compact",
-}: {
-  variant?: Variant;
-}) {
+export function InstallTerminal({ variant = "compact" }: { variant?: Variant }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -32,9 +28,7 @@ export function InstallTerminal({
   const codeSize = expanded ? "text-base" : "text-sm";
 
   return (
-    <TerminalFrame
-      class={`inline-flex items-center gap-4 squircle-lg ${surface}`}
-    >
+    <TerminalFrame class={`inline-flex items-center gap-4 squircle-lg ${surface}`}>
       <pre
         class={`font-mono ${codeSize} text-canvas flex-1 min-w-0
           overflow-x-auto whitespace-nowrap leading-none`}

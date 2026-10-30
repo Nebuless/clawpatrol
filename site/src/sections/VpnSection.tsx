@@ -34,9 +34,7 @@ function AgentTypewriter() {
   const reduced = useReducedMotion();
   const [i, setI] = useState(0);
   const [text, setText] = useState("");
-  const [phase, setPhase] = useState<"typing" | "holding" | "deleting">(
-    "typing",
-  );
+  const [phase, setPhase] = useState<"typing" | "holding" | "deleting">("typing");
 
   useEffect(() => {
     if (reduced) {
@@ -47,10 +45,7 @@ function AgentTypewriter() {
     let t: ReturnType<typeof setTimeout>;
     if (phase === "typing") {
       if (text.length < target.length) {
-        t = setTimeout(
-          () => setText(target.slice(0, text.length + 1)),
-          TYPE_MS,
-        );
+        t = setTimeout(() => setText(target.slice(0, text.length + 1)), TYPE_MS);
       } else {
         t = setTimeout(() => setPhase("holding"), HOLD_MS);
       }
@@ -70,9 +65,7 @@ function AgentTypewriter() {
   return (
     <span class="inline-block min-w-[13ch] text-left text-canvas">
       {text}
-      {!reduced && (
-        <span class="animate-pulse [animation-duration:0.8s]">_</span>
-      )}
+      {!reduced && <span class="animate-pulse [animation-duration:0.8s]">_</span>}
     </span>
   );
 }
@@ -87,13 +80,11 @@ export function VpnSection() {
               Works with the agents <span class="text-rust">your team already uses</span>
             </h3>
             <p class="text-base text-canvas/70 mb-6 text-pretty">
-              Prefix the agent's command with{" "}
-              <code class="font-mono text-canvas">nebprx run</code>. Same
-              workflow. Every request PRX inspects is recorded.
+              Prefix the agent's command with <code class="font-mono text-canvas">nebprx run</code>.
+              Same workflow. Every request PRX inspects is recorded.
             </p>
             <div class="font-mono text-sm text-canvas/80">
-              <span class="text-canvas/40">$</span> nebprx run{" "}
-              <AgentTypewriter />
+              <span class="text-canvas/40">$</span> nebprx run <AgentTypewriter />
             </div>
           </div>
           <div class="flex justify-center md:justify-end">

@@ -10,5 +10,13 @@
     "noEmit": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["src", "build-docs.ts", "docs-render.ts", "vite.config.ts", "tests", "worker", "scripts"]
+  "include": [
+    "src",
+    "build-docs.ts",
+    "docs-render.ts",
+    "vite.config.ts",
+    "tests",
+    "worker",
+    "scripts"
+  ]
 }

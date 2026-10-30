@@ -1,23 +1,18 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, type Plugin, lazyPlugins } from "vite-plus";
 import preact from "@preact/preset-vite";
 import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "node:path";
 import type { Doc } from "./docs-render";
-import { pageForPath, pages } from "./src/pages";
+import { pageMetadataForPath, pageMetadata } from "./src/page-metadata";
 
-// Keep <title> in sync with HeroSection's H1. The constant lives in
-// src/copy.ts so HeroSection imports it directly; this plugin rewrites
-// index.html's <title> at dev-server time and at build time so static
-// crawlers see the same string.
+// Read the same pure metadata as prerendering, without bundling JSX into
+// build configuration. Rewrite the title for both development and builds.
 function injectTitle(): Plugin {
   return {
     name: "inject-title",
     transformIndexHtml(html, context) {
-      const page = pageForPath(context.path) ?? pages[0];
-      return html.replace(
-        /<title>.*?<\/title>/,
-        `<title>${page.title}</title>`,
-      );
+      const page = pageMetadataForPath(context.path) ?? pageMetadata[0];
+      return html.replace(/<title>.*?<\/title>/, `<title>${page.title}</title>`);
     },
   };
 }
@@ -29,26 +24,19 @@ function serveDocsInDev(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url || !/^\/docs(?:\/|\?|$)/.test(req.url)) return next();
         try {
-          const { loadDocs, renderDocPage } =
-            await server.ssrLoadModule("/docs-render.ts");
+          const { loadDocs, renderDocPage } = await server.ssrLoadModule("/docs-render.ts");
           const docsDir = resolve(__dirname, "doc");
           const docs = loadDocs(docsDir);
           const rawPath = req.url.split("?")[0];
           const isMarkdown = rawPath.endsWith(".md");
-          const path = (isMarkdown
-            ? rawPath
-            : rawPath.replace(/\/$/, "")) || "/docs";
+          const path = (isMarkdown ? rawPath : rawPath.replace(/\/$/, "")) || "/docs";
 
           let doc: Doc | undefined;
           if (path === "/docs") {
             doc = docs[0];
           } else {
-            const slug = path.replace("/docs/", "")
-              .replace(/\.md$/, "")
-              .replace(/\/$/, "");
-            doc = docs.find(
-              (d: { slug: string }) => d.slug === slug,
-            );
+            const slug = path.replace("/docs/", "").replace(/\.md$/, "").replace(/\/$/, "");
+            doc = docs.find((d: { slug: string }) => d.slug === slug);
           }
           if (!doc) return next();
 
@@ -110,11 +98,19 @@ function reloadDocsOnChange(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [
+  fmt: {
+    ignorePatterns: ["doc/**", "public/**", "demo/fixtures/**", "src/lib/examples.ts"],
+  },
+  lint: {
+    jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
+    rules: { "vite-plus/prefer-vite-plus-imports": "error" },
+    options: { typeAware: true, typeCheck: true },
+  },
+  plugins: lazyPlugins(() => [
     preact(),
     tailwindcss(),
     injectTitle(),
     serveDocsInDev(),
     reloadDocsOnChange(),
-  ],
+  ]),
 });

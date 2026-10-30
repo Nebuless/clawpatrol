@@ -42,16 +42,14 @@ export function RulesSection() {
 
         <div class="max-w-3xl mx-auto text-center mb-16">
           <h3 class="text-4xl sm:text-5xl md:text-6xl font-display text-balance mb-5">
-            You write access rules.{" "}
-            <span class="text-rust">PRX enforces them.</span>
+            You write access rules. <span class="text-rust">PRX enforces them.</span>
           </h3>
           <p class="text-base text-canvas/70 text-balance max-w-prose mx-auto">
             Every outbound request runs through{" "}
             <a href="/docs/rules/" class="underline underline-offset-2">
               PRX's rule engine
             </a>
-            . Match on HTTP method, SQL statement, Kubernetes resource and
-            more, not just URLs.
+            . Match on HTTP method, SQL statement, Kubernetes resource and more, not just URLs.
           </p>
         </div>
 

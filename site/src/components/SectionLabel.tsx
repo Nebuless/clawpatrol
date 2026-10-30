@@ -1,10 +1,4 @@
-export function SectionLabel({
-  children,
-  class: className,
-}: {
-  children: string;
-  class?: string;
-}) {
+export function SectionLabel({ children, class: className }: { children: string; class?: string }) {
   return (
     <h2
       class={

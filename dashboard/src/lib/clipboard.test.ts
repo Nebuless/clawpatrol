@@ -1,7 +1,7 @@
-/// <reference lib="deno.ns" />
+import { test } from "vite-plus/test";
 import { headersToJSON } from "./clipboard";
 
-Deno.test("headersToJSON: single-value headers serialise as strings", () => {
+test("headersToJSON: single-value headers serialise as strings", () => {
   const out = headersToJSON({
     "content-type": "application/json",
     "x-request-id": "abc123",
@@ -19,7 +19,7 @@ Deno.test("headersToJSON: single-value headers serialise as strings", () => {
   }
 });
 
-Deno.test("headersToJSON: multi-value headers serialise as arrays", () => {
+test("headersToJSON: multi-value headers serialise as arrays", () => {
   const out = headersToJSON({
     "set-cookie": ["a=1; Path=/", "b=2; Secure"],
   });
@@ -35,14 +35,14 @@ Deno.test("headersToJSON: multi-value headers serialise as arrays", () => {
   }
 });
 
-Deno.test("headersToJSON: empty header map produces empty object", () => {
+test("headersToJSON: empty header map produces empty object", () => {
   const out = headersToJSON({});
   if (out !== "{}") {
     throw new Error(`expected '{}', got ${JSON.stringify(out)}`);
   }
 });
 
-Deno.test("headersToJSON: empty header value preserved", () => {
+test("headersToJSON: empty header value preserved", () => {
   const out = headersToJSON({ "x-empty": "" });
   const parsed = JSON.parse(out);
   if (parsed["x-empty"] !== "") {
@@ -50,7 +50,7 @@ Deno.test("headersToJSON: empty header value preserved", () => {
   }
 });
 
-Deno.test("headersToJSON: single-element array collapses to string", () => {
+test("headersToJSON: single-element array collapses to string", () => {
   const out = headersToJSON({ "x-once": ["only"] });
   const parsed = JSON.parse(out);
   if (parsed["x-once"] !== "only") {
@@ -60,7 +60,7 @@ Deno.test("headersToJSON: single-element array collapses to string", () => {
   }
 });
 
-Deno.test("headersToJSON: special characters are JSON-escaped", () => {
+test("headersToJSON: special characters are JSON-escaped", () => {
   const out = headersToJSON({
     "x-quote": 'he said "hi"',
     "x-backslash": "a\\b",
@@ -76,7 +76,7 @@ Deno.test("headersToJSON: special characters are JSON-escaped", () => {
   if (parsed["x-unicode"] !== "café 漢字 🚀") throw new Error("unicode round-trip failed");
 });
 
-Deno.test("headersToJSON: output is pretty-printed with 2-space indent", () => {
+test("headersToJSON: output is pretty-printed with 2-space indent", () => {
   const out = headersToJSON({ a: "1", b: "2" });
   if (!out.includes("\n")) {
     throw new Error("expected newlines in pretty-printed output");

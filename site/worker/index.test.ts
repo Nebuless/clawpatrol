@@ -1,31 +1,54 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { afterEach, test } from "vite-plus/test";
 
 import worker from "./index";
 
-type PreparedStatement = {
-  bind: (...args: unknown[]) => PreparedStatement;
-  run: () => Promise<void>;
-};
+function unexpectedDatabaseOperation(): never {
+  throw new Error("Database operation is outside this HTTP fixture");
+}
 
 function env() {
   const calls = { prepare: 0, bind: [] as unknown[][], releaseFetch: 0 };
-  const stmt: PreparedStatement = {
+  const stmt: D1PreparedStatement = {
     bind: (...args: unknown[]) => {
       calls.bind.push(args);
       return stmt;
     },
-    run: async () => {},
+    run: async () => ({
+      success: true,
+      results: [],
+      meta: {
+        duration: 0,
+        size_after: 0,
+        rows_read: 0,
+        rows_written: 0,
+        last_row_id: 0,
+        changed_db: false,
+        changes: 0,
+      },
+    }),
+    first: unexpectedDatabaseOperation,
+    all: unexpectedDatabaseOperation,
+    raw: unexpectedDatabaseOperation,
   };
   return {
     calls,
     env: {
-      ASSETS: { fetch: async () => new Response("asset") },
+      ASSETS: {
+        fetch: async () => new Response("asset"),
+        connect: () => {
+          throw new Error("Asset sockets are outside this HTTP fixture");
+        },
+      },
       TELEMETRY_DB: {
         prepare: () => {
           calls.prepare++;
           return stmt;
         },
+        batch: unexpectedDatabaseOperation,
+        exec: unexpectedDatabaseOperation,
+        withSession: unexpectedDatabaseOperation,
+        dump: unexpectedDatabaseOperation,
       },
     },
   };
@@ -33,7 +56,7 @@ function env() {
 
 const originalFetch = globalThis.fetch;
 
-test.afterEach(() => {
+afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
@@ -57,16 +80,16 @@ test("rejects oversized telemetry payloads from Content-Length before reading th
   assert.equal(calls.prepare, 0);
 });
 
-test("check pings skip dev builds and fetch releases from Nebuless/clawpatrol", async () => {
+test("check pings skip dev builds and fetch releases from Nebuless/PRX", async () => {
   for (const version of ["dev", "0.4.2"]) {
     const { env: testEnv, calls } = env();
     globalThis.fetch = async (input, init) => {
       calls.releaseFetch++;
-      assert.equal(input, "https://api.github.com/repos/Nebuless/clawpatrol/releases/latest");
+      assert.equal(input, "https://api.github.com/repos/Nebuless/PRX/releases/latest");
       assert.equal(new Headers(init?.headers).get("User-Agent"), "nebprx-telemetry-worker");
       return Response.json({
         tag_name: "v1.0.0",
-        html_url: "https://github.com/Nebuless/clawpatrol/releases/tag/v1.0.0",
+        html_url: "https://github.com/Nebuless/PRX/releases/tag/v1.0.0",
       });
     };
     const res = await worker.fetch(
@@ -91,7 +114,7 @@ test("check pings skip dev builds and fetch releases from Nebuless/clawpatrol", 
         latest: "1.0.0",
         your_version: version,
         update_available: true,
-        url: "https://github.com/Nebuless/clawpatrol/releases/tag/v1.0.0",
+        url: "https://github.com/Nebuless/PRX/releases/tag/v1.0.0",
         advisory: null,
       });
     }

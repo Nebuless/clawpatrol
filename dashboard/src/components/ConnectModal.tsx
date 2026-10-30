@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   oauthDevicePoll,
   oauthExchange,
@@ -78,7 +78,9 @@ export function ConnectModal({
   // every 3s) reset the lambda otherwise, killing the polling interval
   // before its 5s tick can fire.
   const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
+  useLayoutEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   const authCodeStart = state.kind === "authCode" ? state.start : null;
 

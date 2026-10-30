@@ -1,4 +1,4 @@
-// `npm run telemetry` — execute every .sql file in sql/telemetry/
+// `pnpm run telemetry` — execute every .sql file in sql/telemetry/
 // against the live D1 database in order, printing each result back
 // to back as a small ASCII table. Reads stay read-only because each
 // file is a SELECT; the runner doesn't validate that, so don't put
@@ -9,7 +9,9 @@ import { join, resolve } from "node:path";
 
 const here = resolve(import.meta.dirname);
 const dir = resolve(here, "..", "sql", "telemetry");
-const files = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+const files = readdirSync(dir)
+  .filter((f) => f.endsWith(".sql"))
+  .sort();
 
 if (files.length === 0) {
   console.error(`no .sql files in ${dir}`);
@@ -28,10 +30,19 @@ for (const f of files) {
     .replace(/\s+/g, " ")
     .trim();
   const r = spawnSync(
-    "npx",
+    "pnpm",
     [
-      "wrangler", "d1", "execute", "TELEMETRY_DB",
-      "--remote", "--json", "--command", sql,
+      "exec",
+      "vp",
+      "exec",
+      "wrangler",
+      "d1",
+      "execute",
+      "TELEMETRY_DB",
+      "--remote",
+      "--json",
+      "--command",
+      sql,
     ],
     { encoding: "utf8" },
   );
@@ -46,7 +57,7 @@ for (const f of files) {
     const out = JSON.parse(r.stdout);
     const rows = out?.[0]?.results ?? [];
     printRows(rows);
-  } catch (e) {
+  } catch {
     process.stdout.write(r.stdout);
   }
 }
@@ -58,14 +69,20 @@ function printRows(rows: Array<Record<string, unknown>>) {
     return;
   }
   const cols = Object.keys(rows[0]);
-  const widths = cols.map((c) =>
-    Math.max(c.length, ...rows.map((r) => String(r[c] ?? "").length)),
-  );
-  const fmt = (vals: string[]) =>
-    vals.map((v, i) => v.padEnd(widths[i])).join("  ");
+  const widths = cols.map((c) => Math.max(c.length, ...rows.map((r) => cellText(r[c]).length)));
+  const fmt = (vals: string[]) => vals.map((v, i) => v.padEnd(widths[i])).join("  ");
   console.log(fmt(cols));
   console.log(fmt(widths.map((w) => "-".repeat(w))));
   for (const r of rows) {
-    console.log(fmt(cols.map((c) => String(r[c] ?? ""))));
+    console.log(fmt(cols.map((c) => cellText(r[c]))));
   }
+}
+
+function cellText(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return JSON.stringify(value) ?? "";
 }

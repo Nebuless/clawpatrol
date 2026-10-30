@@ -20,6 +20,20 @@ export function ProviderPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Clear approval codes and customer cases before rendering a changed
+  // selection or refreshed permissions, not after committing stale controls.
+  const [selection, setSelection] = useState({ org, installation, installations, orgs });
+  if (
+    selection.org !== org ||
+    selection.installation !== installation ||
+    selection.installations !== installations ||
+    selection.orgs !== orgs
+  ) {
+    setSelection({ org, installation, installations, orgs });
+    setCode("");
+    setCases([]);
+    setHealth(null);
+  }
   const query =
     "?organization=" +
     encodeURIComponent(org) +
@@ -39,17 +53,14 @@ export function ProviderPage() {
           setTechs(t);
         }
       })
-      .catch((e) => setError(String(e)));
+      .catch((e) => {
+        if (live) setError(String(e));
+      });
     return () => {
       live = false;
     };
   }, []);
   useEffect(() => {
-    setHealth(null);
-    setCode("");
-    setInstallations([]);
-    setInstallation("");
-    setCases([]);
     if (!org) return;
     let live = true;
     supportRequest<Installation[]>(
@@ -58,7 +69,9 @@ export function ProviderPage() {
       .then((v) => {
         if (live) setInstallations(v);
       })
-      .catch((e) => setError(String(e)));
+      .catch((e) => {
+        if (live) setError(String(e));
+      });
     return () => {
       live = false;
     };
@@ -81,9 +94,6 @@ export function ProviderPage() {
     }
   }
   useEffect(() => {
-    setCode("");
-    setCases([]);
-    setHealth(null);
     if (!installation) return;
     let live = true;
     supportRequest<{ connector: string; registry: string }>("/__provider/installation" + query)
@@ -139,7 +149,11 @@ export function ProviderPage() {
             className="border p-2 max-w-full"
             value={org}
             disabled={busy}
-            onChange={(e) => setOrg(e.target.value)}
+            onChange={(e) => {
+              setOrg(e.target.value);
+              setInstallations([]);
+              setInstallation("");
+            }}
           >
             <option value="">Choose organization</option>
             {orgs.map((o) => (

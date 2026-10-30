@@ -9,7 +9,5 @@ type Props = {
 
 // Navy terminal surface for code/command blocks.
 export function TerminalFrame({ children, class: cls = "" }: Props) {
-  return (
-    <div class={`bg-navy relative max-w-full shadow-sm ${cls}`}>{children}</div>
-  );
+  return <div class={`bg-navy relative max-w-full shadow-sm ${cls}`}>{children}</div>;
 }

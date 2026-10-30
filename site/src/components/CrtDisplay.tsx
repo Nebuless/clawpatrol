@@ -1,12 +1,6 @@
 import type { ComponentChildren } from "preact";
 
-export function CrtDisplay({
-  title,
-  children,
-}: {
-  title?: string;
-  children: ComponentChildren;
-}) {
+export function CrtDisplay({ title, children }: { title?: string; children: ComponentChildren }) {
   return (
     <div>
       <div class="lg:squircle-lg overflow-hidden relative bg-navy-700">

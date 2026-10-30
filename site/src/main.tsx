@@ -10,5 +10,11 @@ if (page) {
   if (root.firstChild) hydrate(<Page />, root);
   else render(<Page />, root);
 } else {
-  render(<main><h1>Page not found</h1><a href="/">Return to PRX</a></main>, root);
+  render(
+    <main>
+      <h1>Page not found</h1>
+      <a href="/">Return to PRX</a>
+    </main>,
+    root,
+  );
 }

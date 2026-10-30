@@ -49,11 +49,7 @@ export function ShadeBar({
   class: cls = "",
 }: ShadeBarProps) {
   return (
-    <div
-      aria-hidden="true"
-      class={`w-full ${fg} ${bg} ${height} ${cls}`}
-      style={STYLE[weight]}
-    />
+    <div aria-hidden="true" class={`w-full ${fg} ${bg} ${height} ${cls}`} style={STYLE[weight]} />
   );
 }
 
@@ -86,15 +82,12 @@ export function ShadeGradient({
     ? ["full", "dark", "medium", "light"]
     : ["light", "medium", "dark", "full"];
   return (
-    <div aria-hidden="true" class={`prx-shadegrad ${invert ? "prx-invert" : ""} ${color ?? ""} ${cls}`}>
+    <div
+      aria-hidden="true"
+      class={`prx-shadegrad ${invert ? "prx-invert" : ""} ${color ?? ""} ${cls}`}
+    >
       {order.map((w) => (
-        <ShadeBar
-          key={w}
-          weight={w}
-          fg={color}
-          bg={background}
-          height={rowHeight}
-        />
+        <ShadeBar key={w} weight={w} fg={color} bg={background} height={rowHeight} />
       ))}
     </div>
   );

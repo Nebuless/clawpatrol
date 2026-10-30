@@ -1,0 +1,195 @@
+/* Assessment-led pages retain PRX's Clear Glass palette and typography. */
+.assessment-frame {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-inline: clamp(1.5rem, 4vw, 4rem);
+}
+.assessment-section {
+  padding-block: clamp(3.5rem, 7vw, 7rem);
+}
+.assessment-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+}
+.assessment-split > * {
+  min-width: 0;
+}
+.assessment-hero {
+  padding-block: clamp(3rem, 6vw, 6rem);
+}
+.assessment-hero h1 {
+  max-width: 10ch;
+  font: 600 clamp(2.5rem, 4.5vw, 4.5rem)/1.04 var(--font-display);
+  letter-spacing: -0.04em;
+}
+.assessment-section h2,
+.assessment-scope h2 {
+  font: 600 clamp(1.8rem, 3vw, 2.75rem)/1.1 var(--font-display);
+  letter-spacing: -0.025em;
+  max-width: 22ch;
+}
+.assessment-section p,
+.assessment-hero p {
+  margin-block: 1.25rem;
+  max-width: 44rem;
+  color: var(--color-text-muted);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+.assessment-hero .assessment-lead {
+  font-size: clamp(1.15rem, 1.7vw, 1.4rem);
+  color: var(--color-text);
+}
+.assessment-hero .assessment-note {
+  font-size: 0.875rem;
+}
+.assessment-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-top: 2rem;
+}
+.assessment-product {
+  padding: 1rem;
+  background: var(--color-rust-100);
+  border-radius: var(--prx-radius);
+}
+.assessment-section img,
+.assessment-hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--prx-radius);
+}
+.assessment-section figcaption,
+.assessment-hero figcaption {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-top: 1rem;
+}
+.assessment-section figcaption a,
+.assessment-hero figcaption a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--color-rust-700);
+}
+.assessment-outputs {
+  display: grid;
+  gap: 1.75rem;
+}
+.assessment-outputs dt {
+  font: 600 1.25rem/1.3 var(--font-display);
+  margin-bottom: 0.5rem;
+}
+.assessment-outputs dd {
+  color: var(--color-text-muted);
+  line-height: 1.65;
+}
+.assessment-scope ul {
+  margin-top: 2rem;
+}
+.assessment-scope li {
+  padding-block: 0.85rem;
+}
+.assessment-workflows {
+  margin-top: 2.5rem;
+  max-width: 62rem;
+}
+.assessment-workflows details {
+  margin-block: 0.75rem;
+  padding-inline: 1.5rem;
+  background: var(--color-canvas-200);
+  border-radius: var(--prx-radius);
+}
+.assessment-workflows summary {
+  padding-block: 1.25rem;
+  cursor: pointer;
+  font: 600 clamp(1.2rem, 2vw, 1.6rem)/1.4 var(--font-display);
+}
+.assessment-workflows details[open] summary {
+  color: var(--color-rust-700);
+}
+.assessment-workflows p {
+  margin-top: 0;
+  padding: 0 1.5rem 0.75rem;
+}
+.assessment-section.bg-navy-700 p,
+.assessment-section.bg-navy-700 dd {
+  color: var(--color-canvas-300);
+}
+.assessment-journey {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3rem;
+  margin-top: 3rem;
+  padding-left: 1.5rem;
+  list-style: decimal;
+}
+.assessment-journey li {
+  padding-left: 0.5rem;
+}
+.assessment-journey li::marker {
+  color: var(--color-rust-700);
+  font-weight: 600;
+}
+.assessment-journey h3 {
+  font: 600 clamp(1.25rem, 2vw, 1.6rem)/1.2 var(--font-display);
+}
+.assessment-proof {
+  background: var(--color-canvas-200);
+}
+.assessment-close {
+  background: var(--color-rust-100);
+}
+.site-nav .prx-btn,
+.site-nav-mobile summary {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.site-nav-disclosure > a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+@media (max-width: 1100px) {
+  .assessment-hero .assessment-split {
+    grid-template-columns: 1fr;
+  }
+  .assessment-hero h1 {
+    max-width: 15ch;
+  }
+  .assessment-product {
+    max-width: 52rem;
+  }
+  .assessment-scope {
+    max-width: 42rem;
+  }
+}
+@media (max-width: 767px) {
+  .assessment-split,
+  .assessment-journey {
+    grid-template-columns: 1fr;
+  }
+  .assessment-hero h1 {
+    max-width: 12ch;
+  }
+  .assessment-scope {
+    padding: 1.5rem;
+  }
+  .assessment-product {
+    padding: 0.75rem;
+  }
+  .assessment-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .assessment-journey {
+    gap: 2rem;
+  }
+}

@@ -16,10 +16,7 @@ export function DeploymentSection() {
               <span className="text-rust">Tailscale</span>
             </h4>
             <div class="flex items-center gap-5 text-text-muted text-sm">
-              <a
-                href="https://www.wireguard.com/"
-                class="flex items-center gap-2 hover:text-rust"
-              >
+              <a href="https://www.wireguard.com/" class="flex items-center gap-2 hover:text-rust">
                 <img
                   src="/icons/wireguard.svg"
                   alt=""
@@ -28,10 +25,7 @@ export function DeploymentSection() {
                 />
                 WireGuard
               </a>
-              <a
-                href="https://tailscale.com/"
-                class="flex items-center gap-2 hover:text-rust"
-              >
+              <a href="https://tailscale.com/" class="flex items-center gap-2 hover:text-rust">
                 <img
                   src="/icons/tailscale.svg"
                   alt=""
@@ -44,8 +38,7 @@ export function DeploymentSection() {
           </div>
           <div class="font-mono text-sm text-text-muted leading-relaxed">
             <div>
-              <span class="text-text-subtle">$</span> nebprx join
-              https://gw.example.com
+              <span class="text-text-subtle">$</span> nebprx join https://gw.example.com
             </div>
             <div>
               <span class="text-text-subtle">$</span> nebprx run codex

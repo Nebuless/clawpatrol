@@ -23,33 +23,15 @@ function TestOutput() {
           <span class="text-canvas/40">$ </span>
           nebprx test gateway.hcl tests/
           {"\n"}
-          <span class="text-text-subtle">
-            {ok("tests/anthropic-implicit-allow.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/clickhouse-default-deny.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/clickhouse-read.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/github-require-approval.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/api-resource-read.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/github-api-implicit-allow.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/k8s-allow-meta.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/k8s-debug-pods.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/k8s-default-deny.json")}
-          </span>
+          <span class="text-text-subtle">{ok("tests/anthropic-implicit-allow.json")}</span>
+          <span class="text-text-subtle">{ok("tests/clickhouse-default-deny.json")}</span>
+          <span class="text-text-subtle">{ok("tests/clickhouse-read.json")}</span>
+          <span class="text-text-subtle">{ok("tests/github-require-approval.json")}</span>
+          <span class="text-text-subtle">{ok("tests/api-resource-read.json")}</span>
+          <span class="text-text-subtle">{ok("tests/github-api-implicit-allow.json")}</span>
+          <span class="text-text-subtle">{ok("tests/k8s-allow-meta.json")}</span>
+          <span class="text-text-subtle">{ok("tests/k8s-debug-pods.json")}</span>
+          <span class="text-text-subtle">{ok("tests/k8s-default-deny.json")}</span>
           <span class="text-rust-300 font-bold">FAIL</span>
           {" tests/k8s-no-secrets.json\n"}
           {"  "}
@@ -69,17 +51,10 @@ function TestOutput() {
           <span class="text-text-subtle">
             {ok("tests/orb-dev2-immutable-operations-allow.json")}
           </span>
-          <span class="text-text-subtle">
-            {ok("tests/pg-staging-banned-functions.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/pg-staging-default-deny.json")}
-          </span>
-          <span class="text-text-subtle">
-            {ok("tests/pg-staging-reads.json")}
-          </span>
-          36 action(s) checked,{" "}
-          <span class="text-rust-300">1 mismatch(es)</span>
+          <span class="text-text-subtle">{ok("tests/pg-staging-banned-functions.json")}</span>
+          <span class="text-text-subtle">{ok("tests/pg-staging-default-deny.json")}</span>
+          <span class="text-text-subtle">{ok("tests/pg-staging-reads.json")}</span>
+          36 action(s) checked, <span class="text-rust-300">1 mismatch(es)</span>
         </code>
       </pre>
     </TerminalFrame>
@@ -94,19 +69,16 @@ export function TestSection() {
           <div class="min-w-0">
             <SectionLabel class="ml-0 mb-4!">Regression tests</SectionLabel>
             <h3 class="text-4xl sm:text-5xl md:text-6xl lg:text-[3.25rem] font-display text-balance mb-6 text-text">
-              Test your rules{" "}
-              <span class="text-rust">before you ship them</span>
+              Test your rules <span class="text-rust">before you ship them</span>
             </h3>
             <p class="text-base text-text-muted mb-5 max-w-xl">
-              Record real actions from the dashboard. Drop the JSON files into a
-              fixtures directory. Run <code>nebprx test</code> in CI: when a
-              policy change flips a verdict, the runner prints the diff and
-              fails the build.
+              Record real actions from the dashboard. Drop the JSON files into a fixtures directory.
+              Run <code>nebprx test</code> in CI: when a policy change flips a verdict, the runner
+              prints the diff and fails the build.
             </p>
             <p class="text-base text-text-muted max-w-xl">
-              No gateway, no database, no auth. A single binary that loads your
-              HCL, replays each fixture against the rule engine, and asserts the
-              verdicts still match.
+              No gateway, no database, no auth. A single binary that loads your HCL, replays each
+              fixture against the rule engine, and asserts the verdicts still match.
             </p>
           </div>
           <TestOutput />

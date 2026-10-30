@@ -49,18 +49,14 @@ export function ComparisonSection() {
           Built for <span class="text-rust">everything agents do</span>
         </h3>
         <p class="text-text-muted text-base sm:text-lg max-w-2xl mb-16">
-          Most tools cover one piece of the agent problem. PRX covers the whole
-          path from agent to system.
+          Most tools cover one piece of the agent problem. PRX covers the whole path from agent to
+          system.
         </p>
 
         <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-12 md:gap-16">
           <ul class="space-y-8 max-w-xl">
             {CAPABILITIES.map((c) => (
-              <Capability
-                key={c.heading}
-                heading={c.heading}
-                icon={c.icon}
-              >
+              <Capability key={c.heading} heading={c.heading} icon={c.icon}>
                 {c.body}
               </Capability>
             ))}
@@ -85,9 +81,7 @@ function Capability({
     <li class="flex items-start gap-3">
       <CapabilityIcon icon={icon} />
       <div>
-        <h4 class="text-xl sm:text-2xl font-display text-text leading-tight">
-          {heading}
-        </h4>
+        <h4 class="text-xl sm:text-2xl font-display text-text leading-tight">{heading}</h4>
         <p class="mt-2 text-text-muted leading-snug">{children}</p>
       </div>
     </li>

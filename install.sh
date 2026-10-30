@@ -1,6 +1,6 @@
 #!/bin/sh
 # nebprx installer. Downloads a prebuilt binary from GitHub Releases.
-# Falls back to source build when NEBPRX_FROM_SOURCE=1 (requires Go).
+# Builds from source when NEBPRX_FROM_SOURCE=1 (requires Go, Node.js and pnpm).
 #
 # Usage:
 #   curl -fsSL https://prx.nebuless.cloud/install.sh | sh
@@ -8,7 +8,7 @@
 # Options (env vars):
 #   NEBPRX_VERSION       — release tag (default: latest)
 #   NEBPRX_PREFIX        — install dir (default: $HOME/.local/bin)
-#   NEBPRX_FROM_SOURCE   — 1 to build from source (Go required)
+#   NEBPRX_FROM_SOURCE   — 1 to build from source (Go, Node.js and pnpm required)
 #   NEBPRX_REF           — git ref when building from source (default: main)
 #   NEBPRX_NO_TELEMETRY  — 1 to skip the anonymous install-event ping
 #
@@ -16,7 +16,7 @@
 
 set -eu
 
-REPO="Nebuless/clawpatrol"
+REPO="Nebuless/PRX"
 VERSION="${NEBPRX_VERSION:-latest}"
 PREFIX="${NEBPRX_PREFIX:-$HOME/.local/bin}"
 
@@ -76,21 +76,19 @@ if [ "${NEBPRX_FROM_SOURCE:-0}" = "1" ]; then
   REF="${NEBPRX_REF:-main}"
   command -v go  >/dev/null 2>&1 || fail "go toolchain required for source build"
   command -v git >/dev/null 2>&1 || fail "git required"
+  command -v pnpm >/dev/null 2>&1 || fail "pnpm 12.16.1 required for source build (see doc/dev-setup.md)"
   SRC=$(mktemp -d)
   trap 'rm -rf "$SRC"' EXIT INT TERM
   say "cloning ${REPO}@${REF}"
   git clone --depth 1 --branch "$REF" "https://github.com/${REPO}.git" "$SRC" >/dev/null 2>&1 \
     || git clone --depth 1 "https://github.com/${REPO}.git" "$SRC" >/dev/null 2>&1 \
     || fail "git clone failed"
-  if command -v deno >/dev/null 2>&1 && [ -d "$SRC/dashboard" ]; then
+  if [ -d "$SRC/dashboard" ]; then
     say "building dashboard"
-    ( cd "$SRC/dashboard" && deno install >/dev/null 2>&1 && deno task build >/dev/null 2>&1 ) \
-      || say "dashboard build failed (skipping)"
+    ( cd "$SRC/dashboard" && pnpm install --frozen-lockfile && pnpm exec vp run build ) \
+      || fail "dashboard build failed"
   fi
-  mkdir -p "$SRC/dashboard/dist"
-  if [ -z "$(ls -A "$SRC/dashboard/dist" 2>/dev/null)" ]; then
-    printf '<!doctype html><html><body><pre>dashboard not built</pre></body></html>' > "$SRC/dashboard/dist/index.html"
-  fi
+  [ -s "$SRC/dashboard/dist/index.html" ] || fail "dashboard bundle missing"
   say "building nebprx"
   ( cd "$SRC" && go build -ldflags "-s -w" -trimpath -o nebprx ./cmd/nebprx ) || fail "go build failed"
   mv "$SRC/nebprx" "$PREFIX/nebprx"

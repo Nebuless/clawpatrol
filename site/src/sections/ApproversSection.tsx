@@ -59,12 +59,9 @@ function LlmDiagram() {
   return (
     <DiagramFrame>
       <div class="bg-canvas px-3 py-2 font-mono text-[12px] ">
-        <div class="text-text-subtle text-[10px] uppercase tracking-[0.18em] mb-1">
-          incoming
-        </div>
+        <div class="text-text-subtle text-[10px] uppercase tracking-[0.18em] mb-1">incoming</div>
         <code class="text-text">
-          SELECT id, name, <span class="text-rust font-bold">api_key</span> FROM
-          users LIMIT 10
+          SELECT id, name, <span class="text-rust font-bold">api_key</span> FROM users LIMIT 10
         </code>
       </div>
 
@@ -74,8 +71,7 @@ function LlmDiagram() {
         </div>
         <div class="bg-canvas border border-rust-100  px-3 py-2 text-[12px]  text-text-muted">
           <span class="text-rust font-bold">✗ Denied</span> — projects{" "}
-          <code class="text-text font-mono">api_key</code>, a secret-bearing
-          column.
+          <code class="text-text font-mono">api_key</code>, a secret-bearing column.
         </div>
       </div>
     </DiagramFrame>
@@ -132,8 +128,7 @@ function HumanDiagram() {
             <span class="text-text-subtle text-[10px]">1:42 PM</span>
           </div>
           <div class="text-[12px] text-text-muted mt-0.5">
-            <span class="text-rust font-bold">✓ Allowed</span> — forwarded to
-            upstream (14s).
+            <span class="text-rust font-bold">✓ Allowed</span> — forwarded to upstream (14s).
           </div>
         </div>
       </div>
@@ -191,12 +186,12 @@ export function ApproversSection() {
 
         <div class="max-w-3xl mb-14">
           <h3 class="text-4xl sm:text-5xl md:text-6xl font-display text-balance mb-5 text-text">
-            Put a <span className="text-rust">human in the loop</span>, or
-            double-check with another agent
+            Put a <span className="text-rust">human in the loop</span>, or double-check with another
+            agent
           </h3>
           <p class="text-base  text-text-muted">
-            Defer ambiguous requests to a model with your prompt, or a real
-            human via Slack. You decide which one runs when.
+            Defer ambiguous requests to a model with your prompt, or a real human via Slack. You
+            decide which one runs when.
           </p>
         </div>
 

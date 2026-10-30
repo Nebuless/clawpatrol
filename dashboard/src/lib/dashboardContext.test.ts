@@ -1,7 +1,5 @@
+import { test } from "vite-plus/test";
 import { contextHash, safeView, validIP } from "./dashboardContext";
-function test(_name: string, run: () => void) {
-  run();
-}
 function assert(value: unknown, message: string) {
   if (!value) throw new Error(message);
 }

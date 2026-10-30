@@ -30,10 +30,22 @@ checks the lint job runs:
 - Go: `gofmt -l .` from the repo root. Empty output means clean;
   any filename listed is a fail. Fix with `gofmt -w .`.
 - Dashboard (TS/JS/HTML/JSON in `dashboard/`):
-  `cd dashboard && deno task format:check`. Fix with `deno task format`.
+  `cd dashboard && pnpm exec vp fmt --check`. Fix with `pnpm exec vp fmt`.
+  Run the same commands in `site/`. Install with `make frontend-install` first.
 
 Either fail will block the `test` workflow before the actual tests
 run. Cheap to check locally; expensive in CI round-trips.
+
+Frontend tooling is pinned to pnpm 12.16.1 and Vite+ 1.4.0. Node is pinned in
+`.node-version`. `make frontend-check` runs format, lint and type checks;
+`make frontend-test` runs Vitest in both applications. Each app has its own
+`pnpm-lock.yaml` and toolchain catalog. Use frozen installs; keep the catalogs
+and pnpm build-script approvals under review. `vp build` is the bundler only:
+use `make site` or the site's `vp run build` task for generated examples,
+type checks, docs, prerendered pages and demo assembly.
+
+Run development builds, tests and browser QA on EGGIE. Connect with
+`ssh root@eggie`; do not assume an `egsox` account exists there.
 
 ## `cmd/nebprx/testdata/`
 
@@ -70,3 +82,25 @@ environment variables use `NEBPRX_*`, and the install URL is
 `https://prx.nebuless.cloud/install.sh`. The Go module is
 `github.com/Nebuless/nebprx`. Legacy `claw-patrol-*` assets are
 kept only for compatibility.
+
+## Marketing skill pointers
+
+For marketing tasks, manually read [.agents/marketing-skills.md](../.agents/marketing-skills.md)
+and the draft [.agents/product-marketing.md](../.agents/product-marketing.md).
+Then read the selected skill's SKILL.md under
+[.agents/skills/](../.agents/skills/) and its task-relevant references.
+Links above are relative to this .claude/CLAUDE.md file. When reading via the
+root AGENTS.md symlink, resolve them from .claude/.
+
+.claude/skills links to the canonical .agents/skills directory for Claude's
+documented project path. Pi and other agents should use the manual reading
+route if their configuration does not discover these skills. Do not assume
+universal auto-discovery. Context and sample copy remain drafts until approved.
+
+## Design skill
+
+Taste Skill (design-taste-frontend) is installed in .agents/skills/ for Codex,
+Pi and OmO. See [.agents/taste-skill.md](../.agents/taste-skill.md) for provenance,
+discovery and execution requirements. Preserve PRX's existing Clear Glass
+design system, shared tokens and brand assets over the skill's aesthetic
+defaults. Installation does not authorize UI changes or a redesign.

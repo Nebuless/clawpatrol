@@ -1,13 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { SectionLabel } from "../components/SectionLabel";
 
-function Problem({
-  icon,
-  children,
-}: {
-  icon: ComponentChildren;
-  children: ComponentChildren;
-}) {
+function Problem({ icon, children }: { icon: ComponentChildren; children: ComponentChildren }) {
   return (
     <div class="flex flex-col gap-5">
       <div class="size-16 squircle-lg bg-navy text-canvas flex items-center justify-center">
@@ -102,19 +96,15 @@ export function ProblemSection() {
               Access shouldn’t be <span class="text-rust">permission</span>
             </ProblemHeading>
             <ProblemBody>
-              An agent that can read your member database can delete from it
-              just as easily.
+              An agent that can read your member database can delete from it just as easily.
             </ProblemBody>
           </Problem>
 
           <Problem icon={<KeyIcon />}>
             <ProblemHeading>
-              Using keys shouldn’t mean{" "}
-              <span class="text-rust">risking them</span>
+              Using keys shouldn’t mean <span class="text-rust">risking them</span>
             </ProblemHeading>
-            <ProblemBody>
-              A prompt-injected agent leaks every credential it holds.
-            </ProblemBody>
+            <ProblemBody>A prompt-injected agent leaks every credential it holds.</ProblemBody>
           </Problem>
 
           <Problem icon={<EyeIcon />}>
@@ -122,16 +112,15 @@ export function ProblemSection() {
               You can’t see <span class="text-rust">what happened</span>
             </ProblemHeading>
             <ProblemBody>
-              When someone asks what an agent did, the answer is scattered
-              across a dozen systems.
+              When someone asks what an agent did, the answer is scattered across a dozen systems.
             </ProblemBody>
           </Problem>
         </div>
         <SectionLabel class="mt-32 ml-0">The solution</SectionLabel>
         <div className="text-3xl sm:text-4xl lg:text-5xl font-display mb-16 text-balance leading-[1.1]">
           PRX sits between your agents and your systems. It{" "}
-          <span className="text-rust">checks</span> their requests against your
-          rules, <span className="text-rust">holds</span> the credentials, and{" "}
+          <span className="text-rust">checks</span> their requests against your rules,{" "}
+          <span className="text-rust">holds</span> the credentials, and{" "}
           <span className="text-rust">records</span> what happens.
         </div>
       </div>

@@ -20,7 +20,7 @@ and any machine that will run agents:
 curl -fsSL https://prx.nebuless.cloud/install.sh | sh
 ```
 
-PRX runs on Linux, macOS, and Windows. The installer drops a single
+PRX release binaries are provided for Linux and macOS. The installer drops a single
 binary in `~/.local/bin`.
 
 ## Run the gateway

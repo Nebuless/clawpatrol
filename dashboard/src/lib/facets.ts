@@ -53,25 +53,43 @@ export function useFacets(): {
   return { byFamily, loaded: cache !== undefined };
 }
 
+function formatValue(value: unknown): string {
+  switch (typeof value) {
+    case "string":
+    case "number":
+    case "boolean":
+    case "bigint":
+    case "symbol":
+    case "undefined":
+      return String(value);
+    case "object":
+      return JSON.stringify(value) ?? "";
+    default:
+      return "";
+  }
+}
+
 // formatFacetValue picks a sensible string projection for a single
 // report-field value based on its declared kind. Lists join with
-// commas, maps render as `key=value` pairs, ints stringify.
+// commas, maps render as key=value pairs, ints stringify.
 export function formatFacetValue(kind: string, value: unknown): string {
   if (value == null) return "";
   switch (kind) {
     case "string_list":
-      return Array.isArray(value) ? value.filter(Boolean).join(", ") : String(value);
+      return Array.isArray(value)
+        ? value.filter(Boolean).map(formatValue).join(", ")
+        : formatValue(value);
     case "string_map":
       if (value && typeof value === "object" && !Array.isArray(value)) {
         return Object.entries(value as Record<string, unknown>)
-          .map(([k, v]) => `${k}=${v}`)
+          .map(([k, v]) => `${k}=${formatValue(v)}`)
           .join(" ");
       }
       return "";
     case "int":
-      return String(value);
+      return formatValue(value);
     case "string":
     default:
-      return typeof value === "string" ? value : String(value);
+      return formatValue(value);
   }
 }

@@ -8,7 +8,7 @@
 // row 2. Sort is by pending-connection count descending so the
 // types operators need to act on surface first.
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { Integration, TailscaleNodeState } from "../lib/api";
 import { clearCredential, oauthRevoke, tailscaleConnect, tailscaleDisconnect } from "../lib/api";
 import {
@@ -151,11 +151,9 @@ export function CredentialsTypeGrid({
 
   // Drop the active type if it disappears from the list (e.g. a
   // reload removed every credential of that type).
-  useEffect(() => {
-    if (activeType && !groups.some((g) => g.type === activeType)) {
-      setActiveType(null);
-    }
-  }, [activeType, groups]);
+  if (activeType && !groups.some((g) => g.type === activeType)) {
+    setActiveType(null);
+  }
 
   function handleConnect(i: Integration) {
     if (i.has_tailscale_auth && i.tailscale_auth) {
@@ -194,7 +192,7 @@ export function CredentialsTypeGrid({
     }
   }
 
-  function handleDisconnect(i: Integration) {
+  async function handleDisconnect(i: Integration) {
     const label = credentialTypeLabel(i.type, i.name);
     const what = i.has_oauth
       ? "revoke the OAuth token"
@@ -208,14 +206,17 @@ export function CredentialsTypeGrid({
     ) {
       return;
     }
-    if (i.has_tailscale_auth && i.tailscale_auth) {
-      tailscaleDisconnect(i.tailscale_auth.disconnect_url).then(onRefresh);
-      return;
-    }
-    if (i.has_oauth) {
-      oauthRevoke(i.id).then(onRefresh);
-    } else {
-      clearCredential(i.id).then(onRefresh);
+    try {
+      if (i.has_tailscale_auth && i.tailscale_auth) {
+        await tailscaleDisconnect(i.tailscale_auth.disconnect_url);
+      } else if (i.has_oauth) {
+        await oauthRevoke(i.id);
+      } else {
+        await clearCredential(i.id);
+      }
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Disconnect failed.");
     }
   }
 

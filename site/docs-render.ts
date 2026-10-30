@@ -22,9 +22,7 @@ const hclLang: LanguageFn = (h: HLJSApi) => ({
   aliases: ["terraform", "tf"],
   case_insensitive: false,
   keywords: {
-    keyword:
-      "approver credential endpoint policy profile rule tunnel " +
-      "device defaults",
+    keyword: "approver credential endpoint policy profile rule tunnel " + "device defaults",
     literal: "true false null",
     built_in: "var local module data resource",
   },
@@ -212,21 +210,13 @@ marked.use({
     ) {
       const alignAttr = (i: number) => (align[i] ? ` align="${align[i]}"` : "");
       const thead = `<thead><tr>${header
-        .map(
-          (cell, i) =>
-            `<th${alignAttr(i)}>${this.parser.parseInline(cell.tokens)}</th>`,
-        )
+        .map((cell, i) => `<th${alignAttr(i)}>${this.parser.parseInline(cell.tokens)}</th>`)
         .join("")}</tr></thead>`;
       const tbody = `<tbody>${rows
         .map(
           (row) =>
             `<tr>${row
-              .map(
-                (cell, i) =>
-                  `<td${alignAttr(i)}>${this.parser.parseInline(
-                    cell.tokens,
-                  )}</td>`,
-              )
+              .map((cell, i) => `<td${alignAttr(i)}>${this.parser.parseInline(cell.tokens)}</td>`)
               .join("")}</tr>`,
         )
         .join("")}</tbody>`;
@@ -280,8 +270,7 @@ export function loadDocs(docsDir: string): Doc[] {
     const title = meta.title ?? (h1 ? h1[1] : slug.replace(/-/g, " "));
     const html = marked.parse(body, { async: false }) as string;
     const description =
-      meta.description ??
-      extractDescription(body, `${title} — PRX documentation.`);
+      meta.description ?? extractDescription(body, `${title} — PRX documentation.`);
     return { slug, title, html, raw, description };
   });
 }
@@ -290,9 +279,7 @@ function sidebar(docs: Doc[], current: string): string {
   return docs
     .map((d) => {
       const cls =
-        d.slug === current
-          ? "font-semibold text-rust"
-          : "text-text-muted hover:text-text";
+        d.slug === current ? "font-semibold text-rust" : "text-text-muted hover:text-text";
       return `<a href="/docs/${d.slug}/"
       class="${cls} block py-1 text-sm font-mono
         underline-offset-4 transition-colors"
@@ -386,26 +373,29 @@ export function prerenderPageHtml(viteIndexHtml: string, page: (typeof pages)[nu
     description: page.description,
     url: `${SITE_ORIGIN}${page.path}`,
     type: "website",
-    jsonLd: page.path === "/" ? {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      name: "PRX",
-      description: page.description,
-      url: SITE_ORIGIN,
-      applicationCategory: "DeveloperApplication",
-      operatingSystem: "Linux, macOS, and Windows",
-      offers: {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-      },
-      license: "https://opensource.org/licenses/MIT",
-      author: {
-        "@type": "Organization",
-        name: "Nebuless",
-        url: SITE_ORIGIN,
-      },
-    } : undefined,
+    jsonLd:
+      page.path === "/"
+        ? {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            name: "PRX",
+            description: page.description,
+            url: SITE_ORIGIN,
+            applicationCategory: "DeveloperApplication",
+            operatingSystem: "Linux, macOS, and Windows",
+            offers: {
+              "@type": "Offer",
+              price: "0",
+              priceCurrency: "USD",
+            },
+            license: "https://opensource.org/licenses/MIT",
+            author: {
+              "@type": "Organization",
+              name: "Nebuless",
+              url: SITE_ORIGIN,
+            },
+          }
+        : undefined,
   });
 
   let out = viteIndexHtml
@@ -416,10 +406,7 @@ export function prerenderPageHtml(viteIndexHtml: string, page: (typeof pages)[nu
   // the title and font preload tags, so we only add what's missing.
   out = out.replace("</head>", `${meta}\n</head>`);
   // Replace the empty root div with the SSR'd Landing tree.
-  out = out.replace(
-    /<div id="root">\s*<\/div>/,
-    `<div id="root">${landingHtml}</div>`,
-  );
+  out = out.replace(/<div id="root">\s*<\/div>/, `<div id="root">${landingHtml}</div>`);
   return out;
 }
 

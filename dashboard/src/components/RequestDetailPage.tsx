@@ -246,7 +246,7 @@ function ActionButtons({ ev, support }: { ev: EventRecord; support: boolean }) {
         </Button>
       )}
       {!support && <DownloadActionButton ev={ev} />}
-      {ruleOpen && <RulePreviewModal ev={ev} onClose={() => setRuleOpen(false)} />}
+      {ruleOpen && <RulePreviewModal key={ev.id} ev={ev} onClose={() => setRuleOpen(false)} />}
     </div>
   );
 }
@@ -300,8 +300,6 @@ function RulePreviewModal({ ev, onClose }: { ev: EventRecord; onClose: () => voi
   useEffect(() => {
     let cancelled = false;
     if (!ev.id) return;
-    setBusy(true);
-    setErr(null);
     previewRuleFromAction(ev.id)
       .then((p) => {
         if (cancelled) return;
@@ -963,7 +961,7 @@ function JsonNode({ value }: { value: unknown }) {
       </Collapsible>
     );
   }
-  return <span>{String(value)}</span>;
+  return <span>{formatFacetValue("string", value)}</span>;
 }
 
 function StringNode({ value }: { value: string }) {

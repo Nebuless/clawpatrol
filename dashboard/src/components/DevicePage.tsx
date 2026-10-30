@@ -44,31 +44,11 @@ export function DevicePage({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileErr, setProfileErr] = useState<string | null>(null);
   const [pendingProfile, setPendingProfile] = useState<string | null>(null);
-  // Per-profile credential list — server-filters to only the
-  // credentials referenced by endpoints in this device's profile,
-  // so a "writer" device doesn't see the readonly's pg-cred and vice
-  // versa. Falls back to the parent's full list for the no-profile
-  // case (legacy single-tenant configs).
-  const [profileCreds, setProfileCreds] = useState<Integration[] | null>(null);
   useEffect(() => {
     listProfiles()
       .then((p) => setProfiles(p ?? []))
       .catch(() => setProfiles([]));
   }, []);
-  const devProfile = a?.profile;
-  useEffect(() => {
-    if (!devProfile) {
-      setProfileCreds(null);
-      return;
-    }
-    getStatus(devProfile)
-      .then((c) => setProfileCreds(c ?? []))
-      .catch(() => setProfileCreds(null));
-    // Re-fetch whenever the parent's integrations list changes too —
-    // OAuth modal calls onRefresh on success, which updates parent state
-    // but otherwise this effect would stay stale and the card wouldn't
-    // flip to "connected" until the next manual profile change.
-  }, [devProfile, integrations]);
   if (!a) {
     return (
       <Main>
@@ -82,7 +62,6 @@ export function DevicePage({
 
   const dev = a;
   const total = dev.bytes_in + dev.bytes_out;
-  const allForUser = profileCreds ?? integrations;
 
   async function remove() {
     if (
@@ -232,7 +211,17 @@ export function DevicePage({
           </span>
         </div>
         <div className="p-3">
-          <IntegrationsCards list={allForUser} onConnect={onConnect} onRefresh={onRefresh} />
+          {a.profile ? (
+            <ProfileCredentials
+              key={a.profile}
+              profile={a.profile}
+              integrations={integrations}
+              onConnect={onConnect}
+              onRefresh={onRefresh}
+            />
+          ) : (
+            <IntegrationsCards list={integrations} onConnect={onConnect} onRefresh={onRefresh} />
+          )}
         </div>
       </section>
 
@@ -262,6 +251,58 @@ export function DevicePage({
         />
       )}
     </Main>
+  );
+}
+
+function ProfileCredentials({
+  profile,
+  integrations,
+  onConnect,
+  onRefresh,
+}: {
+  profile: string;
+  integrations: Integration[];
+  onConnect: (id: string) => void;
+  onRefresh: () => void;
+}) {
+  const [result, setResult] = useState<
+    { kind: "ready"; credentials: Integration[] } | { kind: "error" } | null
+  >(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let live = true;
+    getStatus(profile)
+      .then((credentials) => {
+        if (live) setResult({ kind: "ready", credentials: credentials ?? [] });
+      })
+      .catch(() => {
+        if (live) setResult({ kind: "error" });
+      });
+    // Parent updates include successful OAuth connections and disconnects.
+    return () => {
+      live = false;
+    };
+  }, [profile, integrations, attempt]);
+  if (!result) return <p role="status">Loading credentials…</p>;
+  if (result.kind === "error")
+    return (
+      <div role="alert" className="space-y-2 text-sm">
+        <p>Credentials could not be loaded for this profile.</p>
+        <Button
+          className="min-h-11"
+          onClick={() => {
+            setResult(null);
+            setAttempt((value) => value + 1);
+          }}
+        >
+          Retry credentials
+        </Button>
+      </div>
+    );
+  if (result.credentials.length === 0)
+    return <p className="text-sm text-text-muted">No credentials declared for this profile.</p>;
+  return (
+    <IntegrationsCards list={result.credentials} onConnect={onConnect} onRefresh={onRefresh} />
   );
 }
 

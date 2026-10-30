@@ -191,8 +191,7 @@ const WALL_OVERHANG = 100;
 const xMin = Math.min(...TILES.map((t) => t.cx - t.W)) - 2;
 const xMax = Math.max(...TILES.map((t) => t.cx + t.W)) + 2;
 const yMin = Math.min(...TILES.map((t) => t.cy - t.W / 2)) - WALL_OVERHANG;
-const yMax =
-  Math.max(...TILES.map((t) => t.cy + t.W / 2 + t.D)) + WALL_OVERHANG;
+const yMax = Math.max(...TILES.map((t) => t.cy + t.W / 2 + t.D)) + WALL_OVERHANG;
 const TOTAL_W = xMax - xMin;
 const TOTAL_H = yMax - yMin;
 
@@ -287,21 +286,9 @@ export function IsometricStack({ class: cls = "" }: { class?: string }) {
             y2={yMax}
             gradientUnits="userSpaceOnUse"
           >
-            <stop
-              offset="0%"
-              stop-color="var(--color-navy-100)"
-              stop-opacity="0"
-            />
-            <stop
-              offset="50%"
-              stop-color="var(--color-navy-100)"
-              stop-opacity="0.18"
-            />
-            <stop
-              offset="100%"
-              stop-color="var(--color-navy-100)"
-              stop-opacity="0"
-            />
+            <stop offset="0%" stop-color="var(--color-navy-100)" stop-opacity="0" />
+            <stop offset="50%" stop-color="var(--color-navy-100)" stop-opacity="0.18" />
+            <stop offset="100%" stop-color="var(--color-navy-100)" stop-opacity="0" />
           </linearGradient>
           <linearGradient
             id="wallBackRight"
@@ -311,21 +298,9 @@ export function IsometricStack({ class: cls = "" }: { class?: string }) {
             y2={yMax}
             gradientUnits="userSpaceOnUse"
           >
-            <stop
-              offset="0%"
-              stop-color="var(--color-navy-300)"
-              stop-opacity="0"
-            />
-            <stop
-              offset="50%"
-              stop-color="var(--color-navy-300)"
-              stop-opacity="0.18"
-            />
-            <stop
-              offset="100%"
-              stop-color="var(--color-navy-300)"
-              stop-opacity="0"
-            />
+            <stop offset="0%" stop-color="var(--color-navy-300)" stop-opacity="0" />
+            <stop offset="50%" stop-color="var(--color-navy-300)" stop-opacity="0.18" />
+            <stop offset="100%" stop-color="var(--color-navy-300)" stop-opacity="0" />
           </linearGradient>
           <linearGradient
             id="wallFrontLeft"
@@ -335,21 +310,9 @@ export function IsometricStack({ class: cls = "" }: { class?: string }) {
             y2={yMax}
             gradientUnits="userSpaceOnUse"
           >
-            <stop
-              offset="0%"
-              stop-color="var(--color-navy-50)"
-              stop-opacity="0"
-            />
-            <stop
-              offset="50%"
-              stop-color="var(--color-navy-50)"
-              stop-opacity="0.18"
-            />
-            <stop
-              offset="100%"
-              stop-color="var(--color-navy-50)"
-              stop-opacity="0"
-            />
+            <stop offset="0%" stop-color="var(--color-navy-50)" stop-opacity="0" />
+            <stop offset="50%" stop-color="var(--color-navy-50)" stop-opacity="0.18" />
+            <stop offset="100%" stop-color="var(--color-navy-50)" stop-opacity="0" />
           </linearGradient>
           <linearGradient
             id="wallFrontRight"
@@ -359,21 +322,9 @@ export function IsometricStack({ class: cls = "" }: { class?: string }) {
             y2={yMax}
             gradientUnits="userSpaceOnUse"
           >
-            <stop
-              offset="0%"
-              stop-color="var(--color-navy-200)"
-              stop-opacity="0"
-            />
-            <stop
-              offset="50%"
-              stop-color="var(--color-navy-200)"
-              stop-opacity="0.18"
-            />
-            <stop
-              offset="100%"
-              stop-color="var(--color-navy-200)"
-              stop-opacity="0"
-            />
+            <stop offset="0%" stop-color="var(--color-navy-200)" stop-opacity="0" />
+            <stop offset="50%" stop-color="var(--color-navy-200)" stop-opacity="0.18" />
+            <stop offset="100%" stop-color="var(--color-navy-200)" stop-opacity="0" />
           </linearGradient>
         </defs>
         {/* Back walls — two big parallelograms along CP's back-left
@@ -387,18 +338,14 @@ export function IsometricStack({ class: cls = "" }: { class?: string }) {
             fill="url(#wallBackLeft)"
             points={`0,${
               -BIG_W / 2 - TOP_WALL_H
-            } ${-BIG_W},${-TOP_WALL_H} ${-BIG_W},${BOT_WALL_H} 0,${
-              -BIG_W / 2 + BOT_WALL_H
-            }`}
+            } ${-BIG_W},${-TOP_WALL_H} ${-BIG_W},${BOT_WALL_H} 0,${-BIG_W / 2 + BOT_WALL_H}`}
           />
           {/* Back-right wall (3D plane at y=-65), full vertical extent */}
           <polygon
             fill="url(#wallBackRight)"
             points={`0,${
               -BIG_W / 2 - TOP_WALL_H
-            } ${BIG_W},${-TOP_WALL_H} ${BIG_W},${BOT_WALL_H} 0,${
-              -BIG_W / 2 + BOT_WALL_H
-            }`}
+            } ${BIG_W},${-TOP_WALL_H} ${BIG_W},${BOT_WALL_H} 0,${-BIG_W / 2 + BOT_WALL_H}`}
           />
         </g>
 

@@ -10,9 +10,9 @@ subcommands.
 curl -fsSL https://prx.nebuless.cloud/install.sh | sh
 ```
 
-PRX runs on Linux, macOS, and Windows. The statically-linked Go binary
+PRX release binaries are provided for Linux and macOS. The statically-linked Go binary
 is dropped in `~/.local/bin`. Set `NEBPRX_FROM_SOURCE=1` to build from
-source instead (requires Go + `gh auth login`).
+source instead (requires Go, Node.js 22.23.4 and pnpm 12.16.1).
 
 ## Commands
 

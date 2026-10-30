@@ -75,17 +75,17 @@ export function SupportPanel() {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
   }
-  async function refresh() {
-    try {
-      const next = await supportRequest<SupportStatus>("/api/support");
-      setStatus(next);
-      setTarget((previous) =>
-        next.accounts.some((a) => a.id === previous) ? previous : (next.accounts[0]?.id ?? ""),
-      );
-      setError("");
-    } catch (e) {
-      setError(String(e));
-    }
+  function refresh() {
+    return supportRequest<SupportStatus>("/api/support").then(
+      (next) => {
+        setStatus(next);
+        setTarget((previous) =>
+          next.accounts.some((a) => a.id === previous) ? previous : (next.accounts[0]?.id ?? ""),
+        );
+        setError("");
+      },
+      (e: unknown) => setError(String(e)),
+    );
   }
   useEffect(() => {
     void refresh();

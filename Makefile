@@ -1,4 +1,4 @@
-.PHONY: build release dashboard test fmt fmt-check lint go-lint dashboard-lint clean install
+.PHONY: build release dashboard site frontend-install frontend-check frontend-test test fmt fmt-check lint go-lint dashboard-lint clean install
 
 build: dashboard
 	go build -o nebprx ./cmd/nebprx
@@ -12,9 +12,24 @@ release: dashboard
 	go build -ldflags "-s -w" -trimpath -o nebprx ./cmd/nebprx
 
 dashboard:
-	cd dashboard && deno install && deno task build
+	cd dashboard && pnpm install --frozen-lockfile && pnpm exec vp run build
 
-test:
+site: dashboard
+	cd site && pnpm install --frozen-lockfile && pnpm exec vp run build
+
+frontend-install:
+	cd dashboard && pnpm install --frozen-lockfile
+	cd site && pnpm install --frozen-lockfile
+
+frontend-check: frontend-install
+	cd dashboard && pnpm exec vp check
+	cd site && pnpm exec vp check
+
+frontend-test: frontend-install
+	cd dashboard && pnpm exec vp test
+	cd site && pnpm exec vp test
+
+test: dashboard frontend-test
 	go test ./...
 
 # Our tracked Go sources, excluding the vendored upstream copy under
@@ -24,13 +39,15 @@ GO_SRC = $(shell git ls-files '*.go' | grep -v '^third_party/')
 
 fmt:
 	gofmt -w $(GO_SRC)
-	cd dashboard && deno task format
+	cd dashboard && pnpm exec vp fmt
+	cd site && pnpm exec vp fmt
 
 fmt-check:
 	test -z "$$(gofmt -l $(GO_SRC))"
-	cd dashboard && deno task format:check
+	cd dashboard && pnpm exec vp fmt --check
+	cd site && pnpm exec vp fmt --check
 
-lint: go-lint dashboard-lint
+lint: go-lint frontend-check
 
 # `go-lint` requires the dashboard bundle so the //go:embed in
 # dashboard/embed.go resolves at compile time. Depending on
@@ -39,11 +56,11 @@ go-lint: dashboard
 	golangci-lint run --timeout 5m ./...
 
 dashboard-lint:
-	cd dashboard && deno task lint
+	cd dashboard && pnpm exec vp check
 
 clean:
 	rm -f nebprx
-	rm -rf dashboard/dist dashboard/node_modules
+	rm -rf dashboard/dist dashboard/node_modules site/dist site/node_modules
 
 install: build
 	install -m 0755 nebprx $${PREFIX:-$$HOME/.local/bin}/nebprx

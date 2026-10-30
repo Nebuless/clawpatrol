@@ -30,7 +30,7 @@ export function HITLBar({ agentIP }: { agentIP?: string } = {}) {
         /* ignore transient */
       }
     }
-    tick();
+    void tick();
     const t = setInterval(tick, 1000);
     return () => {
       cancelled = true;

@@ -48,8 +48,7 @@ export function DemoSection() {
           Click around the operator dashboard.
         </h3>
         <p class="text-center max-w-2xl mx-auto mb-12 mt-4 text-text-muted">
-          Open any request to see exactly
-          what the agent sent and what PRX decided.
+          Open any request to see exactly what the agent sent and what PRX decided.
         </p>
       </div>
 
@@ -58,12 +57,7 @@ export function DemoSection() {
       </div>
 
       <div class="text-center">
-        <Button
-          href={DEMO_URL}
-          size="md"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <Button href={DEMO_URL} size="md" target="_blank" rel="noopener noreferrer">
           Open the demo
           <svg
             viewBox="0 0 24 24"

@@ -103,7 +103,7 @@ export function IntegrationsCards({
     }
   }
 
-  function disconnect(i: Integration) {
+  async function disconnect(i: Integration) {
     const label = credentialTypeLabel(i.type, i.name);
     const what = i.has_oauth
       ? "revoke the OAuth token"
@@ -117,14 +117,17 @@ export function IntegrationsCards({
     ) {
       return;
     }
-    if (i.has_tailscale_auth && i.tailscale_auth) {
-      tailscaleDisconnect(i.tailscale_auth.disconnect_url).then(onRefresh);
-      return;
-    }
-    if (i.has_oauth) {
-      oauthRevoke(i.id).then(onRefresh);
-    } else {
-      clearCredential(i.id).then(onRefresh);
+    try {
+      if (i.has_tailscale_auth && i.tailscale_auth) {
+        await tailscaleDisconnect(i.tailscale_auth.disconnect_url);
+      } else if (i.has_oauth) {
+        await oauthRevoke(i.id);
+      } else {
+        await clearCredential(i.id);
+      }
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Disconnect failed.");
     }
   }
 

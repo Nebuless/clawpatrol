@@ -6,7 +6,7 @@
 
 ## Overview — actors
 
-PRX runs as a server/service on Linux, macOS, and Windows.
+PRX release binaries provide gateway services on Linux and macOS.
 
 Five actors take part in a PRX deployment:
 

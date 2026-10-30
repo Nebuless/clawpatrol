@@ -37,9 +37,14 @@ export function LiveRequests({
   const [showDials, setShowDials] = useState(false);
   const { byFamily } = useFacets();
 
-  useEffect(() => {
+  const [source, setSource] = useState({ agentIP, max });
+  if (source.agentIP !== agentIP || source.max !== max) {
+    setSource({ agentIP, max });
     setEvents([]);
     setBacklogGap(false);
+  }
+
+  useEffect(() => {
     const url = agentIP ? `/api/events?agent=${encodeURIComponent(agentIP)}` : "/api/events";
     const es = new EventSource(url);
     es.addEventListener("backlog-gap", () => setBacklogGap(true));

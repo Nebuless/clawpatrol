@@ -15,11 +15,7 @@ export function Layout({ children }: { children: ComponentChildren }) {
       </a>
       <Header />
       <DotField />
-      <main
-        id="main"
-        tabindex={-1}
-        class="focus:outline-none focus-visible:outline-none"
-      >
+      <main id="main" tabindex={-1} class="focus:outline-none focus-visible:outline-none">
         {children}
       </main>
       <ShadeGradient color="text-navy-700" />

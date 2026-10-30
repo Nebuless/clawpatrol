@@ -10,8 +10,7 @@ type CommonProps = {
   children?: ComponentChildren;
 };
 
-type AnchorProps = CommonProps &
-  Omit<JSX.IntrinsicElements["a"], "size"> & { href: string };
+type AnchorProps = CommonProps & Omit<JSX.IntrinsicElements["a"], "size"> & { href: string };
 
 type ButtonElProps = CommonProps &
   Omit<JSX.IntrinsicElements["button"], "size"> & { href?: undefined };

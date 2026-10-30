@@ -9,7 +9,7 @@ until a human approves it before the request reaches Kubernetes.
 
 For the full overview see [prx.nebuless.cloud](https://prx.nebuless.cloud).
 
-PRX is a server/service for Linux, macOS, and Windows.
+Release binaries are provided for Linux and macOS.
 
 ## Install
 
@@ -17,7 +17,8 @@ PRX is a server/service for Linux, macOS, and Windows.
 curl -fsSL https://prx.nebuless.cloud/install.sh | sh
 ```
 
-From source: `make` (requires Go and Node.js).
+From source: `make` (requires Go, Node.js 22.23.4 and pnpm 12.16.1).
+See [development setup](doc/dev-setup.md) for the pinned Vite+ toolchain and tests.
 
 ## A rule
 

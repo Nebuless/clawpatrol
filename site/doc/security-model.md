@@ -1,6 +1,6 @@
 # Security Model
 
-PRX runs as a server/service on Linux, macOS, and Windows.
+PRX release binaries provide gateway services on Linux and macOS.
 
 PRX is a forward proxy that intercepts outbound traffic
 (HTTPS, SSH, Postgres, …), injects credentials on behalf of the

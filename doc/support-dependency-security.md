@@ -116,11 +116,13 @@ necessary after source changes.
 
 ## Audit policy and residual risk
 
-Deno lockfile is release-authoritative. Keep package.json and deno.lock coherent,
-use frozen installs, retain conventional npm compatibility, and regenerate npm
-lockfiles normally rather than editing resolutions by hand. Existing npm lock
-had no tracked diff. Prefer patched parent releases over overrides or broad
+The frontend migration on 2026-10-30 replaces the prior Deno policy: each
+application's pnpm-lock.yaml is release-authoritative. Keep its package.json
+and pnpm-workspace.yaml catalog coherent, use frozen installs and review native
+build approvals. Regenerate locks with the pinned pnpm rather than editing
+resolutions by hand. Prefer patched parent releases over overrides or broad
 upgrades. Preserve Go checksum verification and resolve dependencies normally.
+Earlier Deno commands and results in this document are historical evidence.
 
 Gate releases on package tests, selected CLI support/account/migration tests,
 Go build, symbol-level govulncheck, dashboard frozen install/audit/lint/format/build.

@@ -14,8 +14,7 @@ export function DotField({ height = "h-6", class: cls = "" }: DotFieldProps) {
       aria-hidden="true"
       class={`prx-dotfield w-full text-canvas-400 ${height} ${cls}`}
       style={{
-        backgroundImage:
-          "radial-gradient(circle, currentColor 0.5px, transparent 1px)",
+        backgroundImage: "radial-gradient(circle, currentColor 0.5px, transparent 1px)",
         backgroundSize: "4px 4px",
         backgroundPosition: "-1px -1px",
       }}

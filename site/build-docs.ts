@@ -6,12 +6,7 @@
 
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import {
-  loadDocs,
-  prerenderPageHtml,
-  renderDocPage,
-  SITE_ORIGIN,
-} from "./docs-render.ts";
+import { loadDocs, prerenderPageHtml, renderDocPage, SITE_ORIGIN } from "./docs-render.ts";
 
 import { pages } from "./src/pages";
 
@@ -31,8 +26,7 @@ for (const page of pages) {
 
 // Extract <link> tags for CSS from vite's output so the doc pages
 // pull in the same hashed bundle as the landing.
-const cssLinks = viteIndex.match(/<link[^>]+stylesheet[^>]*>/g)?.join("\n") ??
-  "";
+const cssLinks = viteIndex.match(/<link[^>]+stylesheet[^>]*>/g)?.join("\n") ?? "";
 
 // 2) Doc pages ──────────────────────────────────────────────────────
 mkdirSync(distDocsDir, { recursive: true });
@@ -57,11 +51,7 @@ const sitemapUrls = [
 ];
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${
-  sitemapUrls
-    .map((u) => `  <url><loc>${u}</loc></url>`)
-    .join("\n")
-}
+${sitemapUrls.map((u) => `  <url><loc>${u}</loc></url>`).join("\n")}
 </urlset>
 `;
 writeFileSync(join(distDir, "sitemap.xml"), sitemap);
@@ -88,14 +78,7 @@ ${pages.map((p) => `- [${p.title}](${SITE_ORIGIN}${p.path}): ${p.description}`).
 
 ## Docs
 
-${
-  docs
-    .map(
-      (d) =>
-        `- [${d.title}](${SITE_ORIGIN}/docs/${d.slug}.md): ${d.description}`,
-    )
-    .join("\n")
-}
+${docs.map((d) => `- [${d.title}](${SITE_ORIGIN}/docs/${d.slug}.md): ${d.description}`).join("\n")}
 `;
 writeFileSync(join(distDir, "llms.txt"), llmsTxt);
 
@@ -104,17 +87,10 @@ const llmsFull = `# PRX — Full Documentation
 > Concatenated source of every doc page. The canonical HTML versions
 > live under ${SITE_ORIGIN}/docs/.
 
-${
-  docs
-    .map(
-      (d) =>
-        `\n\n<!-- Source: ${SITE_ORIGIN}/docs/${d.slug}.md -->\n\n${d.raw}`,
-    )
-    .join("\n---\n")
-}
+${docs
+  .map((d) => `\n\n<!-- Source: ${SITE_ORIGIN}/docs/${d.slug}.md -->\n\n${d.raw}`)
+  .join("\n---\n")}
 `;
 writeFileSync(join(distDir, "llms-full.txt"), llmsFull);
 
-console.log(
-  `Built landing + ${docs.length} doc pages, sitemap, robots, llms.txt`,
-);
+console.log(`Built landing + ${docs.length} doc pages, sitemap, robots, llms.txt`);

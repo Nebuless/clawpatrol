@@ -47,7 +47,10 @@ export function CopyButton({
         e.preventDefault();
         e.stopPropagation();
         if (disabled) return;
-        copyText(text()).then((ok) => flash(ok ? "copied" : "error"));
+        copyText(text()).then(
+          (ok) => flash(ok ? "copied" : "error"),
+          () => flash("error"),
+        );
       }}
       disabled={disabled}
       aria-label={title}

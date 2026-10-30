@@ -1,9 +1,35 @@
-import { defineConfig } from "vite";
+// vp migrate: merged .oxlintrc.json (4fc7c6ed969d0f64844e599804661da0).
+import { defineConfig, lazyPlugins } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  fmt: {
+    ignorePatterns: [],
+  },
+  lint: {
+    plugins: ["typescript", "unicorn", "oxc", "react"],
+    categories: {
+      correctness: "error",
+    },
+    rules: {
+      "vite-plus/prefer-vite-plus-imports": "error",
+    },
+    env: {
+      builtin: true,
+    },
+    options: {
+      typeAware: true,
+      typeCheck: true,
+    },
+    jsPlugins: [
+      {
+        name: "vite-plus",
+        specifier: "vite-plus/oxlint-plugin",
+      },
+    ],
+  },
+  plugins: lazyPlugins(() => [react(), tailwindcss()]),
   build: {
     outDir: "dist",
     emptyOutDir: true,
@@ -16,7 +42,7 @@ export default defineConfig({
     // from loopback, but the proxy hop is always loopback even when
     // Vite itself binds 0.0.0.0 — so leaving host unbound would let
     // any LAN caller reach our local gateway as dev@local. Override
-    // with `npm run dev -- --host …` when you actually want LAN
+    // with `pnpm run dev -- --host …` when you actually want LAN
     // access (you'd also want to drop the header below first).
     host: "127.0.0.1",
     proxy: {
@@ -25,7 +51,7 @@ export default defineConfig({
         headers: {
           // Local dev only: the gateway's tailnet gate trusts this
           // header when the request comes from loopback, which lets
-          // `npm run dev` talk to the gateway without onboarding a
+          // `pnpm run dev` talk to the gateway without onboarding a
           // real wg/tailnet device.
           "Tailscale-User-Login": "dev@local",
         },

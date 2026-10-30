@@ -179,7 +179,7 @@ function DashboardApp() {
           onClose={() => setConnectId(null)}
           onDone={() => {
             setConnectId(null);
-            refresh();
+            void refresh();
           }}
         />
       )}

@@ -30,6 +30,8 @@ export function useDashboardContext() {
   const [error, setError] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
   const [ended, setEnded] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [failed, setFailed] = useState(false);
   const model = useRef({
     alive: false,
     epoch: 0,
@@ -51,65 +53,70 @@ export function useDashboardContext() {
     if (!m.alive || m.refreshing) return;
     m.refreshing = true;
     const current = () => m.alive && epoch === m.epoch;
-    try {
-      let selectedProfile = m.context.profile;
-      let s = await getState(selectedProfile);
-      if (m.ready && selectedProfile !== m.context.profile) return;
-      if (!current()) return;
-      if (!m.ready) {
-        m.support = Boolean(s.support);
-        m.sessionID = s.support?.session_id ?? "";
-        m.enabled = s.support_available === true && !m.support;
-        let c: DashboardContext = {};
-        if (m.support) c = s.account_context ?? {};
-        else if (m.enabled) {
-          const saved = await contextRequest();
-          if (!current()) return;
-          c = saved.context;
-          m.revision = saved.revision;
-          setProfiles(saved.profiles);
-        }
-        if (m.support || m.enabled) {
+    let selectedProfile = m.context.profile;
+    // Publish results and failures only from request settlement, guarded by epoch.
+    return getState(selectedProfile)
+      .then(async (initialState) => {
+        let s = initialState;
+        if (m.ready && selectedProfile !== m.context.profile) return;
+        if (!current()) return;
+        if (!m.ready) {
+          m.support = Boolean(s.support);
+          m.sessionID = s.support?.session_id ?? "";
+          m.enabled = s.support_available === true && !m.support;
+          setEnabled(m.enabled);
+          let c: DashboardContext = {};
+          if (m.support) c = s.account_context ?? {};
+          else if (m.enabled) {
+            const saved = await contextRequest();
+            if (!current()) return;
+            c = saved.context;
+            m.revision = saved.revision;
+            setProfiles(saved.profiles);
+          }
+          if (m.support || m.enabled) {
+            const names = await listProfiles();
+            if (!current()) return;
+            if (c.profile && !names.includes(c.profile))
+              throw new Error("Saved profile is no longer available. Dashboard data is hidden.");
+            setProfiles(names);
+            // An explicit deep link wins. Empty hash restores the saved view.
+            if (!window.location.hash || window.location.hash === "#") {
+              window.location.hash = contextHash(c);
+            } else if (m.support && !safeView(window.location.hash)) {
+              window.location.hash = contextHash(c);
+            }
+            m.context = c;
+            setContext(c);
+            selectedProfile = c.profile;
+            if (c.profile) s = await getState(c.profile);
+            if (!current()) return;
+          }
+          m.ready = true;
+        } else if (m.enabled) {
           const names = await listProfiles();
           if (!current()) return;
-          if (c.profile && !names.includes(c.profile))
-            throw new Error("Saved profile is no longer available. Dashboard data is hidden.");
+          if (m.context.profile && !names.includes(m.context.profile))
+            throw new Error("Selected profile is no longer available. Dashboard data is hidden.");
           setProfiles(names);
-          // An explicit deep link wins. Empty hash restores the saved view.
-          if (!window.location.hash || window.location.hash === "#") {
-            window.location.hash = contextHash(c);
-          } else if (m.support && !safeView(window.location.hash)) {
-            window.location.hash = contextHash(c);
-          }
-          m.context = c;
-          setContext(c);
-          selectedProfile = c.profile;
-          if (c.profile) s = await getState(c.profile);
-          if (!current()) return;
         }
-        m.ready = true;
-      } else if (m.enabled) {
-        const names = await listProfiles();
-        if (!current()) return;
-        if (m.context.profile && !names.includes(m.context.profile))
-          throw new Error("Selected profile is no longer available. Dashboard data is hidden.");
-        setProfiles(names);
-      }
-      if (!current() || selectedProfile !== m.context.profile) return;
-      if (m.support && s.support?.session_id !== m.sessionID) {
-        window.dispatchEvent(new Event("prx-support-ended"));
-        return;
-      }
-      setState(s);
-      setError("");
-    } catch (e) {
-      if (current()) {
-        setState(null);
-        setError(e instanceof Error ? e.message : "Dashboard unavailable.");
-      }
-    } finally {
-      if (epoch === m.epoch) m.refreshing = false;
-    }
+        if (!current() || selectedProfile !== m.context.profile) return;
+        if (m.support && s.support?.session_id !== m.sessionID) {
+          window.dispatchEvent(new Event("prx-support-ended"));
+          return;
+        }
+        setState(s);
+        setError("");
+      })
+      .catch((e: unknown) => {
+        if (current()) {
+          setState(null);
+          setError(e instanceof Error ? e.message : "Dashboard unavailable.");
+        }
+      })
+      .finally(() => {
+        if (epoch === m.epoch) m.refreshing = false;
+      });
   }, []);
 
   const save = useCallback(
@@ -140,6 +147,7 @@ export function useDashboardContext() {
       } catch (e) {
         if (m.alive && epoch === m.epoch) {
           m.failed = true;
+          setFailed(true);
           m.queued = null;
           setSaveStatus(e instanceof Error ? e.message : "Preferences could not be saved.");
           setError(e instanceof Error ? e.message : "Preferences could not be saved.");
@@ -164,6 +172,7 @@ export function useDashboardContext() {
       setState(null);
       setContext({});
       setProfiles([]);
+      setEnabled(false);
       setEnded(true);
     };
     const onHash = () => {
@@ -193,7 +202,7 @@ export function useDashboardContext() {
     ended,
     refresh,
     save,
-    enabled: model.current.enabled,
-    failed: model.current.failed,
+    enabled,
+    failed,
   };
 }
